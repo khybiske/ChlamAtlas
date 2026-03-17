@@ -1,8 +1,5 @@
 {
   "rewrites": [
-    {
-      "source": "/((?!design|AFmodels|models|images|backgrounds|structures|data|scripts|schema).*)",
-      "destination": "/web/index.html"
-    }
+    { "source": "/", "destination": "/web/index.html" }
   ]
 }
