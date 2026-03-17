@@ -1,0 +1,96 @@
+/* ChlamAtlas — custom styles */
+
+/* ─── Nav tabs ────────────────────────────────────────────── */
+.nav-tab {
+  @apply px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500
+         hover:text-gray-900 hover:bg-gray-100 transition;
+}
+.nav-tab.active {
+  @apply bg-gray-100 text-gray-900;
+}
+.mobile-tab {
+  @apply text-gray-400 transition flex flex-col items-center py-2 gap-0.5 flex-1;
+}
+.mobile-tab.active { @apply text-blue-500; }
+
+/* ─── Selector list (strains, collections) ───────────────── */
+.selector-row {
+  @apply flex items-center gap-4 px-4 py-3.5 border-b border-gray-100
+         hover:bg-gray-50 cursor-pointer transition active:bg-gray-100;
+}
+.selector-icon {
+  @apply w-14 h-14 rounded-full object-cover flex-shrink-0;
+}
+
+/* ─── Gene list ───────────────────────────────────────────── */
+.gene-row {
+  @apply flex items-center gap-3 px-4 py-3 border-b border-gray-100
+         hover:bg-gray-50 cursor-pointer transition;
+}
+.gene-thumb {
+  @apply w-10 h-10 rounded-lg object-cover bg-gray-100 flex-shrink-0;
+}
+/* Named gene: green. Unnamed: muted rose/salmon */
+.gene-named   { @apply font-semibold text-green-700; }
+.gene-unnamed { @apply font-medium text-rose-400; }
+.gene-locus   { @apply text-sm text-gray-500; }
+.gene-product { @apply text-xs text-gray-400 truncate mt-0.5; }
+
+/* ─── Detail: two-column label/value rows ─────────────────── */
+.detail-row {
+  @apply flex items-baseline gap-4 py-3 border-b border-gray-100 text-sm;
+}
+.detail-label {
+  @apply w-36 flex-shrink-0 text-gray-400 text-sm leading-snug;
+}
+.detail-value {
+  @apply flex-1 text-gray-900;
+}
+.detail-value-green { @apply flex-1 text-green-600 font-medium; }
+
+/* Section headers on detail pages */
+.section-head {
+  @apply flex items-center gap-2 text-base font-bold text-gray-900
+         pt-5 pb-2 border-b border-gray-200 mb-1;
+}
+
+/* ─── Pipeline dots ───────────────────────────────────────── */
+.pdot {
+  @apply w-3.5 h-3.5 rounded-full border-2 flex-shrink-0;
+}
+.pdot-done    { @apply bg-green-500  border-green-500; }
+.pdot-active  { @apply bg-yellow-400 border-yellow-400; }
+.pdot-blocked { @apply bg-red-400    border-red-400; }
+.pdot-pending { @apply bg-white      border-gray-300; }
+
+/* ─── Mutant list ─────────────────────────────────────────── */
+.mutant-row {
+  @apply flex items-center gap-3 px-4 py-3.5 border-b border-gray-100
+         hover:bg-gray-50 cursor-pointer transition;
+}
+
+/* ─── Inline images (in-vitro / in-vivo data) ─────────────── */
+.phenotype-img {
+  @apply w-24 h-24 rounded-lg object-cover border border-gray-100;
+}
+
+/* ─── Skeleton loader ─────────────────────────────────────── */
+.skeleton { @apply bg-gray-100 animate-pulse rounded; }
+
+/* ─── Floating action button ──────────────────────────────── */
+.fab {
+  @apply fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40
+         w-14 h-14 rounded-full shadow-lg flex items-center justify-center
+         bg-blue-500 text-white text-2xl hover:bg-blue-600 transition;
+}
+
+/* ─── Back button ─────────────────────────────────────────── */
+.back-btn {
+  @apply flex items-center gap-1.5 text-blue-500 text-sm font-medium
+         py-3 hover:text-blue-700 transition cursor-pointer;
+}
+
+/* ─── External link icon ──────────────────────────────────── */
+.ext-link {
+  @apply text-blue-500 hover:text-blue-700 underline transition;
+}

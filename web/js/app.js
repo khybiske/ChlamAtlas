@@ -1,0 +1,156 @@
+// ChlamAtlas — main application entry point
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
+import { renderHome } from './views/home.js';
+import { renderGenomes } from './views/genomes.js';
+import { renderMutants } from './views/mutants.js';
+import { renderPipeline } from './views/pipeline.js';
+
+// ─── Supabase client (singleton) ──────────────────────────
+export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── App state ────────────────────────────────────────────
+export const state = {
+  user: null,
+  userRole: 'public',
+  currentTab: 'home',
+};
+
+// ─── Tab routing ──────────────────────────────────────────
+const TABS = ['home', 'genomes', 'mutants', 'pipeline'];
+const RENDERERS = {
+  home:     renderHome,
+  genomes:  renderGenomes,
+  mutants:  renderMutants,
+  pipeline: renderPipeline,
+};
+
+function activateTab(name) {
+  if (!TABS.includes(name)) name = 'home';
+  state.currentTab = name;
+
+  // Show/hide panels
+  TABS.forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
+  });
+
+  // Update desktop nav
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === name);
+  });
+
+  // Update mobile nav
+  document.querySelectorAll('.mobile-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === name);
+  });
+
+  // Always re-render (views manage their own state, and cross-tab navigation needs fresh renders)
+  const container = document.getElementById(`${name}-content`);
+  if (container) {
+    container.innerHTML = '';
+    RENDERERS[name](container);
+  }
+
+  // Update URL hash
+  history.replaceState(null, '', `#${name}`);
+}
+
+// ─── Auth ──────────────────────────────────────────────────
+async function loadUser() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    state.user = session.user;
+    await refreshRole();
+    renderAuthArea();
+  }
+}
+
+async function refreshRole() {
+  if (!state.user) { state.userRole = 'public'; return; }
+  const { data } = await sb.from('users').select('role').eq('id', state.user.id).single();
+  state.userRole = data?.role ?? 'public';
+}
+
+function renderAuthArea() {
+  const area = document.getElementById('auth-area');
+  if (state.user) {
+    area.innerHTML = `
+      <span class="text-sm text-gray-500 hidden sm:inline">${state.user.email}</span>
+      <button id="btn-sign-out"
+        class="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">
+        Sign out
+      </button>`;
+    document.getElementById('btn-sign-out').addEventListener('click', signOut);
+  } else {
+    area.innerHTML = `
+      <button id="btn-sign-in"
+        class="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">
+        Sign in
+      </button>`;
+    document.getElementById('btn-sign-in').addEventListener('click', () => showAuthModal());
+  }
+}
+
+function showAuthModal() {
+  document.getElementById('auth-modal').classList.remove('hidden');
+  document.getElementById('auth-email').focus();
+}
+function hideAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  state.user = null;
+  state.userRole = 'public';
+  renderAuthArea();
+  activateTab('home');
+}
+
+// ─── Auth form ────────────────────────────────────────────
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl    = document.getElementById('auth-error');
+  errEl.classList.add('hidden');
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  state.user = data.user;
+  await refreshRole();
+  renderAuthArea();
+  hideAuthModal();
+
+  activateTab(state.currentTab);
+});
+
+document.getElementById('auth-modal-close').addEventListener('click', hideAuthModal);
+document.getElementById('auth-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('auth-modal')) hideAuthModal();
+});
+
+// ─── Wire up nav buttons ──────────────────────────────────
+document.querySelectorAll('[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+});
+document.getElementById('nav-home-logo').addEventListener('click', (e) => {
+  e.preventDefault();
+  activateTab('home');
+});
+
+// ─── Boot ─────────────────────────────────────────────────
+(async () => {
+  await loadUser();
+  renderAuthArea();
+
+  // Route to hash or default home
+  const hash = location.hash.replace('#', '');
+  activateTab(TABS.includes(hash) ? hash : 'home');
+})();

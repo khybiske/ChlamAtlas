@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChlamAtlas</title>
+
+  <!-- Tailwind CSS via CDN (replace with build pipeline if needed) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'ctd':  '#4A90D9',
+            'ctl2': '#9B59B6',
+            'cm':   '#E67E22',
+            'brand':'#1a6b4a',   // deep teal-green as accent
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body class="bg-white text-gray-900 font-sans min-h-screen">
+
+  <!-- ─── TOP NAV ─────────────────────────────────────────── -->
+  <header class="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
+      <!-- Logo / wordmark -->
+      <a href="#" id="nav-home-logo" class="flex items-center gap-2 font-semibold text-lg tracking-tight text-gray-900">
+        <img src="/design/chlamatlas_icon.png" alt="ChlamAtlas" class="h-7 w-7 rounded" onerror="this.style.display='none'" />
+        ChlamAtlas
+      </a>
+
+      <!-- Primary tabs (desktop) -->
+      <nav class="hidden sm:flex items-center gap-1" id="primary-nav">
+        <button data-tab="home"    class="nav-tab active">Home</button>
+        <button data-tab="genomes" class="nav-tab">Genomes</button>
+        <button data-tab="mutants" class="nav-tab">Mutants</button>
+        <button data-tab="pipeline" class="nav-tab">Pipeline</button>
+      </nav>
+
+      <!-- Auth button -->
+      <div id="auth-area" class="flex items-center gap-2">
+        <button id="btn-sign-in" class="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">
+          Sign in
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile bottom tab bar is in the footer -->
+  </header>
+
+  <!-- ─── MAIN CONTENT ─────────────────────────────────────── -->
+  <main class="max-w-5xl mx-auto px-4 pb-24 sm:pb-8">
+
+    <!-- HOME TAB -->
+    <section id="tab-home" class="tab-panel">
+      <div id="home-content"></div>
+    </section>
+
+    <!-- GENOMES TAB -->
+    <section id="tab-genomes" class="tab-panel hidden">
+      <div id="genomes-content"></div>
+    </section>
+
+    <!-- MUTANTS TAB -->
+    <section id="tab-mutants" class="tab-panel hidden">
+      <div id="mutants-content"></div>
+    </section>
+
+    <!-- PIPELINE TAB -->
+    <section id="tab-pipeline" class="tab-panel hidden">
+      <div id="pipeline-content"></div>
+    </section>
+
+  </main>
+
+  <!-- ─── MOBILE BOTTOM NAV ─────────────────────────────────── -->
+  <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 flex" id="mobile-nav">
+    <button data-tab="home"     class="mobile-tab flex-1 flex flex-col items-center py-2 gap-0.5">
+      <span class="text-lg">🏠</span>
+      <span class="text-[10px] font-medium">Home</span>
+    </button>
+    <button data-tab="genomes"  class="mobile-tab flex-1 flex flex-col items-center py-2 gap-0.5">
+      <span class="text-lg">🧬</span>
+      <span class="text-[10px] font-medium">Genomes</span>
+    </button>
+    <button data-tab="mutants"  class="mobile-tab flex-1 flex flex-col items-center py-2 gap-0.5">
+      <span class="text-lg">🔬</span>
+      <span class="text-[10px] font-medium">Mutants</span>
+    </button>
+    <button data-tab="pipeline" class="mobile-tab flex-1 flex flex-col items-center py-2 gap-0.5">
+      <span class="text-lg">⚙️</span>
+      <span class="text-[10px] font-medium">Pipeline</span>
+    </button>
+  </nav>
+
+  <!-- ─── AUTH MODAL ────────────────────────────────────────── -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+      <h2 class="text-xl font-semibold mb-1">Sign in to ChlamAtlas</h2>
+      <p class="text-sm text-gray-500 mb-6">Lab members get full access to unpublished data.</p>
+
+      <form id="auth-form" class="flex flex-col gap-3">
+        <input id="auth-email" type="email" placeholder="Email" required
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+        <input id="auth-password" type="password" placeholder="Password" required
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+        <p id="auth-error" class="text-red-500 text-xs hidden"></p>
+        <button type="submit"
+          class="w-full bg-brand text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-brand/90 transition">
+          Sign in
+        </button>
+      </form>
+
+      <button id="auth-modal-close" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Supabase JS client (ESM via CDN) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
