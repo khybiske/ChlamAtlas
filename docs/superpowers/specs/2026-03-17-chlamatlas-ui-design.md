@@ -220,7 +220,7 @@ Mutant IDs (e.g. KH001, YW082) are internal identifiers — do not over-emphasiz
 |---|---|---|
 | `transposon` | Tn | pink/rose |
 | `chemical` | Chem | blue |
-| `recombination` | Rec | green |
+| `recombination` | Recomb | green |
 | `intron` | Intron | amber |
 | other / null | — | gray |
 
@@ -324,7 +324,7 @@ Fields:
 - Date fields per stage (completed date)
 - Responsible lab dropdown (UW Hybiske / OSU Rockey / KU Hefty)
 - Genotyping method dropdown
-- Stocks available at: 4 checkboxes (UW Hybiske / UW Bob / OSU Rockey / KU Hefty) — "UW Bob" is a lab-internal freezer location; confirm the full name/label with Kevin before finalizing
+- Stocks available at: 4 checkboxes (UW Hybiske / UW Bob / OSU Rockey / KU Hefty) — "UW Hybiske" = Hybiske Lab main site; "UW Bob" = Bob's lab, a separate UW physical site (senior scientist). Confirm Bob's surname/full label before finalizing the UI label.
 - Pipeline notes textarea
 
 ### Mutant Record Modal
