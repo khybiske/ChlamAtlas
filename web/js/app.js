@@ -81,17 +81,17 @@ async function refreshRole() {
 function renderAuthArea() {
   const area = document.getElementById('auth-area');
   if (state.user) {
+    const initials = (state.user.email ?? '?').slice(0, 2).toUpperCase();
     area.innerHTML = `
-      <span class="text-sm text-gray-500 hidden sm:inline">${state.user.email}</span>
-      <button id="btn-sign-out"
-        class="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">
-        Sign out
+      <button id="btn-sign-out" class="user-chip">
+        <span class="user-chip-avatar">${initials}</span>
+        <span class="hidden sm:inline">${state.user.email.split('@')[0]}</span>
       </button>`;
     document.getElementById('btn-sign-out').addEventListener('click', signOut);
   } else {
     area.innerHTML = `
       <button id="btn-sign-in"
-        class="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition">
+        class="text-sm text-white/80 hover:text-white font-medium px-3 py-1.5 rounded-lg hover:bg-white/10 transition border border-white/30 hover:border-white/50">
         Sign in
       </button>`;
     document.getElementById('btn-sign-in').addEventListener('click', () => showAuthModal());
