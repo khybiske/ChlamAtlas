@@ -57,8 +57,8 @@ function activateTab(name) {
     RENDERERS[name](container);
   }
 
-  // Update URL hash
-  history.replaceState(null, '', `#${name}`);
+  // Update URL hash (deep-link format)
+  history.replaceState(null, '', `#/${name}`);
 }
 
 // ─── Auth ──────────────────────────────────────────────────
@@ -170,7 +170,7 @@ window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab))
   renderAuthArea();
   updateNavVisibility();
 
-  // Route to hash or default home
-  const hash = location.hash.replace('#', '');
+  // Route to hash or default home (supports both #home and #/home formats)
+  const hash = location.hash.replace(/^#\/?/, '');
   activateTab(TABS.includes(hash) ? hash : 'home');
 })();
