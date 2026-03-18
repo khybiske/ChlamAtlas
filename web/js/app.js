@@ -118,6 +118,7 @@ async function signOut() {
   await sb.auth.signOut();
   state.user = null;
   state.userRole = 'guest';
+  updateNavVisibility();
   renderAuthArea();
   activateTab('home');
 }
