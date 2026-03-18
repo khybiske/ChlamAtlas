@@ -138,7 +138,7 @@ CREATE POLICY "phenotypes_read" ON public.mutant_phenotypes
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.mutants m
-      WHERE m.id = mutant_id
+      WHERE m.id = mutant_phenotypes.mutant_id
       AND (m.is_published = true OR public.is_lab_member_or_above())
     )
   );
