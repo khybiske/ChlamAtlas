@@ -61,6 +61,23 @@ Lab member access is granted manually by admin only. Users may request it via a 
 
 **Favorites storage:** Stored in Supabase (persisted, cross-device), not localStorage. Requires a `favorites` table (user_id, entity_type, entity_id) not in the current CLAUDE.md schema — add during implementation.
 
+**Community tier RLS ownership:** `mutants.creator` must map to `auth.users.id`. The RLS `USING` clause for Community write access is `creator = auth.uid()`. If `creator` is currently a display-name string rather than a UUID, add a `created_by_user_id uuid` column during schema migration and use that for RLS.
+
+## Schema Additions From This Spec
+
+The following tables and columns are introduced by this spec and are not in CLAUDE.md's data model. All must be created during implementation:
+
+| Addition | Type | Purpose |
+|---|---|---|
+| `favorites` | New table | `(id, user_id uuid, entity_type text, entity_id uuid, created_at)` — stores user favorites |
+| `site_config` | New table | `(key text pk, title text, body text, link_url text, link_label text)` — admin-editable featured spotlight card |
+| `lab_member_requests` | New table | `(id, user_id uuid, requested_at, status text, reviewed_by, reviewed_at)` — tracks lab member access requests |
+| `annotation_history` | New table | `(id, annotation_id uuid, field_name text, old_value text, new_value text, edited_by uuid, edited_at)` — powers annotation log before/after diff and revert |
+| `site_updates` | New table | `(id, title text, category text, created_at)` — admin-managed recent updates list on home page |
+| `users.role_request` | New column on users | `text nullable` — set to `'lab_member'` when user requests promotion; cleared on admin decision |
+
+**Community role** must be added as a valid value for `users.role` (currently CLAUDE.md lists `public, lab_member, admin`; rename `public` → `guest` and add `community`).
+
 ---
 
 ## Navigation
@@ -77,7 +94,7 @@ Pipeline tab is visible to **lab members and admin only**. Community and guest u
 Bottom tab bar (80px, white with top border) replacing desktop top tabs:
 - **Home · Genomes · Mutants · Pipeline · Profile**
 - Active tab: green label + green-tinted icon background
-- Pipeline tab hidden for unauthenticated users
+- Pipeline tab hidden for Guest and Community users (only lab members and admin)
 - Top app bar (dark green) with contextual controls: back navigation, search, heart (favorites), edit
 
 **Icon library:** Lucide icons throughout. Do not hand-draw SVG paths.
@@ -97,7 +114,7 @@ Three-column layout: narrow left sidebar (240px) + main content (flex) + right s
 - Stats bar: 3 Organisms · 2,687 Genes · 2,687 Structures · 421 Mutants · 3 Partner Labs
 - Strain browser: 3 organism portal cards (colored top accent, full italic species name large, monospace abbreviation + gene count below, "Browse genome →" arrow)
 - Featured / spotlight card (admin-curated; stored as a single row in a `site_config` table with fields: title, body, link_url, link_label; editable from admin panel)
-- Recent updates list
+- Recent updates list — driven by a `site_updates` table `(id, title text, category text, created_at)`; admin-managed entries. Category maps to strain accent color dot (e.g. "CT-L2" → purple, "Structures" → green)
 
 **Right sidebar:**
 - Contributing Labs: UW (block W, `#4b2e83` purple), OSU (beaver), KU (`#0051a5` blue)
@@ -197,7 +214,15 @@ Overview · Expression · Structure · Orthologs · Sequences · Mutants · Anno
 
 Mutant IDs (e.g. KH001, YW082) are internal identifiers — do not over-emphasize.
 
-**Mutation type badge colors:** KO (knockout) = pink/rose; OE (overexpression) = blue; complement = green; other = gray.
+**Mutation type badge colors:** The schema `mutation_type` enum uses mechanism labels (transposon / chemical / recombination / intron). Badge display maps these as follows:
+
+| Schema value | Badge label | Color |
+|---|---|---|
+| `transposon` | Tn | pink/rose |
+| `chemical` | Chem | blue |
+| `recombination` | Rec | green |
+| `intron` | Intron | amber |
+| other / null | — | gray |
 
 ### Mutant detail page
 
@@ -289,7 +314,7 @@ All edit modals share:
 |---|---|
 | Pipeline Progress Modal | Lab member, Admin |
 | Mutant Record Modal (edit) | Community (own mutants only), Lab member (all), Admin |
-| Gene Annotation Modal | Community (goes live immediately, audit logged), Lab member, Admin |
+| Gene Annotation Modal | Community (goes live immediately, full audit log captured, admin can revert), Lab member, Admin |
 
 ### Pipeline Progress Modal
 
@@ -353,7 +378,12 @@ Contents:
 1. Pre-populated SVG lookup by email domain (UW = block W `#4b2e83`; OSU = beaver; KU = `#0051a5`)
 2. Initials fallback (no Clearbit — deprecated/unreliable for free use)
 
-**Lab member access request:** Subtle text link on profile settings page only — not in the popover or any prominent location.
+**Lab member access request flow:**
+1. Community user clicks a subtle text link ("Request lab member access") on their profile settings page — not in the popover, not prominent.
+2. Clicking creates a row in `lab_member_requests` and sets `users.role_request = 'lab_member'`.
+3. Admin sees the user in the **Pending** filter of the admin Users tab (amber-tinted row).
+4. Admin approves (sets `users.role = 'lab_member'`, clears `role_request`) or declines (clears `role_request` only).
+5. Guest and Community sign-ups are **never** in a pending state — they receive their role immediately on sign-up.
 
 ### Admin panel
 
