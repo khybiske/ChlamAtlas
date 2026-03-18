@@ -4,7 +4,7 @@
 
 -- ─── ROLE HELPERS ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.get_user_role()
-RETURNS text LANGUAGE sql SECURITY DEFINER STABLE AS $$
+RETURNS text LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT COALESCE(
     (SELECT role FROM public.users WHERE id = auth.uid()),
     'guest'
@@ -12,17 +12,17 @@ RETURNS text LANGUAGE sql SECURITY DEFINER STABLE AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_lab_member_or_above()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT public.get_user_role() IN ('lab_member', 'admin');
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT public.get_user_role() = 'admin';
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_authenticated()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT auth.uid() IS NOT NULL;
 $$;
 
@@ -155,6 +155,10 @@ CREATE POLICY "users_admin_all" ON public.users
 -- Role changes must go through set_user_role() SECURITY DEFINER function.
 REVOKE UPDATE (role) ON public.users FROM authenticated, anon;
 
+-- Prevent lab_member from toggling is_published — only admin can publish/unpublish
+-- Publication changes go through set_mutant_published() SECURITY DEFINER function
+REVOKE UPDATE (is_published) ON public.mutants FROM authenticated, anon;
+
 -- Admin-only function to change a user's role (bypasses the REVOKE above)
 CREATE OR REPLACE FUNCTION public.set_user_role(target_user_id uuid, new_role text)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -166,6 +170,17 @@ BEGIN
     RAISE EXCEPTION 'Invalid role: %', new_role;
   END IF;
   UPDATE public.users SET role = new_role WHERE id = target_user_id;
+END;
+$$;
+
+-- Admin-only function to toggle a mutant's is_published status
+CREATE OR REPLACE FUNCTION public.set_mutant_published(target_mutant_id uuid, published boolean)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Only admins can publish or unpublish mutants';
+  END IF;
+  UPDATE public.mutants SET is_published = published WHERE id = target_mutant_id;
 END;
 $$;
 
@@ -211,7 +226,7 @@ CREATE POLICY "site_updates_admin_write" ON public.site_updates
 -- SQL editor (superuser context) — history rows from test/admin SQL runs will have
 -- edited_by = NULL, which is acceptable.
 CREATE OR REPLACE FUNCTION public.log_annotation_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   caller_id uuid;
 BEGIN
