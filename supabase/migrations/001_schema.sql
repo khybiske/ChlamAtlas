@@ -40,16 +40,6 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS mutants_set_updated_at ON public.mutants;
-CREATE TRIGGER mutants_set_updated_at
-  BEFORE UPDATE ON public.mutants
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-DROP TRIGGER IF EXISTS pipeline_set_updated_at ON public.mutant_pipeline;
-CREATE TRIGGER pipeline_set_updated_at
-  BEFORE UPDATE ON public.mutant_pipeline
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
 -- ─── STRAINS ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.strains (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -197,6 +187,17 @@ CREATE TABLE IF NOT EXISTS public.mutant_pipeline (
   updated_at           timestamptz NOT NULL DEFAULT now(),
   updated_by           uuid REFERENCES public.users(id)
 );
+
+-- Triggers must come after both tables are defined
+DROP TRIGGER IF EXISTS mutants_set_updated_at ON public.mutants;
+CREATE TRIGGER mutants_set_updated_at
+  BEFORE UPDATE ON public.mutants
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS pipeline_set_updated_at ON public.mutant_pipeline;
+CREATE TRIGGER pipeline_set_updated_at
+  BEFORE UPDATE ON public.mutant_pipeline
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- ─── MUTANT PHENOTYPES ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.mutant_phenotypes (
