@@ -6,7 +6,7 @@
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS text LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT COALESCE(
-    (SELECT role FROM public.users WHERE id = auth.uid()),
+    (SELECT role FROM public.users WHERE id = auth.uid()::uuid),
     'guest'
   );
 $$;
@@ -23,7 +23,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_authenticated()
 RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
-  SELECT auth.uid() IS NOT NULL;
+  SELECT auth.uid()::uuid IS NOT NULL;
 $$;
 
 -- ─── STRAINS: public read ─────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ ALTER TABLE public.annotations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "annotations_public_read" ON public.annotations
   FOR SELECT USING (true);
 CREATE POLICY "annotations_community_insert" ON public.annotations
-  FOR INSERT WITH CHECK (public.is_authenticated() AND curator_id = auth.uid());
+  FOR INSERT WITH CHECK (public.is_authenticated() AND curator_id = auth.uid()::uuid);
 -- Only admin can update/delete annotations (revert workflow)
 CREATE POLICY "annotations_admin_write" ON public.annotations
   FOR ALL USING (public.is_admin());
@@ -90,16 +90,16 @@ CREATE POLICY "mutants_public_read" ON public.mutants
 CREATE POLICY "mutants_community_insert" ON public.mutants
   FOR INSERT WITH CHECK (
     public.is_authenticated()
-    AND creator = auth.uid()
+    AND creator = auth.uid()::uuid
     AND is_published = false    -- community users cannot self-publish
   );
 
 -- Community users can update their own mutants, but cannot toggle is_published
 CREATE POLICY "mutants_community_update_own" ON public.mutants
   FOR UPDATE
-  USING (creator = auth.uid())
+  USING (creator = auth.uid()::uuid)
   WITH CHECK (
-    creator = auth.uid()
+    creator = auth.uid()::uuid
     AND is_published = false
   );
 
@@ -139,14 +139,14 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 -- Users can read their own row; admins can read all
 CREATE POLICY "users_self_read" ON public.users
   FOR SELECT USING (
-    id = auth.uid() OR public.is_admin()
+    id = auth.uid()::uuid OR public.is_admin()
   );
 
 -- Users can update their own profile columns (display_name, lab_affiliation, role_request)
 -- They cannot update 'role' because of the REVOKE below
 CREATE POLICY "users_self_update" ON public.users
-  FOR UPDATE USING (id = auth.uid())
-  WITH CHECK (id = auth.uid());
+  FOR UPDATE USING (id = auth.uid()::uuid)
+  WITH CHECK (id = auth.uid()::uuid);
 
 CREATE POLICY "users_admin_all" ON public.users
   FOR ALL USING (public.is_admin());
@@ -188,18 +188,18 @@ $$;
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "favorites_own" ON public.favorites
-  FOR ALL USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = auth.uid()::uuid)
+  WITH CHECK (user_id = auth.uid()::uuid);
 
 -- ─── LAB MEMBER REQUESTS ──────────────────────────────────────────────────────
 ALTER TABLE public.lab_member_requests ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "requests_own_read" ON public.lab_member_requests
-  FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
+  FOR SELECT USING (user_id = auth.uid()::uuid OR public.is_admin());
 
 CREATE POLICY "requests_own_insert" ON public.lab_member_requests
   FOR INSERT WITH CHECK (
-    user_id = auth.uid()
+    user_id = auth.uid()::uuid
     AND public.is_authenticated()
   );
 
