@@ -161,6 +161,9 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
   activateTab('home');
 });
 
+// Home view hero buttons dispatch this event (they can't import activateTab directly)
+window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab));
+
 // ─── Boot ─────────────────────────────────────────────────
 (async () => {
   await loadUser();
