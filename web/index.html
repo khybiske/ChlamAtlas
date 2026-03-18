@@ -120,24 +120,31 @@
   </nav>
 
   <!-- ─── AUTH MODAL ────────────────────────────────────────── -->
-  <div id="auth-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
-      <h2 class="text-xl font-semibold mb-1">Sign in to ChlamAtlas</h2>
-      <p class="text-sm text-gray-500 mb-6">Lab members get full access to unpublished data.</p>
+  <div id="auth-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+      <!-- Accent header -->
+      <div class="px-6 py-5" style="background:#0f4530;">
+        <h2 class="font-display font-bold text-white text-2xl leading-tight">ChlamAtlas</h2>
+        <p class="text-white/60 text-xs mt-0.5">Sign in to access lab data</p>
+      </div>
+
+      <div class="p-6">
+        <p class="text-sm text-gray-500 mb-5">Lab members get full access to unpublished mutants and pipeline records.</p>
 
       <form id="auth-form" class="flex flex-col gap-3">
         <input id="auth-email" type="email" placeholder="Email" required
-          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         <input id="auth-password" type="password" placeholder="Password" required
-          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         <p id="auth-error" class="text-red-500 text-xs hidden"></p>
         <button type="submit"
-          class="w-full bg-brand text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-brand/90 transition">
+          class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition mt-1" style="background:#0f4530;">
           Sign in
         </button>
       </form>
 
       <button id="auth-modal-close" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+      </div><!-- /inner padding -->
     </div>
   </div>
 
