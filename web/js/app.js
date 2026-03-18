@@ -12,7 +12,7 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ─── App state ────────────────────────────────────────────
 export const state = {
   user: null,
-  userRole: 'public',
+  userRole: 'guest',
   currentTab: 'home',
 };
 
@@ -28,6 +28,12 @@ const RENDERERS = {
 function activateTab(name) {
   if (!TABS.includes(name)) name = 'home';
   state.currentTab = name;
+
+  // Pipeline tab is lab_member and admin only
+  if (name === 'pipeline' && !['lab_member','admin'].includes(state.userRole)) {
+    name = 'home';
+    state.currentTab = 'home';
+  }
 
   // Show/hide panels
   TABS.forEach(t => {
@@ -61,14 +67,15 @@ async function loadUser() {
   if (session?.user) {
     state.user = session.user;
     await refreshRole();
+    updateNavVisibility();
     renderAuthArea();
   }
 }
 
 async function refreshRole() {
-  if (!state.user) { state.userRole = 'public'; return; }
+  if (!state.user) { state.userRole = 'guest'; return; }
   const { data } = await sb.from('users').select('role').eq('id', state.user.id).single();
-  state.userRole = data?.role ?? 'public';
+  state.userRole = data?.role ?? 'guest';
 }
 
 function renderAuthArea() {
@@ -91,6 +98,13 @@ function renderAuthArea() {
   }
 }
 
+function updateNavVisibility() {
+  const showPipeline = ['lab_member','admin'].includes(state.userRole);
+  document.querySelectorAll('[data-tab="pipeline"]').forEach(btn => {
+    btn.style.display = showPipeline ? '' : 'none';
+  });
+}
+
 function showAuthModal() {
   document.getElementById('auth-modal').classList.remove('hidden');
   document.getElementById('auth-email').focus();
@@ -103,7 +117,7 @@ function hideAuthModal() {
 async function signOut() {
   await sb.auth.signOut();
   state.user = null;
-  state.userRole = 'public';
+  state.userRole = 'guest';
   renderAuthArea();
   activateTab('home');
 }
@@ -125,6 +139,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
 
   state.user = data.user;
   await refreshRole();
+  updateNavVisibility();
   renderAuthArea();
   hideAuthModal();
 
@@ -149,6 +164,7 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
 (async () => {
   await loadUser();
   renderAuthArea();
+  updateNavVisibility();
 
   // Route to hash or default home
   const hash = location.hash.replace('#', '');
