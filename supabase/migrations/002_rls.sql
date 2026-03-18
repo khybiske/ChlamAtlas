@@ -2,11 +2,21 @@
 -- Run in Supabase SQL editor AFTER 001_schema.sql
 -- Run BEFORE 003_seed.sql
 
+-- ─── JWT HELPER ───────────────────────────────────────────────────────────────
+-- Returns the current user's UUID from the PostgREST JWT, or NULL if anonymous.
+-- Using current_setting() directly avoids any auth.uid() type ambiguity across
+-- different Supabase versions.
+CREATE OR REPLACE FUNCTION public.current_user_id()
+RETURNS uuid LANGUAGE sql STABLE AS $$
+  SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+$$;
+
 -- ─── ROLE HELPERS ─────────────────────────────────────────────────────────────
+-- Returns the current user's role, or 'guest' for anonymous sessions.
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS text LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT COALESCE(
-    (SELECT role FROM public.users WHERE id = auth.uid()::uuid),
+    (SELECT role FROM public.users WHERE id = public.current_user_id()),
     'guest'
   );
 $$;
@@ -22,8 +32,8 @@ RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_authenticated()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
-  SELECT auth.uid()::uuid IS NOT NULL;
+RETURNS boolean LANGUAGE sql STABLE AS $$
+  SELECT public.current_user_id() IS NOT NULL;
 $$;
 
 -- ─── STRAINS: public read ─────────────────────────────────────────────────────
@@ -66,7 +76,10 @@ ALTER TABLE public.annotations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "annotations_public_read" ON public.annotations
   FOR SELECT USING (true);
 CREATE POLICY "annotations_community_insert" ON public.annotations
-  FOR INSERT WITH CHECK (public.is_authenticated() AND curator_id = auth.uid()::uuid);
+  FOR INSERT WITH CHECK (
+    public.is_authenticated()
+    AND curator_id = public.current_user_id()
+  );
 -- Only admin can update/delete annotations (revert workflow)
 CREATE POLICY "annotations_admin_write" ON public.annotations
   FOR ALL USING (public.is_admin());
@@ -90,16 +103,16 @@ CREATE POLICY "mutants_public_read" ON public.mutants
 CREATE POLICY "mutants_community_insert" ON public.mutants
   FOR INSERT WITH CHECK (
     public.is_authenticated()
-    AND creator = auth.uid()::uuid
+    AND creator = public.current_user_id()
     AND is_published = false    -- community users cannot self-publish
   );
 
 -- Community users can update their own mutants, but cannot toggle is_published
 CREATE POLICY "mutants_community_update_own" ON public.mutants
   FOR UPDATE
-  USING (creator = auth.uid()::uuid)
+  USING (creator = public.current_user_id())
   WITH CHECK (
-    creator = auth.uid()::uuid
+    creator = public.current_user_id()
     AND is_published = false
   );
 
@@ -139,14 +152,14 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 -- Users can read their own row; admins can read all
 CREATE POLICY "users_self_read" ON public.users
   FOR SELECT USING (
-    id = auth.uid()::uuid OR public.is_admin()
+    id = public.current_user_id() OR public.is_admin()
   );
 
 -- Users can update their own profile columns (display_name, lab_affiliation, role_request)
 -- They cannot update 'role' because of the REVOKE below
 CREATE POLICY "users_self_update" ON public.users
-  FOR UPDATE USING (id = auth.uid()::uuid)
-  WITH CHECK (id = auth.uid()::uuid);
+  FOR UPDATE USING (id = public.current_user_id())
+  WITH CHECK (id = public.current_user_id());
 
 CREATE POLICY "users_admin_all" ON public.users
   FOR ALL USING (public.is_admin());
@@ -188,25 +201,25 @@ $$;
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "favorites_own" ON public.favorites
-  FOR ALL USING (user_id = auth.uid()::uuid)
-  WITH CHECK (user_id = auth.uid()::uuid);
+  FOR ALL USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 -- ─── LAB MEMBER REQUESTS ──────────────────────────────────────────────────────
 ALTER TABLE public.lab_member_requests ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "requests_own_read" ON public.lab_member_requests
-  FOR SELECT USING (user_id = auth.uid()::uuid OR public.is_admin());
+  FOR SELECT USING (user_id = public.current_user_id() OR public.is_admin());
 
 CREATE POLICY "requests_own_insert" ON public.lab_member_requests
   FOR INSERT WITH CHECK (
-    user_id = auth.uid()::uuid
+    user_id = public.current_user_id()
     AND public.is_authenticated()
   );
 
 CREATE POLICY "requests_admin_update" ON public.lab_member_requests
   FOR UPDATE USING (public.is_admin());
 
--- ─── SITE CONFIG / UPDATES: public read, admin write ────────────────────────
+-- ─── SITE CONFIG / UPDATES: public read, admin write ─────────────────────────
 ALTER TABLE public.site_config ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "site_config_public_read" ON public.site_config
   FOR SELECT USING (true);
@@ -221,16 +234,15 @@ CREATE POLICY "site_updates_admin_write" ON public.site_updates
 
 -- ─── ANNOTATION HISTORY TRIGGER ───────────────────────────────────────────────
 -- Logs annotation.value changes to annotation_history automatically.
--- auth.uid() calls current_setting('request.jwt.claim.sub') which IS populated by
--- PostgREST in transaction context, so works for client requests. Returns NULL in
--- SQL editor (superuser context) — history rows from test/admin SQL runs will have
--- edited_by = NULL, which is acceptable.
+-- current_user_id() reads the PostgREST JWT subject, populated in transaction context.
+-- Returns NULL in SQL editor (superuser context) — edited_by will be NULL for
+-- admin SQL runs, which is acceptable.
 CREATE OR REPLACE FUNCTION public.log_annotation_change()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   caller_id uuid;
 BEGIN
-  caller_id := nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+  caller_id := public.current_user_id();
   IF OLD.value IS DISTINCT FROM NEW.value THEN
     INSERT INTO public.annotation_history
       (annotation_id, field_name, old_value, new_value, edited_by, edited_at)
