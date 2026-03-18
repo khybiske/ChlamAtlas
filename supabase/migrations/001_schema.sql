@@ -93,6 +93,22 @@ CREATE TABLE IF NOT EXISTS public.proteins (
   transmembrane_domains integer NOT NULL DEFAULT 0
 );
 
+-- ─── PUBLICATIONS ─────────────────────────────────────────────────
+-- Defined before expression_data, mutant_phenotypes, and annotations
+-- which all reference it via FK.
+-- NOTE: linked_gene_ids/linked_mutant_ids use arrays for Phase 1 simplicity.
+-- Replace with junction tables before building search/cross-linking (Phase 3).
+CREATE TABLE IF NOT EXISTS public.publications (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pubmed_id         text,
+  doi               text,
+  title             text NOT NULL,
+  authors           text[],
+  year              integer,
+  linked_gene_ids   uuid[],
+  linked_mutant_ids uuid[]
+);
+
 -- ─── ORTHOLOGS ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.orthologs (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -209,20 +225,6 @@ CREATE TABLE IF NOT EXISTS public.mutant_phenotypes (
   image_paths     text[],
   notes           text,
   publication_id  uuid REFERENCES public.publications(id)
-);
-
--- ─── PUBLICATIONS ─────────────────────────────────────────────────
--- NOTE: linked_gene_ids/linked_mutant_ids use arrays for Phase 1 simplicity.
--- Replace with junction tables before building search/cross-linking (Phase 3).
-CREATE TABLE IF NOT EXISTS public.publications (
-  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  pubmed_id         text,
-  doi               text,
-  title             text NOT NULL,
-  authors           text[],
-  year              integer,
-  linked_gene_ids   uuid[],
-  linked_mutant_ids uuid[]
 );
 
 -- ─── ANNOTATIONS ──────────────────────────────────────────────────
