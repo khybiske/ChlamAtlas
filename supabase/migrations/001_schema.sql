@@ -31,6 +31,25 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- Auto-update updated_at on row modifications
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS mutants_set_updated_at ON public.mutants;
+CREATE TRIGGER mutants_set_updated_at
+  BEFORE UPDATE ON public.mutants
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS pipeline_set_updated_at ON public.mutant_pipeline;
+CREATE TRIGGER pipeline_set_updated_at
+  BEFORE UPDATE ON public.mutant_pipeline
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
 -- ─── STRAINS ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.strains (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,6 +74,7 @@ CREATE TABLE IF NOT EXISTS public.genes (
   start_bp                integer,
   end_bp                  integer,
   strand                  text CHECK (strand IN ('+', '-')),
+  CHECK (start_bp IS NULL OR end_bp IS NULL OR end_bp > start_bp),
   is_characterized        boolean NOT NULL DEFAULT false,
   functional_category     text,
   is_membrane_protein     boolean NOT NULL DEFAULT false,
@@ -70,11 +90,11 @@ CREATE INDEX IF NOT EXISTS genes_locus_idx  ON public.genes(locus_tag);
 -- ─── PROTEINS ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.proteins (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  gene_id               uuid NOT NULL REFERENCES public.genes(id) ON DELETE CASCADE,
+  gene_id               uuid NOT NULL UNIQUE REFERENCES public.genes(id) ON DELETE CASCADE,
   uniprot_id            text,
   alphafold_id          text,
   mass_kd               numeric(6,1),
-  length_aa             integer,
+  length_aa             integer CHECK (length_aa IS NULL OR length_aa > 0),
   protein_family        text,
   function_narrative    text,
   localization          text,
@@ -91,8 +111,9 @@ CREATE TABLE IF NOT EXISTS public.orthologs (
   strain_id_a  uuid NOT NULL REFERENCES public.strains(id),
   strain_id_b  uuid NOT NULL REFERENCES public.strains(id),
   method       text CHECK (method IN ('reciprocal_blast', 'manual')),
-  confidence   numeric(3,2),
-  CHECK (gene_id_a <> gene_id_b)
+  confidence   numeric(3,2) CHECK (confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)),
+  CHECK (gene_id_a <> gene_id_b),
+  UNIQUE (gene_id_a, gene_id_b)
 );
 
 -- ─── EXPRESSION DATA ──────────────────────────────────────────────
@@ -104,7 +125,7 @@ CREATE TABLE IF NOT EXISTS public.expression_data (
   eb_expression         numeric,
   rb_expression         numeric,
   enrichment            numeric,
-  source_publication_id uuid,
+  source_publication_id uuid REFERENCES public.publications(id),
   method                text CHECK (method IN ('microarray','rnaseq'))
 );
 
@@ -121,7 +142,8 @@ CREATE TABLE IF NOT EXISTS public.alphafold_results (
   top_homolog_description text,
   homology_score          numeric(5,2),
   homology_method         text,
-  inferred_function       text
+  inferred_function       text,
+  UNIQUE (protein_id, af_version)
 );
 
 -- ─── MUTANTS ──────────────────────────────────────────────────────
@@ -143,7 +165,8 @@ CREATE TABLE IF NOT EXISTS public.mutants (
   notes                text,
   created_at           timestamptz NOT NULL DEFAULT now(),
   updated_at           timestamptz NOT NULL DEFAULT now(),
-  updated_by           uuid REFERENCES public.users(id)
+  updated_by           uuid REFERENCES public.users(id),
+  UNIQUE (mutant_id)
 );
 
 CREATE INDEX IF NOT EXISTS mutants_strain_idx     ON public.mutants(background_strain_id);
@@ -153,7 +176,7 @@ CREATE INDEX IF NOT EXISTS mutants_published_idx  ON public.mutants(is_published
 CREATE TABLE IF NOT EXISTS public.mutant_pipeline (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   mutant_id            uuid NOT NULL REFERENCES public.mutants(id) ON DELETE CASCADE,
-  status               text CHECK (status IN ('active','archived')) DEFAULT 'active',
+  status               text NOT NULL CHECK (status IN ('active','archived')) DEFAULT 'active',
   stage                text CHECK (stage IN ('transformation','plaque_cloning','genotyping',
                                              'in_vitro_screening','in_vivo_screening','sequencing','archived')),
   is_priority          boolean NOT NULL DEFAULT false,
@@ -184,7 +207,7 @@ CREATE TABLE IF NOT EXISTS public.mutant_phenotypes (
   description     text,
   image_paths     text[],
   notes           text,
-  publication_id  uuid
+  publication_id  uuid REFERENCES public.publications(id)
 );
 
 -- ─── PUBLICATIONS ─────────────────────────────────────────────────
