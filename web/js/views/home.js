@@ -255,10 +255,17 @@ function entryBlockHTML(block, borderStyle) {
 
 async function loadOrganisms(container) {
   // Query gene counts per strain using embedded count
-  const { data: strains } = await sb
-    .from('strains')
-    .select('id, common_name, genes(count)')
-    .eq('is_active', true);
+  let strains;
+  try {
+    const { data } = await sb
+      .from('strains')
+      .select('id, common_name, genes(count)')
+      .eq('is_active', true);
+    strains = data;
+  } catch (err) {
+    console.error('loadOrganisms:', err);
+    return;
+  }
 
   const el = container.querySelector('#organisms-section');
   if (!el) return;
@@ -303,11 +310,18 @@ const UPDATE_COLORS = {
 };
 
 async function loadUpdates(container) {
-  const { data } = await sb
-    .from('site_updates')
-    .select('id, title, category, created_at')
-    .order('created_at', { ascending: false })
-    .limit(5);
+  let data;
+  try {
+    const { data: rows } = await sb
+      .from('site_updates')
+      .select('id, title, category, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    data = rows;
+  } catch (err) {
+    console.error('loadUpdates:', err);
+    return;
+  }
 
   const el = container.querySelector('#updates-section');
   if (!el || !data?.length) return;
