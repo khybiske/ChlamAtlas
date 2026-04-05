@@ -156,7 +156,102 @@ async function loadStats(container) {
   if (ebMutant) ebMutant.textContent = mutantRes.count?.toLocaleString() ?? '—';
 }
 
-function renderEntryBlocks(container) { /* Task 5 */ }
+function renderEntryBlocks(container) {
+  const isLabMember = ['lab_member', 'admin'].includes(state.userRole);
+
+  // Blocks always shown
+  const blocks = [
+    {
+      icon: '🧬', verb: 'Browse',      title: 'Genomes',
+      meta: '<span id="eb-gene-count">—</span> genes · 3 strains',
+      tab: 'genomes', disabled: false,
+    },
+    {
+      icon: '🔬', verb: 'Explore',     title: 'Mutants',
+      meta: '<span id="eb-mutant-count">—</span> characterized',
+      tab: 'mutants', disabled: false,
+    },
+  ];
+
+  // Pipeline: lab members only
+  if (isLabMember) {
+    blocks.push({
+      icon: '⚗️', verb: 'Track', title: 'Pipeline',
+      meta: 'Multi-lab progress',
+      tab: 'pipeline', disabled: false,
+    });
+  }
+
+  // Search: always last, always disabled
+  blocks.push({
+    icon: '🔍', verb: 'Coming soon', title: 'Search',
+    meta: 'Universal search',
+    tab: null, disabled: true,
+  });
+
+  const isMobile = window.innerWidth < 640;
+
+  const el = container.querySelector('#entry-blocks');
+  if (!el) return;
+
+  if (!isMobile) {
+    // Desktop: flex row
+    el.style.cssText = '';
+    el.innerHTML = `
+      <div class="max-w-5xl mx-auto" style="display:grid;grid-template-columns:repeat(${blocks.length},1fr);">
+        ${blocks.map(b => entryBlockHTML(b, 'border-right:1px solid #ececec;')).join('')}
+      </div>`;
+  } else if (isLabMember) {
+    // Mobile 2×2
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;">
+        ${blocks.map((b, i) => {
+          const borderRight = (i % 2 === 0) ? 'border-right:1px solid #ececec;' : '';
+          const borderBottom = (i < 2) ? 'border-bottom:1px solid #ececec;' : '';
+          return entryBlockHTML(b, borderRight + borderBottom);
+        }).join('')}
+      </div>`;
+  } else {
+    // Mobile guest: Genomes | Mutants top row, Search full-width below
+    const [genomesBlock, mutantsBlock, searchBlock] = blocks;
+    el.innerHTML = `
+      <div style="border-bottom:1px solid #ececec;display:grid;grid-template-columns:1fr 1fr;">
+        ${entryBlockHTML(genomesBlock, 'border-right:1px solid #ececec;')}
+        ${entryBlockHTML(mutantsBlock, '')}
+      </div>
+      <div style="display:flex;align-items:center;gap:1rem;padding:0.875rem 1rem;opacity:0.32;cursor:default;">
+        <span style="font-size:1.125rem;">${searchBlock.icon}</span>
+        <div>
+          <div style="font-size:0.5375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:2px;">${searchBlock.verb}</div>
+          <div style="font-size:0.875rem;font-weight:600;color:#111;">${searchBlock.title}</div>
+        </div>
+      </div>`;
+  }
+
+  // Wire up click handlers (non-disabled blocks only)
+  el.querySelectorAll('[data-nav-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.navTab;
+      if (tab) window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab } }));
+    });
+  });
+}
+
+function entryBlockHTML(block, borderStyle) {
+  const cursor = block.disabled ? 'cursor:default;' : 'cursor:pointer;';
+  const opacity = block.disabled ? 'opacity:0.32;' : '';
+  const hover = block.disabled ? '' : 'data-nav-tab="' + block.tab + '"';
+  return `
+    <div ${hover}
+      style="padding:1.125rem 1.25rem 1rem;${borderStyle}${cursor}${opacity}transition:background 0.15s;"
+      ${!block.disabled ? 'onmouseenter="this.style.background=\'#f9fafb\'" onmouseleave="this.style.background=\'\'"' : ''}>
+      <span style="font-size:1.375rem;margin-bottom:0.5rem;display:block;">${block.icon}</span>
+      <div style="font-size:0.5625rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:0.25rem;">${block.verb}</div>
+      <div style="font-size:1.0625rem;font-weight:600;color:#111;margin-bottom:0.25rem;">${block.title}</div>
+      <div class="font-mono" style="font-size:0.75rem;color:#bbb;">${block.meta}</div>
+    </div>`;
+}
+
 function loadOrganisms(container) { /* Task 6 */ }
 async function loadUpdates(container) { /* Task 6 */ }
 function renderFooter(container) { /* Task 7 */ }
