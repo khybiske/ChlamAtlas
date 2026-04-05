@@ -81,11 +81,12 @@ async function refreshRole() {
 function renderAuthArea() {
   const area = document.getElementById('auth-area');
   if (state.user) {
-    const initials = (state.user.email ?? '?').slice(0, 2).toUpperCase();
+    const firstName = (state.user.email ?? '').split('@')[0];
     area.innerHTML = `
-      <button id="btn-sign-out" class="user-chip">
-        <span class="user-chip-avatar">${initials}</span>
-        <span class="hidden sm:inline">${state.user.email.split('@')[0]}</span>
+      <button id="btn-sign-out"
+        class="text-sm font-medium transition hover:text-white"
+        style="color:rgba(255,255,255,0.8);">
+        Hello, ${firstName}
       </button>`;
     document.getElementById('btn-sign-out').addEventListener('click', signOut);
   } else {
