@@ -168,7 +168,7 @@ function renderEntryBlocks(container) {
     },
     {
       icon: '🔬', verb: 'Explore',     title: 'Mutants',
-      meta: '<span id="eb-mutant-count">—</span> characterized',
+      meta: '<span id="eb-mutant-count">—</span>+ characterized',
       tab: 'mutants', disabled: false,
     },
   ];
@@ -199,7 +199,7 @@ function renderEntryBlocks(container) {
     el.style.cssText = '';
     el.innerHTML = `
       <div class="max-w-5xl mx-auto" style="display:grid;grid-template-columns:repeat(${blocks.length},1fr);">
-        ${blocks.map(b => entryBlockHTML(b, 'border-right:1px solid #ececec;')).join('')}
+        ${blocks.map((b, i) => entryBlockHTML(b, i < blocks.length - 1 ? 'border-right:1px solid #ececec;' : '')).join('')}
       </div>`;
   } else if (isLabMember) {
     // Mobile 2×2
@@ -219,11 +219,12 @@ function renderEntryBlocks(container) {
         ${entryBlockHTML(genomesBlock, 'border-right:1px solid #ececec;')}
         ${entryBlockHTML(mutantsBlock, '')}
       </div>
-      <div style="display:flex;align-items:center;gap:1rem;padding:0.875rem 1rem;opacity:0.32;cursor:default;">
-        <span style="font-size:1.125rem;">${searchBlock.icon}</span>
+      <div style="display:flex;align-items:center;gap:1rem;padding:1.125rem 1.25rem 1rem;opacity:0.32;cursor:default;">
+        <span style="font-size:1.375rem;">${searchBlock.icon}</span>
         <div>
-          <div style="font-size:0.5375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:2px;">${searchBlock.verb}</div>
-          <div style="font-size:0.875rem;font-weight:600;color:#111;">${searchBlock.title}</div>
+          <div style="font-size:0.59375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:#1a6b4a;margin-bottom:0.25rem;">${searchBlock.verb}</div>
+          <div style="font-size:1.0625rem;font-weight:600;color:#111;margin-bottom:0.25rem;">${searchBlock.title}</div>
+          <div class="font-mono" style="font-size:0.75rem;color:#bbb;">${searchBlock.meta}</div>
         </div>
       </div>`;
   }
@@ -246,7 +247,7 @@ function entryBlockHTML(block, borderStyle) {
       style="padding:1.125rem 1.25rem 1rem;${borderStyle}${cursor}${opacity}transition:background 0.15s;"
       ${!block.disabled ? 'onmouseenter="this.style.background=\'#f9fafb\'" onmouseleave="this.style.background=\'\'"' : ''}>
       <span style="font-size:1.375rem;margin-bottom:0.5rem;display:block;">${block.icon}</span>
-      <div style="font-size:0.5625rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:0.25rem;">${block.verb}</div>
+      <div style="font-size:0.59375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:#1a6b4a;margin-bottom:0.25rem;">${block.verb}</div>
       <div style="font-size:1.0625rem;font-weight:600;color:#111;margin-bottom:0.25rem;">${block.title}</div>
       <div class="font-mono" style="font-size:0.75rem;color:#bbb;">${block.meta}</div>
     </div>`;
