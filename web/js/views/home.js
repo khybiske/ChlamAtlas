@@ -341,8 +341,62 @@ async function loadUpdates(container) {
         </div>`;
     }).join('')}`;
 }
-function renderFooter(container) { /* Task 7 */ }
-async function loadCitation(container) { /* Task 7 */ }
+function renderFooter(container) {
+  const el = container.querySelector('#home-footer');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="background:#f9f9f9;border-top:1px solid #efefef;">
+      <div class="max-w-5xl mx-auto px-5 sm:px-8" style="padding-top:1.125rem;padding-bottom:1rem;">
+        <div style="font-size:0.71875rem;font-weight:600;color:#444;margin-bottom:0.2rem;">Hybiske Lab</div>
+        <div style="font-size:0.6875rem;color:#aaa;margin-bottom:0.75rem;">University of Washington · Seattle, WA</div>
+        <div style="display:flex;gap:1rem;">
+          <button id="btn-how-to-cite"
+            style="font-size:0.6875rem;color:#1a6b4a;background:none;border:none;cursor:pointer;padding:0;">
+            How to cite
+          </button>
+          <a href="https://github.com/khybiske/ChlamAtlas" target="_blank" rel="noopener"
+            style="font-size:0.6875rem;color:#1a6b4a;text-decoration:none;">GitHub</a>
+          <a href="mailto:khybiske@uw.edu"
+            style="font-size:0.6875rem;color:#1a6b4a;text-decoration:none;">Contact</a>
+        </div>
+      </div>
+    </div>`;
+
+  el.querySelector('#btn-how-to-cite').addEventListener('click', () => {
+    container.querySelector('#citation-modal').classList.remove('hidden');
+  });
+}
+const DEFAULT_CITATION = `Hybiske et al., manuscript in preparation.
+ChlamAtlas: an integrated Chlamydia research database.
+https://chlamatlas.org — Hybiske Lab, University of Washington.`;
+
+async function loadCitation(container) {
+  let citationText = DEFAULT_CITATION;
+  try {
+    const { data } = await sb
+      .from('site_config')
+      .select('value')
+      .eq('key', 'citation')
+      .maybeSingle();
+    if (data?.value) citationText = data.value;
+  } catch (err) {
+    console.error('loadCitation:', err);
+    // fall through — use DEFAULT_CITATION
+  }
+
+  const textEl = container.querySelector('#citation-text');
+  if (textEl) textEl.textContent = citationText;
+
+  const copyBtn = container.querySelector('#citation-copy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(citationText);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy citation'; }, 2000);
+    });
+  }
+}
 
 async function loadSpotlight(container) {
   const { data } = await sb.from('site_config').select('*').eq('key', 'spotlight').maybeSingle();
