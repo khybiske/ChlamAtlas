@@ -1,36 +1,27 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../app.js';
 
-const STRAIN_CARDS = [
+const ORGANISMS = [
   {
-    id: 'CT-L2',
-    species: 'Chlamydia trachomatis',
-    strain: 'L2/434',
-    abbr: 'CT-L2',
-    emoji: '🫛',
-    color: '#7c3aed',
-    colorLight: '#f5f3ff',
-    desc: 'Primary experimental strain',
+    id:      'CT-L2',
+    species: 'C. trachomatis L2/434',
+    label:   'CT-L2',
+    desc:    'Primary experimental strain',
+    color:   '#16a34a',
   },
   {
-    id: 'CT-D',
-    species: 'Chlamydia trachomatis',
-    strain: 'D/UW-3',
-    abbr: 'CT-D',
-    emoji: '🔵',
-    color: '#1d4ed8',
-    colorLight: '#eff6ff',
-    desc: 'Reference sequenced strain',
+    id:      'CT-D',
+    species: 'C. trachomatis D/UW-3',
+    label:   'CT-D',
+    desc:    'Discovered at UW',
+    color:   '#4b2e83',
   },
   {
-    id: 'CM',
-    species: 'Chlamydia muridarum',
-    strain: 'Nigg',
-    abbr: 'CM',
-    emoji: '🐭',
-    color: '#c2410c',
-    colorLight: '#fff7ed',
-    desc: 'Mouse model strain',
+    id:      'CM',
+    species: 'C. muridarum Nigg',
+    label:   'CM',
+    desc:    'Mouse model strain',
+    color:   '#2563eb',
   },
 ];
 
@@ -172,9 +163,9 @@ async function loadSpotlight(container) {
 }
 
 const CATEGORY_COLORS = {
-  'CT-L2':      '#7c3aed',
-  'CT-D':       '#1d4ed8',
-  'CM':         '#c2410c',
+  'CT-L2':      '#16a34a',
+  'CT-D':       '#4b2e83',
+  'CM':         '#2563eb',
   'Structures': '#1a6b4a',
   'default':    '#6b7280',
 };
