@@ -391,8 +391,13 @@ async function loadCitation(container) {
   const copyBtn = container.querySelector('#citation-copy');
   if (copyBtn) {
     copyBtn.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(citationText);
-      copyBtn.textContent = 'Copied!';
+      try {
+        await navigator.clipboard.writeText(citationText);
+        copyBtn.textContent = 'Copied!';
+      } catch (err) {
+        console.error('clipboard write failed:', err);
+        copyBtn.textContent = 'Copy failed';
+      }
       setTimeout(() => { copyBtn.textContent = 'Copy citation'; }, 2000);
     });
   }
