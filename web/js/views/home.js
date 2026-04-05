@@ -26,122 +26,141 @@ const ORGANISMS = [
 ];
 
 export async function renderHome(container) {
-  const greeting = state.user
-    ? `Hello, ${state.user.email.split('@')[0]}`
-    : null;
-
+  // Build full-bleed page — container has no max-width constraint
   container.innerHTML = `
-    <!-- Hero -->
-    <div class="relative overflow-hidden rounded-2xl mt-5 mb-6" style="background:#0f4530;">
-      <!-- Globe SVG backdrop (decorative) -->
-      <svg class="absolute right-0 top-0 h-full opacity-10" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="100" cy="100" r="90" stroke="white" stroke-width="1.5"/>
-        <ellipse cx="100" cy="100" rx="40" ry="90" stroke="white" stroke-width="1.5"/>
-        <ellipse cx="100" cy="100" rx="70" ry="90" stroke="white" stroke-width="1.5"/>
-        <line x1="10" y1="100" x2="190" y2="100" stroke="white" stroke-width="1.5"/>
-        <line x1="100" y1="10" x2="100" y2="190" stroke="white" stroke-width="1.5"/>
-        <path d="M20 60 Q100 40 180 60" stroke="white" stroke-width="1"/>
-        <path d="M15 140 Q100 160 185 140" stroke="white" stroke-width="1"/>
-      </svg>
-
-      <div class="relative px-6 py-10 sm:px-12 sm:py-14 text-white">
-        ${greeting ? `<p class="text-sm text-white/60 font-sans mb-2">${greeting}</p>` : ''}
-        <h1 class="font-display font-bold text-white leading-none mb-2" style="font-size: clamp(2.5rem, 7vw, 4rem);">ChlamAtlas</h1>
-        <p class="text-white/70 text-sm sm:text-base italic" style="white-space:nowrap;">A Chlamydia research database</p>
-        <div class="flex gap-3 mt-6 flex-wrap">
-          <button data-nav-tab="genomes"
-            class="px-4 py-2 bg-white text-[#0f4530] rounded-lg text-sm font-semibold hover:bg-white/90 transition">
-            Browse Genomes
-          </button>
-          <button data-nav-tab="mutants"
-            class="px-4 py-2 bg-white/15 text-white rounded-lg text-sm font-semibold hover:bg-white/25 transition border border-white/30">
-            Explore Mutants
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats bar -->
-    <div class="overflow-x-auto -mx-4 px-4 mb-6">
-      <div class="flex gap-3 min-w-max sm:min-w-0 sm:grid sm:grid-cols-5" id="stats-bar">
-        ${[0,1,2,3,4].map(() => `<div class="skeleton h-16 w-28 sm:w-auto rounded-xl flex-shrink-0"></div>`).join('')}
-      </div>
-    </div>
-
-    <!-- Strain portal cards -->
-    <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Organisms</h2>
-    <div class="grid gap-3 sm:grid-cols-3 mb-8">
-      ${STRAIN_CARDS.map(s => `
-        <button data-nav-tab="genomes" data-strain="${s.id}"
-          class="text-left rounded-2xl border border-gray-100 hover:shadow-md transition overflow-hidden group">
-          <div class="h-1.5" style="background:${s.color};"></div>
-          <div class="p-4" style="background:${s.colorLight};">
-            <div class="flex items-start justify-between">
-              <span class="text-3xl leading-none">${s.emoji}</span>
-              <svg class="text-gray-400 group-hover:text-gray-600 transition mt-1" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </div>
-            <p class="mt-2 font-mono text-xs font-medium" style="color:${s.color};">${s.abbr}</p>
-            <p class="text-sm font-semibold text-gray-900 italic leading-tight"><em>${s.species}</em></p>
-            <p class="text-xs text-gray-500 mt-0.5">${s.desc}</p>
+    <!-- ── Masthead ── -->
+    <div class="home-masthead" style="background:#0f4530;overflow:hidden;position:relative;">
+      <!-- Subtle decorative circle -->
+      <div style="position:absolute;right:-80px;top:-80px;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,0.025);pointer-events:none;"></div>
+      <div class="max-w-5xl mx-auto px-5 sm:px-8" style="padding-top:2.75rem;padding-bottom:2.75rem;position:relative;z-index:1;">
+        <!-- Desktop: two-column; Mobile: stacked -->
+        <div class="sm:grid sm:gap-12" style="grid-template-columns:1fr auto;align-items:end;">
+          <div>
+            <h1 class="font-display font-bold text-white" style="font-size:clamp(2.75rem,7vw,4.25rem);line-height:1;margin-bottom:0.75rem;letter-spacing:-0.01em;">ChlamAtlas</h1>
+            <p style="font-size:0.9375rem;color:rgba(255,255,255,0.6);line-height:1.65;max-width:30rem;">
+              The integrated research database for <em style="color:rgba(255,255,255,0.85);font-style:italic;">Chlamydia</em> —
+              genomics, mutant phenotypes, structural biology, and multi-lab
+              pipeline tracking across three model strains.
+            </p>
           </div>
-        </button>`).join('')}
-    </div>
-
-    <!-- Spotlight + Recent updates (two columns on desktop) -->
-    <div class="grid gap-6 sm:grid-cols-2 mb-8">
-
-      <!-- Spotlight card -->
-      <div id="spotlight-card">
-        <div class="skeleton h-32 rounded-2xl"></div>
-      </div>
-
-      <!-- Recent updates -->
-      <div>
-        <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Recent Updates</h2>
-        <div id="updates-list" class="divide-y divide-gray-100 rounded-xl border border-gray-100 overflow-hidden">
-          ${[0,1,2].map(() => `<div class="skeleton h-12 rounded-none"></div>`).join('')}
+          <!-- Stats — right column desktop, horizontal row mobile -->
+          <div id="mast-stats" class="flex sm:flex-col gap-0 sm:gap-4 mt-5 sm:mt-0">
+            <!-- Skeleton while loading -->
+            <div class="flex sm:hidden gap-0 w-full" id="stats-row-mobile">
+              ${[0,1,2].map(() => `
+                <div class="flex-1 px-3 sm:px-0" style="border-right:1px solid rgba(255,255,255,0.1);">
+                  <div class="skeleton" style="height:1.25rem;width:3rem;margin-bottom:0.25rem;background:rgba(255,255,255,0.12);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
+                  <div class="skeleton" style="height:0.625rem;width:2rem;background:rgba(255,255,255,0.08);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
+                </div>`).join('')}
+            </div>
+            <div class="hidden sm:flex sm:flex-col sm:gap-4 sm:items-end" id="stats-col-desktop">
+              ${[0,1,2].map(() => `
+                <div class="text-right">
+                  <div class="skeleton" style="height:1.875rem;width:4rem;margin-bottom:0.25rem;margin-left:auto;background:rgba(255,255,255,0.12);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
+                  <div class="skeleton" style="height:0.625rem;width:3rem;margin-left:auto;background:rgba(255,255,255,0.08);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
+                </div>`).join('')}
+            </div>
+          </div>
         </div>
       </div>
+    </div>
 
+    <!-- ── Entry blocks ── -->
+    <div id="entry-blocks" style="background:white;border-bottom:1px solid #ececec;"></div>
+
+    <!-- ── Lower section ── -->
+    <div style="background:white;">
+      <div class="max-w-5xl mx-auto px-5 sm:px-8" style="padding-top:2.25rem;padding-bottom:3rem;">
+        <div class="sm:grid sm:gap-14" style="grid-template-columns:1fr 1fr;">
+          <div id="organisms-section"></div>
+          <div id="updates-section" class="mt-8 sm:mt-0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Footer ── -->
+    <div id="home-footer"></div>
+
+    <!-- ── Citation modal ── -->
+    <div id="citation-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="px-6 py-5" style="background:#0f4530;">
+          <h2 class="font-display font-bold text-white text-xl leading-tight">How to cite</h2>
+        </div>
+        <div class="p-6">
+          <p id="citation-text" class="text-sm text-gray-700 font-mono leading-relaxed bg-gray-50 rounded-lg p-4 mb-4" style="white-space:pre-wrap;"></p>
+          <button id="citation-copy"
+            class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition mb-3"
+            style="background:#0f4530;">Copy citation</button>
+          <button id="citation-close" class="w-full text-center text-sm text-gray-400 hover:text-gray-600">Close</button>
+        </div>
+      </div>
     </div>
   `;
 
-  // Wire up hero CTA buttons and strain cards to tab navigation
-  container.querySelectorAll('[data-nav-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: btn.dataset.navTab } }));
-    });
+  // Wire citation modal close
+  container.querySelector('#citation-close').addEventListener('click', () => {
+    container.querySelector('#citation-modal').classList.add('hidden');
+  });
+  container.querySelector('#citation-modal').addEventListener('click', (e) => {
+    if (e.target === container.querySelector('#citation-modal'))
+      container.querySelector('#citation-modal').classList.add('hidden');
   });
 
-  // Load async data in parallel
+  // Load all sections in parallel
   loadStats(container);
-  loadSpotlight(container);
+  renderEntryBlocks(container);
+  loadOrganisms(container);
   loadUpdates(container);
+  renderFooter(container);
+  loadCitation(container);
 }
 
 async function loadStats(container) {
-  const [geneRes, mutantRes, structureRes] = await Promise.all([
+  const [geneRes, mutantRes] = await Promise.all([
     sb.from('genes').select('id', { count: 'exact', head: true }),
     sb.from('mutants').select('id', { count: 'exact', head: true }),
-    sb.from('alphafold_results').select('id', { count: 'exact', head: true }),
   ]);
 
   const stats = [
-    { label: 'Organisms',    value: '3' },
-    { label: 'Genes',        value: geneRes.count?.toLocaleString() ?? '—' },
-    { label: 'Structures',   value: structureRes.count?.toLocaleString() ?? '—' },
-    { label: 'Mutants',      value: mutantRes.count?.toLocaleString() ?? '—' },
-    { label: 'Partner Labs', value: '3' },
+    { value: geneRes.count?.toLocaleString() ?? '—', label: 'Genes' },
+    { value: mutantRes.count?.toLocaleString() ?? '—', label: 'Mutants' },
+    { value: '3', label: 'Strains' },
   ];
 
-  const bar = container.querySelector('#stats-bar');
-  if (!bar) return;
-  bar.innerHTML = stats.map(s => `
-    <div class="flex flex-col items-center justify-center px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm gap-0.5 flex-shrink-0 sm:flex-shrink">
-      <span class="text-xl font-bold text-gray-900 font-mono">${s.value}</span>
-      <span class="text-[11px] text-gray-400 whitespace-nowrap">${s.label}</span>
-    </div>`).join('');
+  // Mobile horizontal row
+  const mobileEl = container.querySelector('#stats-row-mobile');
+  if (mobileEl) {
+    mobileEl.innerHTML = stats.map((s, i) => `
+      <div class="flex-1 px-3 first:pl-0 last:pr-0 last:border-r-0"
+           style="border-right:1px solid rgba(255,255,255,0.12);">
+        <span class="font-mono font-medium text-white block" style="font-size:1.2rem;line-height:1;">${s.value}</span>
+        <span class="block" style="font-size:0.5875rem;color:rgba(255,255,255,0.42);text-transform:uppercase;letter-spacing:0.08em;margin-top:0.2rem;">${s.label}</span>
+      </div>`).join('');
+  }
+
+  // Desktop stacked column
+  const desktopEl = container.querySelector('#stats-col-desktop');
+  if (desktopEl) {
+    desktopEl.innerHTML = stats.map(s => `
+      <div class="text-right">
+        <span class="font-mono font-medium text-white block" style="font-size:1.875rem;line-height:1;">${s.value}</span>
+        <span class="block" style="font-size:0.625rem;color:rgba(255,255,255,0.42);text-transform:uppercase;letter-spacing:0.09em;margin-top:0.2rem;">${s.label}</span>
+      </div>`).join('');
+  }
+
+  // Also update entry block meta counts (populated by renderEntryBlocks in Task 5)
+  const ebGene = container.querySelector('#eb-gene-count');
+  const ebMutant = container.querySelector('#eb-mutant-count');
+  if (ebGene) ebGene.textContent = geneRes.count?.toLocaleString() ?? '—';
+  if (ebMutant) ebMutant.textContent = mutantRes.count?.toLocaleString() ?? '—';
 }
+
+function renderEntryBlocks(container) { /* Task 5 */ }
+function loadOrganisms(container) { /* Task 6 */ }
+async function loadUpdates(container) { /* Task 6 */ }
+function renderFooter(container) { /* Task 7 */ }
+async function loadCitation(container) { /* Task 7 */ }
 
 async function loadSpotlight(container) {
   const { data } = await sb.from('site_config').select('*').eq('key', 'spotlight').maybeSingle();
@@ -170,7 +189,7 @@ const CATEGORY_COLORS = {
   'default':    '#6b7280',
 };
 
-async function loadUpdates(container) {
+async function _oldLoadUpdates(container) {
   const { data } = await sb
     .from('site_updates')
     .select('id, title, category, created_at')
