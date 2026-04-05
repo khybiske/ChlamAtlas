@@ -253,8 +253,80 @@ function entryBlockHTML(block, borderStyle) {
     </div>`;
 }
 
-function loadOrganisms(container) { /* Task 6 */ }
-async function loadUpdates(container) { /* Task 6 */ }
+async function loadOrganisms(container) {
+  // Query gene counts per strain using embedded count
+  const { data: strains } = await sb
+    .from('strains')
+    .select('id, common_name, genes(count)')
+    .eq('is_active', true);
+
+  const el = container.querySelector('#organisms-section');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="font-size:0.5875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:0.875rem;">
+      Model Organisms
+    </div>
+    ${ORGANISMS.map(org => {
+      // Match by common_name (CT-L2, CT-D, CM)
+      const strain = strains?.find(s => s.common_name === org.id);
+      const count = strain?.genes?.[0]?.count;
+      const countText = count != null ? `<span class="font-mono" style="font-size:0.6875rem;color:#ccc;">${Number(count).toLocaleString()} genes</span>` : '';
+      return `
+        <button data-strain="${org.id}"
+          style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid #f3f3f3;width:100%;text-align:left;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;"
+          onmouseenter="this.style.opacity='0.8'" onmouseleave="this.style.opacity='1'">
+          <div style="width:3px;height:2.25rem;border-radius:2px;background:${org.color};flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div style="font-size:0.875rem;font-style:italic;color:#222;font-weight:500;">${org.species}</div>
+            <div style="font-size:0.7188rem;color:#bbb;margin-top:1px;">${org.label} · ${org.desc}</div>
+          </div>
+          ${countText}
+          <span style="color:#ddd;font-size:1.125rem;margin-left:0.25rem;">›</span>
+        </button>`;
+    }).join('')}`;
+
+  // Wire up navigation — pass strain preference to genomes view
+  el.querySelectorAll('[data-strain]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.__preferredStrain = btn.dataset.strain;
+      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+    });
+  });
+}
+// Map site_updates category values to organism colors
+const UPDATE_COLORS = {
+  'CT-L2':      '#16a34a',
+  'CT-D':       '#4b2e83',
+  'CM':         '#2563eb',
+  'Structures': '#1a6b4a',
+};
+
+async function loadUpdates(container) {
+  const { data } = await sb
+    .from('site_updates')
+    .select('id, title, category, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const el = container.querySelector('#updates-section');
+  if (!el || !data?.length) return;
+
+  el.innerHTML = `
+    <div style="font-size:0.5875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:0.875rem;">
+      Recent Updates
+    </div>
+    ${data.map(u => {
+      const color = UPDATE_COLORS[u.category] ?? '#9ca3af';
+      const date = new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `
+        <div style="display:flex;align-items:flex-start;gap:0.625rem;padding:0.625rem 0;border-bottom:1px solid #f5f5f5;">
+          <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;margin-top:0.3125rem;"></div>
+          <div style="font-size:0.8125rem;color:#444;line-height:1.45;flex:1;">${u.title}</div>
+          <div style="font-size:0.6563rem;color:#ccc;white-space:nowrap;padding-left:0.5rem;">${date}</div>
+        </div>`;
+    }).join('')}`;
+}
 function renderFooter(container) { /* Task 7 */ }
 async function loadCitation(container) { /* Task 7 */ }
 
