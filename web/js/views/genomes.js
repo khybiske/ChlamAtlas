@@ -145,8 +145,102 @@ function showGeneList(container) {
   fetchGenes(container, true);
 }
 
-// Stub — replaced in Task 3
-function renderFilterBar(container) {}
+const SORT_OPTIONS = [
+  { field: 'sort_index',  asc: true,  label: 'Locus tag' },
+  { field: 'gene_name',   asc: true,  label: 'Gene name' },
+  { field: 'mass_kd',     asc: true,  label: 'Protein size' },
+  { field: 'expr_eb',     asc: false, label: 'Expression (EB)' },
+];
+
+function renderFilterBar(container) {
+  const bar = container.querySelector('#filter-bar');
+  if (!bar) return;
+
+  const sortLabel = SORT_OPTIONS.find(o => o.field === _sortField)?.label ?? 'Locus tag';
+
+  const chip = (id, label, active) => `
+    <button data-filter="${id}"
+      style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
+             background:${active ? '#f0fdf4' : 'white'};color:${active ? '#16a34a' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
+      ${label}
+    </button>`;
+
+  bar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
+      <!-- Sort -->
+      <div style="position:relative;">
+        <button id="sort-btn"
+          style="font-size:9.5px;font-weight:500;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:3px 7px;cursor:pointer;font-family:inherit;">
+          ⇅ ${sortLabel}
+        </button>
+        <div id="sort-dropdown" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:120px;overflow:hidden;">
+          ${SORT_OPTIONS.map(o => `
+            <button data-sort-field="${o.field}" data-sort-asc="${o.asc}"
+              style="display:block;width:100%;text-align:left;padding:7px 12px;font-size:10px;font-weight:${o.field === _sortField ? '600' : '400'};
+                     color:${o.field === _sortField ? '#16a34a' : '#333'};background:${o.field === _sortField ? '#f0fdf4' : 'none'};border:none;cursor:pointer;font-family:inherit;">
+              ${o.label}
+            </button>`).join('')}
+        </div>
+      </div>
+      <!-- Always-visible chips -->
+      ${chip('favorites',    '★ Favorites',  _filters.favorites)}
+      ${chip('characterized','Characterized', _filters.characterized)}
+      ${chip('inc',          'Inc',           _filters.inc)}
+      <!-- More button -->
+      <button id="more-filters-btn"
+        style="font-size:9px;font-weight:600;color:#9ca3af;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:2px 7px;cursor:pointer;margin-left:auto;font-family:inherit;">
+        + More
+      </button>
+    </div>
+    <!-- Expanded "more" panel -->
+    <div id="more-panel" style="display:none;padding:8px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;display:none;flex-wrap:wrap;gap:5px;">
+      ${chip('membrane',    'Membrane',     _filters.membrane)}
+      ${chip('secreted',    'Secreted',     _filters.secreted)}
+      ${chip('hasStructure','Has structure', _filters.hasStructure)}
+    </div>
+  `;
+
+  // Sort dropdown toggle
+  const sortBtn = bar.querySelector('#sort-btn');
+  const sortDrop = bar.querySelector('#sort-dropdown');
+  sortBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    sortDrop.style.display = sortDrop.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', () => { sortDrop.style.display = 'none'; }, { once: true });
+
+  bar.querySelectorAll('[data-sort-field]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _sortField = btn.dataset.sortField;
+      _sortAsc   = btn.dataset.sortAsc === 'true';
+      _offset = 0;
+      renderFilterBar(container);
+      fetchGenes(container, true);
+    });
+  });
+
+  // Filter chip toggles
+  bar.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.filter;
+      _filters[key] = !_filters[key];
+      _offset = 0;
+      renderFilterBar(container);
+      fetchGenes(container, true);
+    });
+  });
+
+  // More filters toggle
+  const moreBtn = bar.querySelector('#more-filters-btn');
+  const morePanel = bar.querySelector('#more-panel');
+  if (moreBtn && morePanel) {
+    moreBtn.addEventListener('click', () => {
+      const open = morePanel.style.display === 'flex';
+      morePanel.style.display = open ? 'none' : 'flex';
+      moreBtn.textContent = open ? '+ More' : '− Less';
+    });
+  }
+}
 
 async function fetchGenes(container) {
   const list = container.querySelector('#gene-list');
