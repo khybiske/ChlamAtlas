@@ -246,77 +246,153 @@ function renderFilterBar(container) {
   }
 }
 
-async function fetchGenes(container) {
+async function fetchGenes(container, reset = false) {
+  if (_loading) return;
+  if (reset) { _offset = 0; _hasMore = false; }
+
+  _loading = true;
   const list = container.querySelector('#gene-list');
-  list.innerHTML = skeletonRows(8);
+  if (!list) { _loading = false; return; }
 
-  const from = _page * PAGE_SIZE;
-  const to   = from + PAGE_SIZE - 1;
+  if (reset) {
+    list.innerHTML = skeletonRows(8);
+    _selectedId = null;
+  }
 
-  const base = sb.from('genes')
-    .select('id,locus_tag,gene_name,product,af_image_url,is_hypothetical,microarray_category', { count: 'exact' })
+  // Build query
+  let q = sb.from('genes')
+    .select('id,locus_tag,gene_name,product,function,af_image_url,is_hypothetical,is_inc,is_membrane,is_secreted,mass_kd,expr_eb', { count: 'exact' })
     .eq('strain_id', _strain)
-    .order('sort_index', { ascending: true, nullsFirst: false })
-    .range(from, to);
+    .order(_sortField, { ascending: _sortAsc, nullsFirst: false })
+    .range(_offset, _offset + PAGE_SIZE - 1);
 
-  const query = _search
-    ? sb.from('genes')
-        .select('id,locus_tag,gene_name,product,af_image_url,is_hypothetical,microarray_category', { count: 'exact' })
-        .eq('strain_id', _strain)
-        .or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%`)
-        .order('sort_index', { ascending: true, nullsFirst: false })
-        .range(from, to)
-    : base;
+  if (_search) {
+    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%`);
+  }
+  if (_filters.characterized) q = q.eq('is_hypothetical', false);
+  if (_filters.inc)            q = q.eq('is_inc', true);
+  if (_filters.membrane)       q = q.eq('is_membrane', true);
+  if (_filters.secreted)       q = q.eq('is_secreted', true);
+  if (_filters.hasStructure)   q = q.not('af_image_url', 'is', null);
 
-  const { data: genes, count, error } = await query;
-  _total = count ?? 0;
+  const { data: genes, count, error } = await q;
+  _loading = false;
 
-  if (error) { list.innerHTML = `<div class="p-6 text-red-500 text-sm">${error.message}</div>`; return; }
-  if (!genes?.length) { list.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm">No genes found.</div>`; renderPg(container); return; }
+  if (error) {
+    if (reset) list.innerHTML = `<div style="padding:1.5rem;font-size:0.75rem;color:#ef4444;">${error.message}</div>`;
+    return;
+  }
 
-  list.innerHTML = genes.map(geneRow).join('');
-  list.querySelectorAll('.gene-row').forEach(row =>
-    row.addEventListener('click', () => showGeneDetail(Number(row.dataset.id), container))
-  );
-  renderPg(container);
+  _total   = count ?? 0;
+  _hasMore = (_offset + PAGE_SIZE) < _total;
+
+  // Update result count
+  const countEl = container.querySelector('#result-count');
+  if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
+
+  if (!genes?.length) {
+    if (reset) list.innerHTML = `<div style="padding:2rem;text-align:center;font-size:0.75rem;color:#9ca3af;">No genes found.</div>`;
+    return;
+  }
+
+  // Apply favorites filter client-side (localStorage)
+  let rows = genes;
+  if (_filters.favorites) {
+    const favs = loadFavorites();
+    rows = genes.filter(g => favs.has(String(g.id)));
+  }
+
+  if (reset) {
+    list.innerHTML = rows.map(g => geneRow(g)).join('');
+  } else {
+    list.insertAdjacentHTML('beforeend', rows.map(g => geneRow(g)).join(''));
+  }
+
+  _offset += PAGE_SIZE;
+
+  // Wire row click handlers for newly added rows
+  const newRows = list.querySelectorAll('.gene-row:not([data-wired])');
+  newRows.forEach(row => {
+    row.dataset.wired = '1';
+    row.addEventListener('click', () => {
+      const isMobile = window.innerWidth < 640;
+      if (isMobile) {
+        showGeneDetailMobile(Number(row.dataset.id), container);
+      } else {
+        _selectedId = Number(row.dataset.id);
+        list.querySelectorAll('.gene-row').forEach(r => {
+          const sel = Number(r.dataset.id) === _selectedId;
+          r.style.background = sel ? '#f0fdf4' : '';
+          r.style.borderLeft = sel ? '2px solid #16a34a' : '';
+          r.style.paddingLeft = sel ? '10px' : '';
+        });
+        showGeneDetailDesktop(Number(row.dataset.id), container);
+      }
+    });
+  });
+
+  setupInfiniteScroll(container);
+}
+
+function setupInfiniteScroll(container) {
+  const sentinel = container.querySelector('#scroll-sentinel');
+  const scroll   = container.querySelector('#gene-scroll');
+  if (!sentinel || !scroll) return;
+
+  // Disconnect any existing observer
+  if (scroll._observer) scroll._observer.disconnect();
+
+  if (!_hasMore) return;
+
+  const observer = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !_loading && _hasMore) {
+      fetchGenes(container, false);
+    }
+  }, { root: scroll, threshold: 0 });
+
+  observer.observe(sentinel);
+  scroll._observer = observer;
 }
 
 function geneRow(g) {
-  const img = g.af_image_url
-    ? `<img src="${g.af_image_url}" loading="lazy" class="gene-thumb"
+  const color = CATEGORY_COLORS[g.function] ?? CATEGORY_COLOR_DEFAULT;
+  const favs  = loadFavorites();
+  const isFav = favs.has(String(g.id));
+
+  const thumb = g.af_image_url
+    ? `<img src="${g.af_image_url}" loading="lazy"
+           style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;"
            onerror="this.style.display='none'" />`
-    : `<div class="gene-thumb bg-gray-100 flex items-center justify-center text-gray-300 text-xl">⬡</div>`;
+    : `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#d1d5db;flex-shrink:0;">⬡</div>`;
 
   const nameEl = g.gene_name
-    ? `<span class="gene-named">${g.gene_name}</span>
-       <span class="gene-locus ml-1.5">${g.locus_tag}</span>`
-    : `<span class="gene-unnamed">${g.locus_tag}</span>`;
+    ? `<span style="font-size:10.5px;font-weight:600;color:#111;">${g.gene_name}</span>
+       <span style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace;margin-left:3px;">${g.locus_tag}</span>`
+    : `<span style="font-size:10px;font-weight:500;color:#9ca3af;font-family:'DM Mono',monospace;">${g.locus_tag}</span>`;
+
+  const starEl = state.user
+    ? `<button class="fav-btn" data-id="${g.id}"
+         style="font-size:11px;color:${isFav ? '#f59e0b' : '#e5e7eb'};background:none;border:none;cursor:pointer;flex-shrink:0;padding:0;"
+         title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+         ${isFav ? '★' : '☆'}
+       </button>`
+    : '';
 
   return `
-    <div class="gene-row" data-id="${g.id}">
-      ${img}
-      <div class="flex-1 min-w-0">
-        <div class="text-sm">${nameEl}</div>
-        <div class="gene-product">${g.product ?? 'Hypothetical protein'}</div>
+    <div class="gene-row" data-id="${g.id}"
+      style="display:flex;align-items:center;gap:0;border-bottom:1px solid #f7f7f7;cursor:pointer;transition:background 0.1s;"
+      onmouseenter="this.style.background='#fafafa'" onmouseleave="this.style.background=this.dataset.sel?'#f0fdf4':''">
+      <div style="width:3px;align-self:stretch;background:${color};flex-shrink:0;"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px 7px 9px;flex:1;min-width:0;">
+        ${thumb}
+        <div style="flex:1;min-width:0;">
+          <div>${nameEl}</div>
+          <div style="font-size:9.5px;color:#9ca3af;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.product ?? 'Hypothetical protein'}</div>
+        </div>
+        ${starEl}
+        <span style="font-size:12px;color:#ddd;flex-shrink:0;margin-left:2px;">›</span>
       </div>
-      ${g.microarray_category ? `<span class="text-[10px] text-gray-300 flex-shrink-0 pr-1">${g.microarray_category}</span>` : ''}
-      <span class="text-gray-300 flex-shrink-0">›</span>
     </div>`;
-}
-
-function renderPg(container) {
-  const pg = container.querySelector('#gene-pg');
-  const totalPages = Math.ceil(_total / PAGE_SIZE);
-  const from = _page * PAGE_SIZE + 1;
-  const to   = Math.min((_page + 1) * PAGE_SIZE, _total);
-  pg.innerHTML = `
-    <button id="pg-prev" ${_page === 0 ? 'disabled' : ''}
-      class="px-3 py-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50 transition text-sm">← Prev</button>
-    <span class="text-xs text-gray-400">${from}–${to} of ${_total.toLocaleString()}</span>
-    <button id="pg-next" ${_page >= totalPages - 1 ? 'disabled' : ''}
-      class="px-3 py-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50 transition text-sm">Next →</button>`;
-  pg.querySelector('#pg-prev')?.addEventListener('click', () => { _page--; fetchGenes(container); window.scrollTo(0,0); });
-  pg.querySelector('#pg-next')?.addEventListener('click', () => { _page++; fetchGenes(container); window.scrollTo(0,0); });
 }
 
 // ─── Gene detail ──────────────────────────────────────────
@@ -562,9 +638,20 @@ function extRow(label, text, href) {
 }
 
 function skeletonRows(n) {
-  return `<div class="space-y-0">${Array.from({length:n}, () => `
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-      <div class="skeleton w-10 h-10 rounded-lg flex-shrink-0"></div>
-      <div class="flex-1 space-y-2"><div class="skeleton h-3 w-24 rounded"></div><div class="skeleton h-2.5 w-48 rounded"></div></div>
-    </div>`).join('')}</div>`;
+  return Array.from({ length: n }, () => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f7f7f7;">
+      <div style="width:3px;align-self:stretch;background:#f3f3f3;flex-shrink:0;"></div>
+      <div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;flex-shrink:0;animation:pulse 1.5s ease-in-out infinite;"></div>
+      <div style="flex:1;">
+        <div style="height:10px;width:5rem;background:#f3f4f6;border-radius:4px;margin-bottom:4px;animation:pulse 1.5s ease-in-out infinite;"></div>
+        <div style="height:9px;width:9rem;background:#f3f4f6;border-radius:4px;animation:pulse 1.5s ease-in-out infinite;"></div>
+      </div>
+    </div>`).join('');
 }
+
+// Stub — replaced in Task 5
+function loadFavorites() { return new Set(); }
+
+// Stubs — replaced in Tasks 6 and 7
+function showGeneDetailDesktop(geneId, container) {}
+function showGeneDetailMobile(geneId, container) {}
