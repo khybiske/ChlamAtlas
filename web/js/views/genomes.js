@@ -148,6 +148,30 @@ function showGeneList(container) {
 
   renderFilterBar(container);
   fetchGenes(container, true);
+
+  // Star button delegation (handles all .fav-btn clicks within the scrollable list)
+  container.querySelector('#gene-scroll').addEventListener('click', e => {
+    const favBtn = e.target.closest('.fav-btn');
+    if (!favBtn) return;
+    e.stopPropagation(); // prevent triggering the row click
+    const geneId = favBtn.dataset.id;
+    const nowFav = toggleFavorite(geneId);
+    favBtn.textContent = nowFav ? '★' : '☆';
+    favBtn.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
+    // If filtering by favorites, remove unfavorited row from view
+    if (_filters.favorites && !nowFav) {
+      favBtn.closest('.gene-row')?.remove();
+      _total = Math.max(0, _total - 1);
+      const countEl = container.querySelector('#result-count');
+      if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
+    }
+    // Also update the star in the detail panel if this gene is selected
+    const detailFav = container.querySelector('#detail-fav-btn');
+    if (detailFav && String(detailFav.dataset.id) === String(geneId)) {
+      detailFav.textContent = nowFav ? '★' : '☆';
+      detailFav.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
+    }
+  });
 }
 
 const SORT_OPTIONS = [
@@ -649,8 +673,20 @@ function skeletonRows(n) {
     </div>`).join('');
 }
 
-// Stub — replaced in Task 5
-function loadFavorites() { return new Set(); }
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+
+function toggleFavorite(geneId) {
+  const favs = loadFavorites();
+  const key  = String(geneId);
+  if (favs.has(key)) { favs.delete(key); } else { favs.add(key); }
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs])); } catch {}
+  return favs.has(key);
+}
 
 // Stubs — replaced in Tasks 6 and 7
 function showGeneDetailDesktop(geneId, container) {}
