@@ -144,6 +144,9 @@ function showGeneList(container) {
   fetchGenes(container, true);
 }
 
+// Stub — replaced in Task 3
+function renderFilterBar(container) {}
+
 async function fetchGenes(container) {
   const list = container.querySelector('#gene-list');
   list.innerHTML = skeletonRows(8);
