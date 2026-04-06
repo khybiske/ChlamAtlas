@@ -141,6 +141,11 @@ function showGeneList(container) {
     }, 280);
   });
 
+  // Dismiss sort dropdown on any outside click
+  document.addEventListener('click', () => {
+    container.querySelector('#sort-dropdown')?.style.setProperty('display', 'none');
+  });
+
   renderFilterBar(container);
   fetchGenes(container, true);
 }
@@ -193,7 +198,7 @@ function renderFilterBar(container) {
       </button>
     </div>
     <!-- Expanded "more" panel -->
-    <div id="more-panel" style="display:none;padding:8px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;display:none;flex-wrap:wrap;gap:5px;">
+    <div id="more-panel" style="display:none;padding:8px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;gap:5px;">
       ${chip('membrane',    'Membrane',     _filters.membrane)}
       ${chip('secreted',    'Secreted',     _filters.secreted)}
       ${chip('hasStructure','Has structure', _filters.hasStructure)}
@@ -207,7 +212,6 @@ function renderFilterBar(container) {
     e.stopPropagation();
     sortDrop.style.display = sortDrop.style.display === 'none' ? 'block' : 'none';
   });
-  document.addEventListener('click', () => { sortDrop.style.display = 'none'; }, { once: true });
 
   bar.querySelectorAll('[data-sort-field]').forEach(btn => {
     btn.addEventListener('click', () => {
