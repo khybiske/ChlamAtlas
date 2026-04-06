@@ -1,20 +1,50 @@
 // ChlamAtlas — Genomes tab
-import { sb } from '../app.js';
+import { sb, state } from '../app.js';
 
 const STRAINS = [
-  { id: 'CT-D',  name: 'C. trachomatis D',   sub: 'D/UW-3 strain',      icon: '/design/CTDicon.jpg' },
-  { id: 'CT-L2', name: 'C. trachomatis L2',  sub: 'L2/434 strain',      icon: '/design/L2icon.jpg'  },
-  { id: 'CM',    name: 'C. muridarum',        sub: 'Nigg strain',        icon: '/design/CMicon.jpg'  },
+  { id: 'CT-L2', label: 'CT L2/434' },
+  { id: 'CT-D',  label: 'CT D/UW-3' },
+  { id: 'CM',    label: 'CM'         },
 ];
 
-const PAGE_SIZE = 50;
+const CATEGORY_COLORS = {
+  'Amino acid metabolism':      '#E66729',
+  'Cell envelope':              '#00A69D',
+  'Cell processes':             '#0052A3',
+  'Cofactor metabolism':        '#838FC7',
+  'Energy metabolism':          '#EC1C24',
+  'Inclusion membrane protein': '#E4B47E',
+  'Inermediary metabolism':     '#9D270E',
+  'Lipid metabolism':           '#6F2D90',
+  'Membrane transport':         '#6DCFF5',
+  'Nucleotide metabolism':      '#F497AE',
+  'Other':                      '#EBEBEB',
+  'Replication':                '#FFF100',
+  'Secreted effector':          '#00A551',
+  'Transcription':              '#FCB814',
+  'Translation':                '#BED630',
+  'Type III secretion':         '#8A5D3B',
+  'Unknown':                    '#AAAAAA',
+};
+const CATEGORY_COLOR_DEFAULT = '#E5E7EB';
 
-// Module-level state (reset on each renderGenomes call)
-let _strain = null;
-let _page   = 0;
-let _total  = 0;
-let _search = '';
+const PAGE_SIZE = 50;
+const FAVORITES_KEY = 'chlamatlas_favorites';
+
+// ── Module-level state (reset on each renderGenomes call) ──
+let _strain      = null;
+let _search      = '';
 let _searchTimer = null;
+let _sortField   = 'sort_index';
+let _sortAsc     = true;
+let _filters     = { favorites: false, characterized: false, inc: false,
+                     membrane: false, secreted: false, hasStructure: false };
+let _offset      = 0;
+let _total       = 0;
+let _hasMore     = false;
+let _loading     = false;
+let _selectedId  = null;
+let _scrollPos   = 0;
 
 export function renderGenomes(container) {
   _strain = window.__preferredStrain ?? null;
