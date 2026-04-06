@@ -72,7 +72,7 @@ function showGeneList(container) {
         <!-- Strain tabs -->
         <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:8px 12px 0;flex-shrink:0;">
           ${STRAINS.map(s => `
-            <button data-strain="${s.id}"
+            <button data-strain="${s.id}" aria-label="View ${s.label} genes"
               style="font-size:9.5px;font-weight:600;padding:4px 8px 7px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
               ${s.label}
             </button>`).join('')}
@@ -82,7 +82,7 @@ function showGeneList(container) {
         <div style="padding:7px 10px;border-bottom:1px solid #f3f3f3;flex-shrink:0;">
           <input id="gene-search" type="search"
             placeholder="Search genes, locus tags, products…"
-            value="${_search}"
+            aria-label="Search genes, locus tags, products"
             style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;padding:5px 10px;font-size:10.5px;outline:none;font-family:inherit;" />
         </div>
 
@@ -129,8 +129,9 @@ function showGeneList(container) {
     });
   });
 
-  // Wire search
+  // Wire search (value set via JS to avoid XSS from user input interpolated into HTML)
   const searchEl = container.querySelector('#gene-search');
+  searchEl.value = _search;
   searchEl.addEventListener('input', e => {
     clearTimeout(_searchTimer);
     _search = e.target.value.trim();
