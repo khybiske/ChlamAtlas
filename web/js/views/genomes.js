@@ -35,7 +35,7 @@ const FAVORITES_KEY = 'chlamatlas_favorites';
 let _strain      = null;
 let _search      = '';
 let _searchTimer = null;
-let _sortField   = 'sort_index';
+let _sortField   = 'locus_tag';
 let _sortAsc     = true;
 let _filters     = { favorites: false, characterized: false, inc: false,
                      membrane: false, secreted: false, hasStructure: false };
@@ -175,10 +175,8 @@ function showGeneList(container) {
 }
 
 const SORT_OPTIONS = [
-  { field: 'sort_index',  asc: true,  label: 'Locus tag' },
-  { field: 'gene_name',   asc: true,  label: 'Gene name' },
-  { field: 'mass_kd',     asc: true,  label: 'Protein size' },
-  { field: 'expr_eb',     asc: false, label: 'Expression (EB)' },
+  { field: 'locus_tag',  asc: true,  label: 'Locus tag' },
+  { field: 'gene_name',  asc: true,  label: 'Gene name' },
 ];
 
 function renderFilterBar(container) {
@@ -283,21 +281,24 @@ async function fetchGenes(container, reset = false) {
     _selectedId = null;
   }
 
-  // Build query
+  // Build query — strain filtered via embedded join (strain_id is UUID, _strain is common_name)
   let q = sb.from('genes')
-    .select('id,locus_tag,gene_name,product,function,af_image_url,is_hypothetical,is_inc,is_membrane,is_secreted,mass_kd,expr_eb', { count: 'exact' })
-    .eq('strain_id', _strain)
+    .select(
+      'id,locus_tag,gene_name,functional_category,is_characterized,is_membrane_protein,is_hypothetical,is_t3_secreted,strains!inner(common_name)',
+      { count: 'exact' }
+    )
+    .eq('strains.common_name', _strain)
     .order(_sortField, { ascending: _sortAsc, nullsFirst: false })
     .range(_offset, _offset + PAGE_SIZE - 1);
 
   if (_search) {
-    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%`);
+    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%`);
   }
-  if (_filters.characterized) q = q.eq('is_hypothetical', false);
-  if (_filters.inc)            q = q.eq('is_inc', true);
-  if (_filters.membrane)       q = q.eq('is_membrane', true);
-  if (_filters.secreted)       q = q.eq('is_secreted', true);
-  if (_filters.hasStructure)   q = q.not('af_image_url', 'is', null);
+  if (_filters.characterized) q = q.eq('is_characterized', true);
+  if (_filters.inc)            q = q.eq('functional_category', 'Inclusion membrane protein');
+  if (_filters.membrane)       q = q.eq('is_membrane_protein', true);
+  if (_filters.secreted)       q = q.eq('is_t3_secreted', true);
+  // hasStructure filter deferred — af_image_url lives in alphafold_results, not genes
 
   const { data: genes, count, error } = await q;
   _loading = false;
@@ -340,17 +341,18 @@ async function fetchGenes(container, reset = false) {
     row.dataset.wired = '1';
     row.addEventListener('click', () => {
       const isMobile = window.innerWidth < 640;
+      const geneId = row.dataset.id; // UUID string
       if (isMobile) {
-        showGeneDetailMobile(Number(row.dataset.id), container);
+        showGeneDetailMobile(geneId, container);
       } else {
-        _selectedId = Number(row.dataset.id);
+        _selectedId = geneId;
         list.querySelectorAll('.gene-row').forEach(r => {
-          const sel = Number(r.dataset.id) === _selectedId;
+          const sel = r.dataset.id === _selectedId;
           r.style.background = sel ? '#f0fdf4' : '';
           r.style.borderLeft = sel ? '2px solid #16a34a' : '';
           r.style.paddingLeft = sel ? '10px' : '';
         });
-        showGeneDetailDesktop(Number(row.dataset.id), container);
+        showGeneDetailDesktop(geneId, container);
       }
     });
   });
@@ -379,15 +381,12 @@ function setupInfiniteScroll(container) {
 }
 
 function geneRow(g) {
-  const color = CATEGORY_COLORS[g.function] ?? CATEGORY_COLOR_DEFAULT;
+  const color = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
   const favs  = loadFavorites();
   const isFav = favs.has(String(g.id));
 
-  const thumb = g.af_image_url
-    ? `<img src="${g.af_image_url}" loading="lazy"
-           style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;"
-           onerror="this.style.display='none'" />`
-    : `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#d1d5db;flex-shrink:0;">⬡</div>`;
+  // af_image_url lives in alphafold_results (joined in Task 6+); placeholder for now
+  const thumb = `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#d1d5db;flex-shrink:0;">⬡</div>`;
 
   const nameEl = g.gene_name
     ? `<span style="font-size:10.5px;font-weight:600;color:#111;">${g.gene_name}</span>
@@ -411,7 +410,7 @@ function geneRow(g) {
         ${thumb}
         <div style="flex:1;min-width:0;">
           <div>${nameEl}</div>
-          <div style="font-size:9.5px;color:#9ca3af;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.product ?? 'Hypothetical protein'}</div>
+          <div style="font-size:9.5px;color:#9ca3af;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.functional_category ?? 'Hypothetical protein'}</div>
         </div>
         ${starEl}
         <span style="font-size:12px;color:#ddd;flex-shrink:0;margin-left:2px;">›</span>
