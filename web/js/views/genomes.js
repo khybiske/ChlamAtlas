@@ -47,86 +47,101 @@ let _selectedId  = null;
 let _scrollPos   = 0;
 
 export function renderGenomes(container) {
-  _strain = window.__preferredStrain ?? null;
+  // Pick up strain preference set by home page organisms section
+  _strain = window.__preferredStrain ?? 'CT-L2';
   delete window.__preferredStrain;
-  _page = 0; _search = '';
-
-  if (_strain) {
-    showGeneList(container);
-  } else {
-    showStrainSelector(container);
-  }
-}
-
-// ─── Strain selector ──────────────────────────────────────
-
-function showStrainSelector(container) {
-  container.innerHTML = `
-    <div class="mt-4 bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-      ${STRAINS.map(s => `
-        <button class="selector-row w-full text-left" data-strain="${s.id}">
-          <img src="${s.icon}" alt="${s.name}" class="selector-icon" />
-          <div>
-            <div class="font-semibold text-gray-900 text-base">${s.name}</div>
-            <div class="text-sm text-gray-400">${s.sub}</div>
-          </div>
-          <span class="ml-auto text-gray-300 text-lg">›</span>
-        </button>`).join('')}
-    </div>`;
-
-  container.querySelectorAll('[data-strain]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _strain = btn.dataset.strain;
-      _page = 0; _search = '';
-      showGeneList(container);
-    });
-  });
+  _search = ''; _offset = 0; _selectedId = null;
+  _filters = { favorites: false, characterized: false, inc: false,
+               membrane: false, secreted: false, hasStructure: false };
+  showGeneList(container);
 }
 
 // ─── Gene list ────────────────────────────────────────────
 
 function showGeneList(container) {
-  const strain = STRAINS.find(s => s.id === _strain);
+  const isMobile = window.innerWidth < 640;
+
+  container.style.padding = '0';
+
   container.innerHTML = `
-    <!-- Back -->
-    <div class="back-btn mt-3" id="genes-back">‹ Genomes</div>
+    <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:300px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});">
 
-    <!-- Strain header -->
-    <div class="flex items-center gap-3 mb-4">
-      <img src="${strain.icon}" alt="" class="w-10 h-10 rounded-full object-cover" />
-      <div>
-        <div class="font-semibold text-gray-900">${strain.name}</div>
-        <div class="text-xs text-gray-400">${strain.sub}</div>
+      <!-- ── List panel ── -->
+      <div id="list-panel" style="border-right:1px solid #ececec;display:flex;flex-direction:column;overflow:hidden;">
+
+        <!-- Strain tabs -->
+        <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:8px 12px 0;flex-shrink:0;">
+          ${STRAINS.map(s => `
+            <button data-strain="${s.id}"
+              style="font-size:9.5px;font-weight:600;padding:4px 8px 7px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
+              ${s.label}
+            </button>`).join('')}
+        </div>
+
+        <!-- Search -->
+        <div style="padding:7px 10px;border-bottom:1px solid #f3f3f3;flex-shrink:0;">
+          <input id="gene-search" type="search"
+            placeholder="Search genes, locus tags, products…"
+            value="${_search}"
+            style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;padding:5px 10px;font-size:10.5px;outline:none;font-family:inherit;" />
+        </div>
+
+        <!-- Filter/sort toolbar -->
+        <div id="filter-bar" style="flex-shrink:0;"></div>
+
+        <!-- Result count -->
+        <div id="result-count" style="font-size:9px;color:#bbb;font-family:'DM Mono',monospace;padding:3px 12px 3px;border-bottom:1px solid #f5f5f5;flex-shrink:0;"></div>
+
+        <!-- Gene list (scrollable) -->
+        <div id="gene-scroll" style="overflow-y:auto;flex:1;">
+          <div id="gene-list"></div>
+          <div id="scroll-sentinel" style="height:1px;"></div>
+        </div>
       </div>
+
+      <!-- ── Detail panel ── -->
+      <div id="detail-panel" style="overflow-y:auto;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#d1d5db;gap:8px;">
+          <span style="font-size:28px;opacity:0.4;">🧬</span>
+          <span style="font-size:12px;">Select a gene to view details</span>
+        </div>
+      </div>
+
     </div>
-
-    <!-- Search -->
-    <div class="relative mb-3">
-      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-      <input id="gene-search" type="search" placeholder="Search locus tag, gene name, product…"
-        class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl
-               focus:outline-none focus:ring-2 focus:ring-blue-200" />
-    </div>
-
-    <!-- Gene list -->
-    <div id="gene-list" class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm"></div>
-
-    <!-- Pagination -->
-    <div id="gene-pg" class="flex justify-between items-center mt-3 text-sm text-gray-500 px-1"></div>
-
-    <!-- Detail panel -->
-    <div id="gene-detail"></div>
   `;
 
-  container.querySelector('#genes-back').addEventListener('click', () => showStrainSelector(container));
-
-  container.querySelector('#gene-search').addEventListener('input', e => {
-    clearTimeout(_searchTimer);
-    _search = e.target.value.trim();
-    _searchTimer = setTimeout(() => { _page = 0; fetchGenes(container); }, 280);
+  // Wire strain tabs
+  container.querySelectorAll('[data-strain]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _strain = btn.dataset.strain;
+      _search = ''; _offset = 0; _selectedId = null;
+      _filters = { favorites: false, characterized: false, inc: false,
+                   membrane: false, secreted: false, hasStructure: false };
+      // Update tab styles
+      container.querySelectorAll('[data-strain]').forEach(b => {
+        const active = b.dataset.strain === _strain;
+        b.style.color = active ? '#16a34a' : '#9ca3af';
+        b.style.borderBottomColor = active ? '#16a34a' : 'transparent';
+      });
+      container.querySelector('#gene-search').value = '';
+      renderFilterBar(container);
+      fetchGenes(container, true);
+    });
   });
 
-  fetchGenes(container);
+  // Wire search
+  const searchEl = container.querySelector('#gene-search');
+  searchEl.addEventListener('input', e => {
+    clearTimeout(_searchTimer);
+    _search = e.target.value.trim();
+    _searchTimer = setTimeout(() => {
+      _offset = 0;
+      fetchGenes(container, true);
+    }, 280);
+  });
+
+  renderFilterBar(container);
+  fetchGenes(container, true);
 }
 
 async function fetchGenes(container) {
