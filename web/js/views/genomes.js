@@ -1078,6 +1078,110 @@ function ncbiLink(locusTag) {
     onmouseenter="this.style.background='#dcfce7'" onmouseleave="this.style.background='#f0fdf4'">NCBI ↗</a>`;
 }
 
+function renderDetailTranscriptomics(detail, gene, exprRows) {
+  const el = detail.querySelector('#d-transcriptomics');
+  if (!el) return;
+
+  const microarrayRows = exprRows.filter(r => r.method === 'microarray');
+
+  if (!microarrayRows.length) {
+    el.innerHTML = `
+      ${sectionHead('Transcriptomics')}
+      <div style="padding:8px 16px 14px;font-size:9px;color:#bbb;font-style:italic;">No expression data imported yet</div>`;
+    return;
+  }
+
+  const TP_ORDER = { T0:0, T1:1, T2:2, T3:3, T4:4, T5:5 };
+  const TP_LABEL = { T0:'1h', T1:'3h', T2:'8h', T3:'16h', T4:'24h', T5:'40h' };
+
+  const sorted = [...microarrayRows].sort((a, b) => (TP_ORDER[a.timepoint] ?? 99) - (TP_ORDER[b.timepoint] ?? 99));
+  const values = sorted.map(r => r.value ?? 0);
+  const maxVal = Math.max(...values, 1);
+
+  // CT-L2 qualitative case: all numeric values are 0 but eb_expression has a pattern label
+  if (values.every(v => v === 0) && sorted[0]?.eb_expression) {
+    const pattern = String(sorted[0].eb_expression ?? 'Unknown').toUpperCase().replace('_', ' ');
+    el.innerHTML = `
+      ${sectionHead('Transcriptomics')}
+      <div style="padding:8px 16px 14px;">
+        <div style="font-size:9px;color:#555;margin-bottom:6px;">Expression pattern (CT-L2)</div>
+        <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">${pattern}</span>
+        <div style="font-size:8.5px;color:#bbb;margin-top:6px;font-style:italic;">Qualitative · quantitative timepoints not available for CT-L2</div>
+      </div>`;
+    return;
+  }
+
+  const bars = sorted.map(r => {
+    const h   = Math.round(((r.value ?? 0) / maxVal) * 40);
+    const pct = Math.max(h, 2);
+    const lbl = TP_LABEL[r.timepoint] ?? r.timepoint;
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+        <div style="height:40px;display:flex;align-items:flex-end;width:100%;">
+          <div title="${lbl}: ${r.value ?? 0}" style="background:#4ade80;border-radius:2px 2px 0 0;width:100%;height:${pct}px;cursor:pointer;"
+            onmouseenter="this.style.background='#16a34a'" onmouseleave="this.style.background='#4ade80'"></div>
+        </div>
+        <div style="font-size:7.5px;color:#9ca3af;font-family:'DM Mono',monospace;margin-top:3px;">${lbl}</div>
+      </div>`;
+  }).join('');
+
+  const peakTp = sorted.reduce((a, b) => ((a.value ?? 0) >= (b.value ?? 0) ? a : b), sorted[0]);
+
+  el.innerHTML = `
+    ${sectionHead('Transcriptomics')}
+    <div style="padding:2px 16px 14px;">
+      <div style="font-size:8px;color:#9ca3af;margin-bottom:6px;">CT-D microarray · 1h–40h</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:57px;padding-bottom:17px;position:relative;">
+        <div style="position:absolute;bottom:17px;left:0;right:0;height:1px;background:#e5e7eb;"></div>
+        ${bars}
+      </div>
+      <div style="font-size:8px;color:#9ca3af;margin-top:4px;display:flex;align-items:center;gap:4px;">
+        <div style="width:5px;height:5px;border-radius:50%;background:#16a34a;flex-shrink:0;"></div>
+        Peak ${TP_LABEL[peakTp.timepoint] ?? peakTp.timepoint}
+      </div>
+    </div>`;
+}
+
+function renderDetailProteomics(detail, gene, exprRows) {
+  const el = detail.querySelector('#d-proteomics');
+  if (!el) return;
+
+  const protRow = exprRows.find(r => r.eb_expression != null || r.rb_expression != null);
+
+  if (!protRow) {
+    el.innerHTML = `
+      ${sectionHead('EB / RB Proteomics')}
+      <div style="padding:8px 16px 14px;font-size:9px;color:#bbb;font-style:italic;">No proteomic data imported yet</div>`;
+    return;
+  }
+
+  const ebVal = protRow.eb_expression ?? 0;
+  const rbVal = protRow.rb_expression ?? 0;
+  const maxVal = Math.max(ebVal, rbVal, 1);
+
+  const bar = (label, val) => {
+    const pct = Math.round((val / maxVal) * 100);
+    return `
+      <div style="margin-bottom:9px;">
+        <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;margin-bottom:3px;">${label}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="height:5px;background:#f3f4f6;border-radius:3px;flex:1;">
+            <div style="height:5px;border-radius:3px;background:#4ade80;width:${pct}%;"></div>
+          </div>
+          <span style="font-size:9px;font-family:'DM Mono',monospace;color:#555;white-space:nowrap;">${val}</span>
+        </div>
+      </div>`;
+  };
+
+  el.innerHTML = `
+    ${sectionHead('EB / RB Proteomics')}
+    <div style="padding:2px 16px 14px;">
+      ${bar('EB (elementary body)', ebVal)}
+      ${bar('RB (reticulate body)', rbVal)}
+      <div style="font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 spectral counts</div>
+    </div>`;
+}
+
 // Stubs — implemented in Tasks 3 and 10
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
