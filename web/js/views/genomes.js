@@ -1000,6 +1000,84 @@ function renderDetailGeneMap(detail, gene, neighbors) {
   );
 }
 
+function renderDetailProtein(detail, gene, protein) {
+  const el = detail.querySelector('#d-protein');
+  if (!el) return;
+
+  if (!protein) {
+    el.innerHTML = `
+      ${sectionHead('Protein')}
+      <div style="padding:8px 16px 14px;font-size:10px;color:#bbb;font-style:italic;">No protein data imported yet</div>`;
+
+    // Still fill Gene Info ext links with NCBI (always available)
+    const extLinks = detail.querySelector('#d-ext-links');
+    if (extLinks) {
+      extLinks.innerHTML = ncbiLink(gene.locus_tag);
+    }
+    return;
+  }
+
+  const prop = (label, value) => {
+    if (value == null || value === '' || value === false) return '';
+    return `
+      <div style="display:flex;flex-direction:column;gap:1px;">
+        <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
+        <span style="font-size:11.5px;color:#222;font-weight:500;">${value}</span>
+      </div>`;
+  };
+
+  const extLink = (label, href) => href
+    ? `<a href="${href}" target="_blank" rel="noopener"
+        style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;"
+        onmouseenter="this.style.background='#dcfce7'" onmouseleave="this.style.background='#f0fdf4'">${label} ↗</a>`
+    : '';
+
+  const tmLabel  = protein.transmembrane_domains > 0 ? String(protein.transmembrane_domains) : 'None';
+  const spLabel  = protein.signal_peptide ? 'Yes' : 'No';
+  const descText = gene.product ?? protein.function_narrative ?? null;
+
+  el.innerHTML = `
+    ${sectionHead('Protein')}
+    <div style="padding:2px 16px 14px;">
+      ${descText ? `
+        <div style="font-size:10.5px;color:#555;line-height:1.65;font-style:italic;margin-bottom:10px;
+                    padding:7px 10px;background:#fafafa;border-radius:6px;border-left:3px solid #e5e7eb;">
+          ${descText}
+        </div>` : ''}
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
+        ${prop('Mass',           protein.mass_kd ? `${protein.mass_kd} kDa` : null)}
+        ${prop('Length',         protein.length_aa ? `${protein.length_aa} aa` : null)}
+        ${prop('TM Domains',     tmLabel)}
+        ${prop('Signal Peptide', spLabel)}
+        ${prop('Localization',   protein.localization)}
+        ${prop('Family',         protein.protein_family)}
+      </div>
+      ${protein.function_narrative && protein.function_narrative !== gene.product ? `
+        <div style="font-size:10px;color:#444;background:#f0fdf4;border-radius:6px;padding:6px 10px;border-left:3px solid #16a34a;line-height:1.55;margin-bottom:8px;">
+          ${protein.function_narrative}
+        </div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+        ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
+        ${ncbiLink(gene.locus_tag)}
+      </div>
+    </div>`;
+
+  // Fill Gene Info ext links now that we have UniProt/NCBI IDs
+  const extLinksEl = detail.querySelector('#d-ext-links');
+  if (extLinksEl) {
+    extLinksEl.innerHTML = `
+      ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
+      ${ncbiLink(gene.locus_tag)}`;
+  }
+}
+
+// Helper: NCBI gene link (always available from locus tag)
+function ncbiLink(locusTag) {
+  return `<a href="https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(locusTag)}" target="_blank" rel="noopener"
+    style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;"
+    onmouseenter="this.style.background='#dcfce7'" onmouseleave="this.style.background='#f0fdf4'">NCBI ↗</a>`;
+}
+
 // Stubs — implemented in Tasks 3 and 10
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
