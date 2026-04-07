@@ -46,6 +46,16 @@ let _loading     = false;
 let _selectedId  = null;
 let _scrollPos   = 0;
 
+// Maps geneId (string) → gene object from the last list fetch
+const _geneCache = new Map();
+
+// Which detail sections are expanded (resets on new gene selection)
+let _sectionOpen = {
+  gene: true, protein: true, structure: true,
+  transcriptomics: true, proteomics: true,
+  localization: false, interactions: false,
+};
+
 export function renderGenomes(container) {
   // Pick up strain preference set by home page organisms section
   _strain = window.__preferredStrain ?? 'CT-L2';
@@ -284,7 +294,11 @@ async function fetchGenes(container, reset = false) {
   // Build query — strain filtered via embedded join (strain_id is UUID, _strain is common_name)
   let q = sb.from('genes')
     .select(
-      'id,locus_tag,gene_name,functional_category,is_characterized,is_membrane_protein,is_hypothetical,is_t3_secreted,strains!inner(common_name)',
+      'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+      'start_bp,end_bp,strand,' +
+      'functional_category,is_characterized,is_membrane_protein,' +
+      'is_hypothetical,is_dna_binding,is_t3_secreted,' +
+      'strains!inner(common_name,color_hex)',
       { count: 'exact' }
     )
     .eq('strains.common_name', _strain)
@@ -320,6 +334,9 @@ async function fetchGenes(container, reset = false) {
     return;
   }
 
+  // Cache all fetched gene objects for detail panel use
+  genes.forEach(g => _geneCache.set(String(g.id), g));
+
   // Apply favorites filter client-side (localStorage)
   let rows = genes;
   if (_filters.favorites) {
@@ -341,18 +358,21 @@ async function fetchGenes(container, reset = false) {
     row.dataset.wired = '1';
     row.addEventListener('click', () => {
       const isMobile = window.innerWidth < 640;
-      const geneId = row.dataset.id; // UUID string
+      const geneId   = row.dataset.id;
+      const gene     = _geneCache.get(geneId);
+      if (!gene) return;
+
       if (isMobile) {
-        showGeneDetailMobile(geneId, container);
+        showGeneDetailMobile(gene, container);
       } else {
         _selectedId = geneId;
         list.querySelectorAll('.gene-row').forEach(r => {
           const sel = r.dataset.id === _selectedId;
-          r.style.background = sel ? '#f0fdf4' : '';
-          r.style.borderLeft = sel ? '2px solid #16a34a' : '';
+          r.style.background  = sel ? '#f0fdf4' : '';
+          r.style.borderLeft  = sel ? '2px solid #16a34a' : '';
           r.style.paddingLeft = sel ? '10px' : '';
         });
-        showGeneDetailDesktop(geneId, container);
+        showGeneDetailDesktop(gene, container);
       }
     });
   });
@@ -687,6 +707,6 @@ function toggleFavorite(geneId) {
   return favs.has(key);
 }
 
-// Stubs — replaced in Tasks 6 and 7
-function showGeneDetailDesktop(geneId, container) {}
-function showGeneDetailMobile(geneId, container) {}
+// Stubs — implemented in Tasks 3 and 10
+function showGeneDetailDesktop(gene, container) { /* stub — implemented in Task 3 */ }
+function showGeneDetailMobile(gene, container)  { /* stub — implemented in Task 10 */ }
