@@ -787,6 +787,106 @@ function renderDetailGeneInfo(detail, gene) {
     </div>`;
 }
 
+async function loadDetailAsync(detail, gene) {
+  const [protResult, orthoResult, neighborResult] = await Promise.all([
+    sb.from('proteins')
+      .select('*,alphafold_results(*)')
+      .eq('gene_id', gene.id)
+      .maybeSingle(),
+
+    sb.from('orthologs')
+      .select(`
+        id,
+        gene_b:genes!gene_id_b(
+          id, locus_tag, gene_name, strand, functional_category,
+          strains(common_name, color_hex)
+        )
+      `)
+      .eq('gene_id_a', gene.id),
+
+    gene.sort_index != null
+      ? sb.from('genes')
+          .select('id,locus_tag,gene_name,functional_category,strand,end_bp,sort_index')
+          .eq('strain_id', gene.strain_id)
+          .gte('sort_index', gene.sort_index - 6)
+          .lte('sort_index', gene.sort_index + 6)
+          .order('sort_index', { ascending: true })
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  const { data: exprRows } = await sb.from('expression_data')
+    .select('*')
+    .eq('gene_id', gene.id);
+
+  renderDetailOrthologs(detail, orthoResult.data ?? [], gene);
+  renderDetailGeneMap(detail, gene, neighborResult.data ?? []);
+  renderDetailProtein(detail, gene, protResult.data);
+  renderDetailTranscriptomics(detail, gene, exprRows ?? []);
+  renderDetailProteomics(detail, gene, exprRows ?? []);
+  renderDetailStructure(detail, gene, protResult.data?.alphafold_results ?? []);
+}
+
+function renderDetailOrthologs(detail, orthoRows, gene) {
+  const el = detail.querySelector('#d-orthologs');
+  if (!el) return;
+
+  if (!orthoRows.length) {
+    el.innerHTML = `
+      ${sectionHead('Orthologs')}
+      <div style="padding:8px 16px 14px;font-size:10px;color:#bbb;font-style:italic;">No orthologs recorded</div>`;
+    return;
+  }
+
+  const rows = orthoRows.map(o => {
+    const g = o.gene_b;
+    if (!g) return '';
+    const strain    = g.strains?.common_name ?? '?';
+    const colorHex  = g.strains?.color_hex ?? '#9ca3af';
+    const nameHtml  = g.gene_name
+      ? `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#222;font-weight:600;">${g.locus_tag}</span>
+         <span style="font-size:9.5px;color:#9ca3af;margin-left:4px;overflow:hidden;text-overflow:ellipsis;">${g.gene_name}</span>`
+      : `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#9ca3af;">${g.locus_tag}</span>`;
+
+    return `
+      <div class="orth-row-btn" data-id="${g.id}" style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid #f7f7f7;cursor:pointer;"
+        onmouseenter="this.style.background='#fafafa';this.style.margin='0 -16px';this.style.padding='6px 16px';"
+        onmouseleave="this.style.background='';this.style.margin='';this.style.padding='6px 0';">
+        <div style="width:3px;height:24px;border-radius:1px;background:${colorHex};flex-shrink:0;"></div>
+        <span style="font-size:8px;font-weight:700;color:#9ca3af;width:36px;flex-shrink:0;">${strain}</span>
+        <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:4px;">${nameHtml}</div>
+        <span style="font-size:11px;color:#ddd;">›</span>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    ${sectionHead('Orthologs')}
+    <div style="padding:2px 16px 14px;">
+      ${rows}
+      <div style="margin-top:8px;font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length}/3 strains</div>
+    </div>`;
+
+  el.querySelectorAll('.orth-row-btn').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.id;
+      sb.from('genes')
+        .select(
+          'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+          'start_bp,end_bp,strand,functional_category,is_characterized,' +
+          'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+          'strains!inner(common_name,color_hex)'
+        )
+        .eq('id', targetId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            _geneCache.set(String(data.id), data);
+            showGeneDetailDesktop(data, btn.closest('[id]').parentElement?.parentElement ?? document.body);
+          }
+        });
+    })
+  );
+}
+
 // Stubs — implemented in Tasks 3 and 10
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
