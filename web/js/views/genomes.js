@@ -748,6 +748,45 @@ function detailSkeleton(lines = 3) {
   ).join('')}</div>`;
 }
 
+function renderDetailGeneInfo(detail, gene) {
+  const flags = [];
+  if (gene.functional_category?.includes('Inclusion')) flags.push('Inc Protein');
+  if (gene.is_membrane_protein)  flags.push('Membrane');
+  if (gene.is_t3_secreted)       flags.push('T3 Secreted');
+  if (gene.is_dna_binding)       flags.push('DNA Binding');
+
+  const flagPill = (label) =>
+    `<span style="font-size:8.5px;font-weight:600;padding:2px 7px;border-radius:10px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">${label}</span>`;
+
+  const prop = (label, value) => value == null ? '' : `
+    <div style="display:flex;flex-direction:column;gap:1px;">
+      <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
+      <span style="font-size:11.5px;color:#222;font-weight:500;">${value}</span>
+    </div>`;
+
+  const strandLabel = gene.strand === '+' ? '+ (sense)' : gene.strand === '-' ? '− (antisense)' : '—';
+  const lengthLabel = gene.end_bp ? `${gene.end_bp.toLocaleString()} bp` : '—';
+  const posLabel    = (gene.start_bp && gene.end_bp)
+    ? `${gene.start_bp.toLocaleString()}–${gene.end_bp.toLocaleString()}`
+    : null;
+
+  const el = detail.querySelector('#d-gene-info');
+  if (!el) return;
+  el.innerHTML = `
+    ${sectionHead('Gene Info')}
+    <div style="padding:2px 16px 14px;">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
+        ${prop('Length', lengthLabel)}
+        ${prop('Strand', strandLabel)}
+        ${posLabel ? prop('Position', posLabel) : ''}
+      </div>
+      ${flags.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">${flags.map(flagPill).join('')}</div>` : ''}
+      <div id="d-ext-links" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+        <!-- Populated in Task 7 when protein data arrives (UniProt/NCBI IDs) -->
+      </div>
+    </div>`;
+}
+
 // Stubs — implemented in Tasks 3 and 10
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
