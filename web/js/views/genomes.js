@@ -28,6 +28,26 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_COLOR_DEFAULT = '#E5E7EB';
 
+// Light badge styles for hero card — bg, text color, border
+const CATEGORY_BADGE = {
+  'Amino acid metabolism':      { bg:'#fff3ed', text:'#9a3412', border:'#fed7aa' },
+  'Cell envelope':              { bg:'#f0fdfa', text:'#134e4a', border:'#99f6e4' },
+  'Cell processes':             { bg:'#eff6ff', text:'#1e3a8a', border:'#bfdbfe' },
+  'Cofactor metabolism':        { bg:'#f5f3ff', text:'#4c1d95', border:'#ddd6fe' },
+  'Energy metabolism':          { bg:'#fef2f2', text:'#991b1b', border:'#fecaca' },
+  'Inclusion membrane protein': { bg:'#fef9ee', text:'#a37742', border:'#f0d898' },
+  'Inermediary metabolism':     { bg:'#fef2f2', text:'#7f1d1d', border:'#fecaca' },
+  'Lipid metabolism':           { bg:'#faf5ff', text:'#581c87', border:'#e9d5ff' },
+  'Membrane transport':         { bg:'#f0f9ff', text:'#0c4a6e', border:'#bae6fd' },
+  'Nucleotide metabolism':      { bg:'#fdf2f8', text:'#831843', border:'#fbcfe8' },
+  'Replication':                { bg:'#fefce8', text:'#713f12', border:'#fde68a' },
+  'Secreted effector':          { bg:'#f0fdf4', text:'#14532d', border:'#86efac' },
+  'Transcription':              { bg:'#fffbeb', text:'#78350f', border:'#fde68a' },
+  'Translation':                { bg:'#f7fee7', text:'#365314', border:'#d9f99d' },
+  'Type III secretion':         { bg:'#fdf4ef', text:'#5c3317', border:'#e8c9b3' },
+  'Unknown':                    { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' },
+};
+
 const PAGE_SIZE = 50;
 const FAVORITES_KEY = 'chlamatlas_favorites';
 
@@ -707,6 +727,121 @@ function toggleFavorite(geneId) {
   return favs.has(key);
 }
 
+// Returns a section header div: green accent bar + all-caps label.
+// rightContent: optional HTML string rendered right-aligned in the header.
+function sectionHead(label, rightContent = '') {
+  return `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 16px 7px;">
+      <div style="width:2px;height:12px;background:#1a6b4a;border-radius:1px;flex-shrink:0;"></div>
+      <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a6b4a;">${label}</span>
+      ${rightContent ? `<span style="margin-left:auto;font-size:8.5px;color:#bbb;font-family:'DM Mono',monospace;">${rightContent}</span>` : ''}
+    </div>`;
+}
+
+// Generic loading skeleton for a detail section body.
+function detailSkeleton(lines = 3) {
+  const bar = (w) =>
+    `<div style="height:10px;width:${w};background:#f3f4f6;border-radius:4px;margin-bottom:7px;animation:pulse 1.5s ease-in-out infinite;"></div>`;
+  return `<div style="padding:10px 16px 14px;">${Array.from({length: lines}, (_, i) =>
+    bar(['60%','80%','45%'][i % 3])
+  ).join('')}</div>`;
+}
+
 // Stubs — implemented in Tasks 3 and 10
-function showGeneDetailDesktop(gene, container) { /* stub — implemented in Task 3 */ }
+function showGeneDetailDesktop(gene, container) {
+  const detail = container.querySelector('#detail-panel');
+  if (!detail) return;
+
+  _sectionOpen = { gene: true, protein: true, structure: true,
+                   transcriptomics: true, proteomics: true,
+                   localization: false, interactions: false };
+
+  const favs   = loadFavorites();
+  const isFav  = favs.has(String(gene.id));
+  const strain = gene.strains?.common_name ?? _strain;
+
+  // Category color + badge style
+  const catColor = CATEGORY_COLORS[gene.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+  const catBadge = CATEGORY_BADGE[gene.functional_category] ?? { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' };
+  const catLabel = gene.functional_category ?? '';
+
+  // Hero background: very light tint derived from category color
+  const heroBg = `color-mix(in srgb, ${catColor} 12%, white)`;
+
+  const heroHtml = `
+    <div style="padding:16px 20px 14px;border-bottom:3px solid ${catColor};background:linear-gradient(150deg,${heroBg} 0%,#ffffff 65%);">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;">
+        <div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.85);border:2px solid rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-size:18px;color:#d1d5db;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">⬡</div>
+        <div style="flex:1;min-width:0;">
+          ${gene.gene_name
+            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${gene.gene_name}</div>
+               <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${gene.locus_tag}</div>`
+            : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${gene.locus_tag}</div>`
+          }
+          <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.45;">${gene.product ?? (gene.functional_category ?? 'Hypothetical protein')}</div>
+        </div>
+        <button id="detail-fav-btn" data-id="${gene.id}"
+          style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
+          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+          ${isFav ? '★' : '☆'}
+        </button>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${strain}</span>
+        ${catLabel ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};">${catLabel}</span>` : ''}
+        ${gene.is_characterized ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);">Characterized</span>` : ''}
+      </div>
+    </div>`;
+
+  // Inject gene-arrow hover style if not already present
+  if (!document.querySelector('#chlamatlas-detail-styles')) {
+    const s = document.createElement('style');
+    s.id = 'chlamatlas-detail-styles';
+    s.textContent = '.ga { transition: opacity 0.12s; } .ga:hover { opacity: 0.65 !important; }';
+    document.head.appendChild(s);
+  }
+
+  detail.innerHTML = `
+    <div style="background:white;">
+      ${heroHtml}
+      <!-- 2-col: Gene Info + Orthologs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0;">
+        <div id="d-gene-info" style="border-right:1px solid #f0f0f0;"></div>
+        <div id="d-orthologs">${detailSkeleton(3)}</div>
+      </div>
+      <!-- Genomic Context -->
+      <div id="d-gene-map" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(2)}</div>
+      <!-- Protein -->
+      <div id="d-protein" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(4)}</div>
+      <!-- 3-col: Transcriptomics + EB/RB + Localization -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #f0f0f0;">
+        <div id="d-transcriptomics" style="border-right:1px solid #f0f0f0;">${detailSkeleton(3)}</div>
+        <div id="d-proteomics"      style="border-right:1px solid #f0f0f0;">${detailSkeleton(2)}</div>
+        <div id="d-localization"></div>
+      </div>
+      <!-- Structure -->
+      <div id="d-structure" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(3)}</div>
+    </div>`;
+
+  // Wire favorite button in detail panel
+  detail.querySelector('#detail-fav-btn').addEventListener('click', e => {
+    const id    = e.currentTarget.dataset.id;
+    const nowFav = toggleFavorite(id);
+    e.currentTarget.textContent = nowFav ? '★' : '☆';
+    e.currentTarget.style.color  = nowFav ? '#f59e0b' : '#d1d5db';
+    // Sync star in list panel
+    const listBtn = container.querySelector(`.fav-btn[data-id="${id}"]`);
+    if (listBtn) {
+      listBtn.textContent = nowFav ? '★' : '☆';
+      listBtn.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
+    }
+  });
+
+  // Render synchronous sections immediately
+  renderDetailGeneInfo(detail, gene);
+  renderDetailLocalizationPlaceholder(detail);
+
+  // Fire async queries in parallel
+  loadDetailAsync(detail, gene);
+}
 function showGeneDetailMobile(gene, container)  { /* stub — implemented in Task 10 */ }
