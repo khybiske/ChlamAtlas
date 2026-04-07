@@ -592,8 +592,14 @@ async function showGeneDetail(geneId, container) {
     btn.addEventListener('click', () => showGeneDetail(Number(btn.dataset.id), container))
   );
 
-  detail.querySelector('#af-thumb')?.addEventListener('click', () => loadMolstar(detail, g.mmcif_path));
-  detail.querySelector('#btn-molstar')?.addEventListener('click', e => loadMolstar(detail, e.currentTarget.dataset.url));
+  detail.querySelector('#af-thumb')?.addEventListener('click', () => {
+    const wrap = detail.querySelector('#molstar-wrap');
+    if (wrap) loadMolstar(wrap, g.mmcif_path);
+  });
+  detail.querySelector('#btn-molstar')?.addEventListener('click', e => {
+    const wrap = detail.querySelector('#molstar-wrap');
+    if (wrap) loadMolstar(wrap, e.currentTarget.dataset.url);
+  });
 }
 
 // ─── Expression chart ─────────────────────────────────────
@@ -645,9 +651,8 @@ function renderExpr(g) {
 
 // ─── Mol* loader ──────────────────────────────────────────
 
-async function loadMolstar(detail, url) {
-  const wrap = detail.querySelector('#molstar-wrap');
-  wrap.innerHTML = `<div id="molstar-vp" style="width:100%;height:480px;position:relative;border-radius:12px;overflow:hidden;"></div>`;
+async function loadMolstar(wrapEl, url) {
+  wrapEl.innerHTML = `<div id="molstar-vp" style="width:100%;height:100%;position:relative;border-radius:8px;overflow:hidden;"></div>`;
 
   if (!window.molstar) {
     const s = document.createElement('script');
@@ -1180,6 +1185,130 @@ function renderDetailProteomics(detail, gene, exprRows) {
       ${bar('RB (reticulate body)', rbVal)}
       <div style="font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 spectral counts</div>
     </div>`;
+}
+
+function renderDetailStructure(detail, gene, afRows) {
+  const el = detail.querySelector('#d-structure');
+  if (!el) return;
+
+  const af3 = afRows.find(r => r.af_version === 'v3' || r.af_version === 'AF3');
+  const af2 = afRows.find(r => r.af_version === 'v2' || r.af_version === 'AF2' || r.af_version === 'AFDB');
+
+  let activeTab    = af3 ? 'af3' : 'af2';
+  let activeRecord = activeTab === 'af3' ? af3 : af2;
+
+  function tabBtn(id, label, record) {
+    const available = !!record;
+    const isActive  = id === activeTab;
+    return `
+      <button class="struct-tab" data-tab="${id}"
+        style="padding:6px 14px;font-size:10px;font-weight:600;border:none;background:none;cursor:${available ? 'pointer' : 'not-allowed'};
+               color:${isActive ? '#1a6b4a' : available ? '#9ca3af' : '#d1d5db'};
+               border-bottom:2px solid ${isActive ? '#1a6b4a' : 'transparent'};margin-bottom:-1px;
+               font-family:inherit;white-space:nowrap;"
+        ${!available ? 'disabled' : ''}>
+        ${label}${!available ? ' —' : ''}
+      </button>`;
+  }
+
+  function viewerHtml(record) {
+    if (!record) {
+      return `<div style="display:flex;align-items:center;justify-content:center;height:200px;background:#f9fafb;border-radius:8px;font-size:10px;color:#bbb;font-style:italic;">No structural data available for this source</div>`;
+    }
+
+    const thumbHtml = record.thumbnail_path
+      ? `<img src="${record.thumbnail_path}" alt="Structure thumbnail"
+            style="width:100%;height:100%;object-fit:cover;border-radius:8px;cursor:pointer;"
+            id="struct-thumb" title="Click to load interactive viewer" />`
+      : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:28px;color:#d1d5db;border-radius:8px;background:#f9fafb;">◻</div>`;
+
+    const scoreHtml = record.homology_score != null
+      ? `<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;">
+           <span style="font-size:28px;font-weight:700;color:#16a34a;font-family:'DM Mono',monospace;line-height:1;">${record.homology_score}</span>
+           <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">pLDDT · ${record.af_version ?? ''}</span>
+         </div>`
+      : '';
+
+    const homologHtml = record.top_homolog_description
+      ? `<div style="font-size:10.5px;color:#222;font-weight:600;margin-bottom:3px;">${record.top_homolog_description}</div>
+         <div style="font-size:9.5px;color:#9ca3af;line-height:1.5;margin-bottom:10px;">
+           ${record.top_homolog_pdb_id ? `RCSB PDB: ${record.top_homolog_pdb_id}` : ''}
+           ${record.homology_method ? ` · Method: ${record.homology_method}` : ''}
+         </div>`
+      : '';
+
+    const inferredHtml = record.inferred_function
+      ? `<div style="font-size:10px;color:#444;background:#f0fdf4;border-radius:6px;padding:7px 10px;border-left:3px solid #16a34a;line-height:1.55;margin-bottom:10px;">
+           <strong style="color:#1a6b4a;">Inferred function:</strong> ${record.inferred_function}
+         </div>`
+      : '';
+
+    const extLinksHtml = [
+      record.top_homolog_pdb_id
+        ? `<a href="https://www.rcsb.org/structure/${record.top_homolog_pdb_id}" target="_blank" rel="noopener" style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;">RCSB ${record.top_homolog_pdb_id} ↗</a>`
+        : '',
+      record.mmcif_path
+        ? `<a href="${record.mmcif_path}" download style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;">Download mmCIF ↗</a>`
+        : '',
+    ].filter(Boolean).join('');
+
+    return `
+      <div style="display:flex;gap:16px;align-items:flex-start;">
+        <div id="struct-viewer-wrap" style="width:260px;height:260px;flex-shrink:0;border-radius:8px;overflow:hidden;position:relative;background:#0a1628;cursor:pointer;" title="Click to load interactive 3D viewer">
+          ${thumbHtml}
+          ${record.mmcif_path ? `
+            <button id="struct-load-3d" data-url="${record.mmcif_path}"
+              style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+                     font-size:9px;font-weight:600;background:rgba(15,69,48,0.85);color:white;
+                     border:none;border-radius:5px;padding:4px 10px;cursor:pointer;white-space:nowrap;font-family:inherit;">
+              Load 3D viewer
+            </button>` : ''}
+        </div>
+        <div style="flex:1;min-width:0;padding-top:2px;">
+          ${scoreHtml}
+          ${homologHtml}
+          ${inferredHtml}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">${extLinksHtml}</div>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    ${sectionHead('Structure')}
+    <div style="border-bottom:1px solid #e5e7eb;margin:0 16px 12px;display:flex;">
+      ${tabBtn('crystal', 'Crystal Structure', null)}
+      ${tabBtn('af3',     'AlphaFold v3',      af3)}
+      ${tabBtn('af2',     'AlphaFold v2',      af2)}
+    </div>
+    <div id="struct-viewer-body" style="padding:0 16px 16px;">
+      ${viewerHtml(activeRecord)}
+    </div>`;
+
+  el.querySelectorAll('.struct-tab:not([disabled])').forEach(tab => {
+    tab.addEventListener('click', () => {
+      activeTab    = tab.dataset.tab;
+      activeRecord = activeTab === 'af3' ? af3 : activeTab === 'af2' ? af2 : null;
+      el.querySelectorAll('.struct-tab').forEach(t => {
+        const active = t.dataset.tab === activeTab;
+        t.style.color             = active ? '#1a6b4a' : (t.disabled ? '#d1d5db' : '#9ca3af');
+        t.style.borderBottomColor = active ? '#1a6b4a' : 'transparent';
+      });
+      el.querySelector('#struct-viewer-body').innerHTML = viewerHtml(activeRecord);
+      wireStructureEvents(el, gene);
+    });
+  });
+
+  wireStructureEvents(el, gene);
+}
+
+function wireStructureEvents(el, gene) {
+  el.querySelector('#struct-thumb')?.addEventListener('click', () => {
+    const btn = el.querySelector('#struct-load-3d');
+    if (btn) loadMolstar(el.querySelector('#struct-viewer-wrap'), btn.dataset.url);
+  });
+  el.querySelector('#struct-load-3d')?.addEventListener('click', e => {
+    loadMolstar(el.querySelector('#struct-viewer-wrap'), e.currentTarget.dataset.url);
+  });
 }
 
 // Stubs — implemented in Tasks 3 and 10
