@@ -40,6 +40,7 @@ const CATEGORY_BADGE = {
   'Lipid metabolism':           { bg:'#faf5ff', text:'#581c87', border:'#e9d5ff' },
   'Membrane transport':         { bg:'#f0f9ff', text:'#0c4a6e', border:'#bae6fd' },
   'Nucleotide metabolism':      { bg:'#fdf2f8', text:'#831843', border:'#fbcfe8' },
+  'Other':                      { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' },
   'Replication':                { bg:'#fefce8', text:'#713f12', border:'#fde68a' },
   'Secreted effector':          { bg:'#f0fdf4', text:'#14532d', border:'#86efac' },
   'Transcription':              { bg:'#fffbeb', text:'#78350f', border:'#fde68a' },
