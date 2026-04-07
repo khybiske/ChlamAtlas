@@ -887,6 +887,119 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
   );
 }
 
+function renderDetailGeneMap(detail, gene, neighbors) {
+  const el = detail.querySelector('#d-gene-map');
+  if (!el) return;
+
+  // Hide section if no sort_index data
+  if (!neighbors.length || gene.sort_index == null) {
+    el.style.display = 'none';
+    return;
+  }
+
+  // ── Layout constants ──────────────────────────────────────────
+  const VB_W    = 620;
+  const VB_H    = 62;
+  const SPINE_Y = 31;
+  const P_TOP   = 18; const P_BOT = 30; const P_MID = 24;
+  const N_TOP   = 32; const N_BOT = 44; const N_MID = 38;
+  const CUR_TOP = 14; const CUR_BOT = 34;
+  const TIP     = 10;
+  const MIN_W   = 28;
+
+  // ── Scale arrows to fit viewBox ───────────────────────────────
+  const totalBp = neighbors.reduce((s, g) => s + Math.max(g.end_bp ?? 600, 1), 0);
+  const scale   = (VB_W - 20) / Math.max(totalBp, 1);
+
+  let x = 10;
+  const arrowDefs = neighbors.map(g => {
+    const w   = Math.max(Math.round((g.end_bp ?? 600) * scale), MIN_W);
+    const def = { g, x, w };
+    x += w + 2;
+    return def;
+  });
+
+  // ── Build SVG elements ────────────────────────────────────────
+  const backbone = `<line x1="10" y1="${SPINE_Y}" x2="${VB_W - 10}" y2="${SPINE_Y}" stroke="#d9d9d9" stroke-width="1.2"/>`;
+  const strandLbl = `
+    <text x="5" y="${P_MID + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">+</text>
+    <text x="5" y="${N_MID + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">−</text>`;
+
+  const arrows = arrowDefs.map(({ g: ng, x: ax, w }) => {
+    const isCurrent = String(ng.id) === String(gene.id);
+    const color     = CATEGORY_COLORS[ng.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const isPlus    = ng.strand !== '-';
+    const label     = ng.gene_name ?? ng.locus_tag;
+    const isNamed   = !!ng.gene_name;
+
+    let pts, labelY, locusY;
+
+    if (isPlus) {
+      const top = isCurrent ? CUR_TOP : P_TOP;
+      const bot = isCurrent ? CUR_BOT : P_BOT;
+      const mid = (top + bot) / 2;
+      pts     = `${ax},${top} ${ax + w - TIP},${top} ${ax + w},${mid} ${ax + w - TIP},${bot} ${ax},${bot}`;
+      labelY  = top - 3.5;
+      locusY  = bot + 7;
+    } else {
+      pts     = `${ax + w},${N_TOP} ${ax + TIP},${N_TOP} ${ax},${N_MID} ${ax + TIP},${N_BOT} ${ax + w},${N_BOT}`;
+      labelY  = N_BOT + 7;
+      locusY  = null;
+    }
+
+    const cx = ax + w / 2;
+    const opacity   = isCurrent ? '1' : '0.82';
+    const strokeEl  = isCurrent
+      ? `<polygon points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.9"/>`
+      : '';
+
+    const labelEl = `
+      <text x="${cx}" y="${labelY}" text-anchor="middle"
+        font-family="${isNamed ? 'DM Sans,sans-serif' : 'DM Mono,monospace'}"
+        font-size="${isCurrent ? '7.5' : '6'}"
+        font-weight="${(isNamed || isCurrent) ? '600' : '400'}"
+        fill="${isCurrent ? '#444' : '#999'}">${label}</text>`;
+
+    const locusEl = (isNamed && locusY)
+      ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${ng.locus_tag}</text>`
+      : ((!isNamed && isPlus && locusY)
+        ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${ng.locus_tag}</text>`
+        : '');
+
+    return `
+      <g class="${isCurrent ? '' : 'ga'}" data-id="${ng.id}" style="cursor:${isCurrent ? 'default' : 'pointer'};" title="${ng.locus_tag}${ng.gene_name ? ' · ' + ng.gene_name : ''}">
+        <polygon points="${pts}" fill="${color}" opacity="${opacity}"/>
+        ${strokeEl}
+        ${labelEl}
+        ${locusEl}
+      </g>`;
+  }).join('');
+
+  el.innerHTML = `
+    ${sectionHead('Genomic Context', gene.strains?.common_name + ' chromosome')}
+    <div style="padding:4px 16px 12px;">
+      <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;">
+        <svg viewBox="0 8 ${VB_W} ${VB_H - 8}" xmlns="http://www.w3.org/2000/svg"
+             style="width:100%;height:auto;display:block;overflow:visible;">
+          ${backbone}
+          ${strandLbl}
+          ${arrows}
+        </svg>
+      </div>
+    </div>`;
+
+  // Wire neighbor gene clicks
+  el.querySelectorAll('.ga[data-id]').forEach(gEl =>
+    gEl.addEventListener('click', () => {
+      const targetId = gEl.dataset.id;
+      const cached   = _geneCache.get(targetId);
+      if (cached) {
+        showGeneDetailDesktop(cached, el.closest('[style*="height"]') ?? document.body);
+      }
+    })
+  );
+}
+
 // Stubs — implemented in Tasks 3 and 10
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
