@@ -66,6 +66,7 @@ let _hasMore     = false;
 let _loading     = false;
 let _selectedId  = null;
 let _scrollPos   = 0;
+let _container   = null;  // saved when detail panel is shown; used by async click handlers
 
 // Maps geneId (string) → gene object from the last list fetch
 const _geneCache = new Map();
@@ -76,6 +77,9 @@ let _sectionOpen = {
   transcriptomics: true, proteomics: true,
   localization: false, interactions: false,
 };
+
+// HTML-escape helper for DB strings interpolated into innerHTML.
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 export function renderGenomes(container) {
   // Pick up strain preference set by home page organisms section
@@ -559,7 +563,8 @@ function renderDetailGeneInfo(detail, gene) {
       <span style="font-size:11.5px;color:#222;font-weight:500;">${value}</span>
     </div>`;
 
-  const strandLabel = gene.strand === '+' ? '+ (sense)' : gene.strand === '-' ? '− (antisense)' : '—';
+  const strandRaw   = gene.strand === '+' ? '+ (sense)' : gene.strand === '-' ? '− (antisense)' : '—';
+  const strandLabel = esc(strandRaw);
   const lengthLabel = gene.end_bp ? `${gene.end_bp.toLocaleString()} bp` : '—';
   const posLabel    = (gene.start_bp && gene.end_bp)
     ? `${gene.start_bp.toLocaleString()}–${gene.end_bp.toLocaleString()}`
@@ -638,16 +643,16 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
     const strain    = g.strains?.common_name ?? '?';
     const colorHex  = g.strains?.color_hex ?? '#9ca3af';
     const nameHtml  = g.gene_name
-      ? `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#222;font-weight:600;">${g.locus_tag}</span>
-         <span style="font-size:9.5px;color:#9ca3af;margin-left:4px;overflow:hidden;text-overflow:ellipsis;">${g.gene_name}</span>`
-      : `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#9ca3af;">${g.locus_tag}</span>`;
+      ? `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#222;font-weight:600;">${esc(g.locus_tag)}</span>
+         <span style="font-size:9.5px;color:#9ca3af;margin-left:4px;overflow:hidden;text-overflow:ellipsis;">${esc(g.gene_name)}</span>`
+      : `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#9ca3af;">${esc(g.locus_tag)}</span>`;
 
     return `
       <div class="orth-row-btn" data-id="${g.id}" style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid #f7f7f7;cursor:pointer;"
         onmouseenter="this.style.background='#fafafa';this.style.margin='0 -16px';this.style.padding='6px 16px';"
         onmouseleave="this.style.background='';this.style.margin='';this.style.padding='6px 0';">
         <div style="width:3px;height:24px;border-radius:1px;background:${colorHex};flex-shrink:0;"></div>
-        <span style="font-size:8px;font-weight:700;color:#9ca3af;width:36px;flex-shrink:0;">${strain}</span>
+        <span style="font-size:8px;font-weight:700;color:#9ca3af;width:36px;flex-shrink:0;">${esc(strain)}</span>
         <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:4px;">${nameHtml}</div>
         <span style="font-size:11px;color:#ddd;">›</span>
       </div>`;
@@ -675,7 +680,7 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
         .then(({ data }) => {
           if (data) {
             _geneCache.set(String(data.id), data);
-            showGeneDetailDesktop(data, btn.closest('[id]').parentElement?.parentElement ?? document.body);
+            showGeneDetailDesktop(data, _container);
           }
         });
     })
@@ -753,16 +758,16 @@ function renderDetailGeneMap(detail, gene, neighbors) {
         font-family="${isNamed ? 'DM Sans,sans-serif' : 'DM Mono,monospace'}"
         font-size="${isCurrent ? '7.5' : '6'}"
         font-weight="${(isNamed || isCurrent) ? '600' : '400'}"
-        fill="${isCurrent ? '#444' : '#999'}">${label}</text>`;
+        fill="${isCurrent ? '#444' : '#999'}">${esc(label)}</text>`;
 
     const locusEl = (isNamed && locusY)
-      ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${ng.locus_tag}</text>`
+      ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${esc(ng.locus_tag)}</text>`
       : ((!isNamed && isPlus && locusY)
-        ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${ng.locus_tag}</text>`
+        ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${esc(ng.locus_tag)}</text>`
         : '');
 
     return `
-      <g class="${isCurrent ? '' : 'ga'}" data-id="${ng.id}" style="cursor:${isCurrent ? 'default' : 'pointer'};" title="${ng.locus_tag}${ng.gene_name ? ' · ' + ng.gene_name : ''}">
+      <g class="${isCurrent ? '' : 'ga'}" data-id="${ng.id}" style="cursor:${isCurrent ? 'default' : 'pointer'};" title="${esc(ng.locus_tag)}${ng.gene_name ? ' · ' + esc(ng.gene_name) : ''}">
         <polygon points="${pts}" fill="${color}" opacity="${opacity}"/>
         ${strokeEl}
         ${labelEl}
@@ -789,7 +794,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
       const targetId = gEl.dataset.id;
       const cached   = _geneCache.get(targetId);
       if (cached) {
-        showGeneDetailDesktop(cached, el.closest('[style*="height"]') ?? document.body);
+        showGeneDetailDesktop(cached, _container);
       }
     })
   );
@@ -837,19 +842,19 @@ function renderDetailProtein(detail, gene, protein) {
       ${descText ? `
         <div style="font-size:10.5px;color:#555;line-height:1.65;font-style:italic;margin-bottom:10px;
                     padding:7px 10px;background:#fafafa;border-radius:6px;border-left:3px solid #e5e7eb;">
-          ${descText}
+          ${esc(descText)}
         </div>` : ''}
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Mass',           protein.mass_kd ? `${protein.mass_kd} kDa` : null)}
         ${prop('Length',         protein.length_aa ? `${protein.length_aa} aa` : null)}
         ${prop('TM Domains',     tmLabel)}
         ${prop('Signal Peptide', spLabel)}
-        ${prop('Localization',   protein.localization)}
-        ${prop('Family',         protein.protein_family)}
+        ${prop('Localization',   protein.localization   != null ? esc(protein.localization)   : null)}
+        ${prop('Family',         protein.protein_family != null ? esc(protein.protein_family) : null)}
       </div>
       ${protein.function_narrative && protein.function_narrative !== gene.product ? `
         <div style="font-size:10px;color:#444;background:#f0fdf4;border-radius:6px;padding:6px 10px;border-left:3px solid #16a34a;line-height:1.55;margin-bottom:8px;">
-          ${protein.function_narrative}
+          ${esc(protein.function_narrative)}
         </div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
         ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
@@ -1015,27 +1020,27 @@ function renderDetailStructure(detail, gene, afRows) {
     const scoreHtml = record.homology_score != null
       ? `<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;">
            <span style="font-size:28px;font-weight:700;color:#16a34a;font-family:'DM Mono',monospace;line-height:1;">${record.homology_score}</span>
-           <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">pLDDT · ${record.af_version ?? ''}</span>
+           <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">pLDDT · ${esc(record.af_version ?? '')}</span>
          </div>`
       : '';
 
     const homologHtml = record.top_homolog_description
-      ? `<div style="font-size:10.5px;color:#222;font-weight:600;margin-bottom:3px;">${record.top_homolog_description}</div>
+      ? `<div style="font-size:10.5px;color:#222;font-weight:600;margin-bottom:3px;">${esc(record.top_homolog_description)}</div>
          <div style="font-size:9.5px;color:#9ca3af;line-height:1.5;margin-bottom:10px;">
-           ${record.top_homolog_pdb_id ? `RCSB PDB: ${record.top_homolog_pdb_id}` : ''}
-           ${record.homology_method ? ` · Method: ${record.homology_method}` : ''}
+           ${record.top_homolog_pdb_id ? `RCSB PDB: ${esc(record.top_homolog_pdb_id)}` : ''}
+           ${record.homology_method ? ` · Method: ${esc(record.homology_method)}` : ''}
          </div>`
       : '';
 
     const inferredHtml = record.inferred_function
       ? `<div style="font-size:10px;color:#444;background:#f0fdf4;border-radius:6px;padding:7px 10px;border-left:3px solid #16a34a;line-height:1.55;margin-bottom:10px;">
-           <strong style="color:#1a6b4a;">Inferred function:</strong> ${record.inferred_function}
+           <strong style="color:#1a6b4a;">Inferred function:</strong> ${esc(record.inferred_function)}
          </div>`
       : '';
 
     const extLinksHtml = [
       record.top_homolog_pdb_id
-        ? `<a href="https://www.rcsb.org/structure/${record.top_homolog_pdb_id}" target="_blank" rel="noopener" style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;">RCSB ${record.top_homolog_pdb_id} ↗</a>`
+        ? `<a href="https://www.rcsb.org/structure/${encodeURIComponent(record.top_homolog_pdb_id)}" target="_blank" rel="noopener" style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;">RCSB ${esc(record.top_homolog_pdb_id)} ↗</a>`
         : '',
       record.mmcif_path
         ? `<a href="${record.mmcif_path}" download style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;">Download mmCIF ↗</a>`
@@ -1117,6 +1122,7 @@ function renderDetailLocalizationPlaceholder(detail) {
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
   if (!detail) return;
+  _container = container;
 
   _sectionOpen = { gene: true, protein: true, structure: true,
                    transcriptomics: true, proteomics: true,
@@ -1140,11 +1146,11 @@ function showGeneDetailDesktop(gene, container) {
         <div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.85);border:2px solid rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-size:18px;color:#d1d5db;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">⬡</div>
         <div style="flex:1;min-width:0;">
           ${gene.gene_name
-            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${gene.gene_name}</div>
-               <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${gene.locus_tag}</div>`
-            : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${gene.locus_tag}</div>`
+            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)}</div>
+               <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${esc(gene.locus_tag)}</div>`
+            : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
-          <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.45;">${gene.product ?? (gene.functional_category ?? 'Hypothetical protein')}</div>
+          <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.45;">${esc(gene.product ?? (gene.functional_category ?? 'Hypothetical protein'))}</div>
         </div>
         <button id="detail-fav-btn" data-id="${gene.id}"
           style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
@@ -1153,8 +1159,8 @@ function showGeneDetailDesktop(gene, container) {
         </button>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
-        <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${strain}</span>
-        ${catLabel ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};">${catLabel}</span>` : ''}
+        <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
+        ${catLabel ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};">${esc(catLabel)}</span>` : ''}
         ${gene.is_characterized ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);">Characterized</span>` : ''}
       </div>
     </div>`;
