@@ -459,196 +459,6 @@ function geneRow(g) {
     </div>`;
 }
 
-// ─── Gene detail ──────────────────────────────────────────
-
-async function showGeneDetail(geneId, container) {
-  const detail = container.querySelector('#gene-detail');
-  detail.innerHTML = skeletonRows(6);
-  detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  const [{ data: g }, { data: orthoRows }] = await Promise.all([
-    sb.from('genes').select('*').eq('id', geneId).single(),
-    sb.from('orthologs')
-      .select('gene_id,ortholog_gene_id')
-      .or(`gene_id.eq.${geneId},ortholog_gene_id.eq.${geneId}`),
-  ]);
-
-  if (!g) { detail.innerHTML = '<p class="text-red-500 p-4 text-sm">Gene not found.</p>'; return; }
-
-  // Fetch ortholog details
-  const orthoIds = (orthoRows || []).map(r => r.gene_id === geneId ? r.ortholog_gene_id : r.gene_id);
-  let orthoGenes = [];
-  if (orthoIds.length) {
-    const { data } = await sb.from('genes').select('id,locus_tag,gene_name,strain_id').in('id', orthoIds);
-    orthoGenes = data || [];
-  }
-
-  const strainLabel = { 'CT-D': 'D ortholog', 'CT-L2': 'L2 ortholog', 'CM': 'CM ortholog' };
-
-  detail.innerHTML = `
-    <div class="back-btn mt-4" id="detail-back">‹ Gene list</div>
-
-    <!-- Gene title -->
-    <div class="flex items-start gap-4 mb-1">
-      ${g.af_image_url ? `
-        <img src="${g.af_image_url}" alt="AlphaFold model"
-          class="w-16 h-16 rounded-xl object-cover flex-shrink-0 cursor-pointer border border-gray-100"
-          id="af-thumb" title="Tap to open 3D viewer" />` : ''}
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900">${g.gene_name ?? g.locus_tag}</h2>
-        ${g.gene_name ? `<div class="text-sm text-gray-400 font-mono">${g.locus_tag}</div>` : ''}
-        <div class="text-sm text-gray-500 mt-0.5">${g.product ?? 'Hypothetical protein'}</div>
-      </div>
-    </div>
-
-    <!-- Property rows -->
-    <div class="mt-3">
-      ${row('Length', g.length_bp ? `${g.length_bp} bp` : null)}
-      ${row('Mass', g.mass_kd ? `${g.mass_kd} kDa` : null)}
-      ${row('Function', g.function)}
-      ${row('Protein family', g.protein_family)}
-      ${row('Subcellular location', g.subcellular_location)}
-    </div>
-
-    <!-- Orthologs -->
-    ${orthoGenes.length ? `
-      <div class="section-head">Orthologs</div>
-      ${orthoGenes.map(o => `
-        <div class="detail-row cursor-pointer hover:bg-gray-50 rounded px-1 -mx-1 ortholog-btn" data-id="${o.id}">
-          <div class="detail-label">${strainLabel[o.strain_id] ?? o.strain_id}</div>
-          <div class="detail-value">
-            <span class="${o.gene_name ? 'text-green-700 font-semibold' : 'text-rose-400 font-medium'}">${o.gene_name ?? o.locus_tag}</span>
-            ${o.gene_name ? `<span class="text-gray-400 text-xs ml-1">${o.locus_tag}</span>` : ''}
-          </div>
-          <span class="text-gray-300">›</span>
-        </div>`).join('')}
-    ` : ''}
-
-    <!-- Protein information -->
-    <div class="section-head">Protein information</div>
-    ${row('Product', g.product)}
-    ${row('Mass (kD)', g.mass_kd)}
-    ${row('Function', g.function)}
-    ${row('Protein family', g.protein_family)}
-    ${g.is_inc     ? row('Inc protein', '✓ Yes') : ''}
-    ${g.is_membrane? row('Membrane', '✓ Yes') : ''}
-    ${g.is_secreted? row('Secreted', '✓ Yes') : ''}
-
-    <!-- Structure -->
-    <div class="section-head">Structure</div>
-    ${g.af_image_url ? `
-      <div class="py-3 border-b border-gray-100">
-        <div class="text-gray-400 text-sm mb-2">Predicted Model</div>
-        <img src="${g.af_image_url}" alt="AlphaFold model" class="w-32 h-32 rounded-xl object-cover border border-gray-100" />
-      </div>` : ''}
-    ${row('Version', g.af_version ?? 'AF3')}
-    ${row('Structural homology inferred function', g.structural_homology_function)}
-
-    <!-- Expression Data -->
-    ${renderExpr(g)}
-
-    <!-- External Databases -->
-    <div class="section-head">External Databases</div>
-    ${extRow('UniProt', g.uniprot_id, g.uniprot_id ? `https://www.uniprot.org/uniprot/${g.uniprot_id}` : null)}
-    ${extRow('AlphaFold ID', g.alphafold_id, g.alphafold_id ? `https://alphafold.ebi.ac.uk/entry/${g.alphafold_id}` : null)}
-    ${extRow('PDB', g.pdb_id, g.pdb_id ? `https://www.rcsb.org/structure/${g.pdb_id}` : null)}
-    <div class="detail-row">
-      <div class="detail-label">NCBI</div>
-      <div class="detail-value">
-        <a href="https://www.ncbi.nlm.nih.gov/protein/?term=${g.locus_tag}" target="_blank" class="ext-link">${g.locus_tag} ↗</a>
-      </div>
-    </div>
-
-    <!-- GO -->
-    ${g.biological_process || g.molecular_function || g.cellular_component ? `
-      <div class="section-head">GO Annotations</div>
-      ${row('Biological process', g.biological_process)}
-      ${row('Molecular function', g.molecular_function)}
-      ${row('Cellular component', g.cellular_component)}
-    ` : ''}
-
-    <!-- Mol* viewer -->
-    ${g.mmcif_path ? `
-      <div class="section-head">🧊 3D Structure Viewer</div>
-      <div id="molstar-wrap" class="pb-4">
-        <button id="btn-molstar"
-          class="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400
-                 hover:border-gray-300 hover:text-gray-500 transition"
-          data-url="${g.mmcif_path}">
-          Tap to load interactive 3D viewer
-        </button>
-      </div>
-    ` : ''}
-
-    <div class="h-16"></div>
-  `;
-
-  detail.querySelector('#detail-back').addEventListener('click', () => {
-    detail.innerHTML = '';
-    container.querySelector('#gene-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-
-  detail.querySelectorAll('.ortholog-btn').forEach(btn =>
-    btn.addEventListener('click', () => showGeneDetail(Number(btn.dataset.id), container))
-  );
-
-  detail.querySelector('#af-thumb')?.addEventListener('click', () => {
-    const wrap = detail.querySelector('#molstar-wrap');
-    if (wrap) loadMolstar(wrap, g.mmcif_path);
-  });
-  detail.querySelector('#btn-molstar')?.addEventListener('click', e => {
-    const wrap = detail.querySelector('#molstar-wrap');
-    if (wrap) loadMolstar(wrap, e.currentTarget.dataset.url);
-  });
-}
-
-// ─── Expression chart ─────────────────────────────────────
-
-function renderExpr(g) {
-  const timepoints = [
-    { label: 'T0', val: g.expr_eb  },
-    { label: 'T1', val: g.expr_1h  },
-    { label: 'T2', val: g.expr_3h  },
-    { label: 'T3', val: g.expr_8h  },
-    { label: 'T4', val: g.expr_16h },
-    { label: 'T5', val: g.expr_24h },
-  ].filter(t => t.val !== null && t.val !== undefined);
-
-  const ebRb = [
-    g.expr_eb !== null && g.expr_eb !== undefined ? `EB: ${g.expr_eb}` : 'EB: NQ',
-    g.expr_rb !== null && g.expr_rb !== undefined ? `RB: ${g.expr_rb}` : 'RB: ND',
-  ];
-
-  const hasChart = timepoints.length > 0;
-
-  let chart = '';
-  if (hasChart) {
-    const max = Math.max(...timepoints.map(t => t.val), 1);
-    chart = `
-      <div class="py-3 border-b border-gray-100">
-        <div class="text-gray-400 text-sm mb-3">Microarray</div>
-        <div class="flex items-end gap-2 h-16">
-          ${timepoints.map(t => {
-            const pct = (t.val / max) * 100;
-            return `
-              <div class="flex flex-col items-center gap-1 flex-1">
-                <div class="w-full bg-blue-400 rounded-t" style="height:${Math.max(pct, 4)}%;min-height:4px;max-height:52px;"></div>
-                <span class="text-[10px] text-gray-400">${t.label}</span>
-              </div>`;
-          }).join('')}
-        </div>
-      </div>`;
-  }
-
-  return `
-    <div class="section-head">Expression Data</div>
-    ${chart}
-    ${row('EB', g.expr_eb ?? 'NQ')}
-    ${row('RB', g.expr_rb ?? 'ND')}
-    ${g.microarray_category ? row('Category', g.microarray_category) : ''}
-  `;
-}
-
 // ─── Mol* loader ──────────────────────────────────────────
 
 async function loadMolstar(wrapEl, url) {
@@ -685,26 +495,6 @@ async function _initMolstar(url) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────
-
-function row(label, value) {
-  if (value === null || value === undefined || value === '') return '';
-  return `
-    <div class="detail-row">
-      <div class="detail-label">${label}</div>
-      <div class="detail-value">${value}</div>
-    </div>`;
-}
-
-function extRow(label, text, href) {
-  if (!text) return row(label, '—');
-  return `
-    <div class="detail-row">
-      <div class="detail-label">${label}</div>
-      <div class="detail-value">
-        ${href ? `<a href="${href}" target="_blank" class="ext-link">${text} ↗</a>` : text}
-      </div>
-    </div>`;
-}
 
 function skeletonRows(n) {
   return Array.from({ length: n }, () => `
@@ -1311,6 +1101,18 @@ function wireStructureEvents(el, gene) {
   });
 }
 
+function renderDetailLocalizationPlaceholder(detail) {
+  const el = detail.querySelector('#d-localization');
+  if (!el) return;
+  el.innerHTML = `
+    ${sectionHead('Cell Localization')}
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:18px 8px 14px;text-align:center;">
+      <div style="font-size:20px;color:#d1d5db;">◎</div>
+      <div style="font-size:9px;font-weight:600;color:#aaa;">Coming soon</div>
+      <div style="font-size:8.5px;color:#ccc;max-width:130px;line-height:1.4;">SwissBioPics cell diagram with subcellular localization</div>
+    </div>`;
+}
+
 // Stubs — implemented in Tasks 3 and 10
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
@@ -1408,4 +1210,11 @@ function showGeneDetailDesktop(gene, container) {
   // Fire async queries in parallel
   loadDetailAsync(detail, gene);
 }
-function showGeneDetailMobile(gene, container)  { /* stub — implemented in Task 10 */ }
+function showGeneDetailMobile(gene, container) {
+  // Full-screen mobile detail — shares section renderers with desktop.
+  // TODO: implement tab bar in a follow-up session.
+  // For now: fall back to desktop layout inside the full container.
+  container.querySelector('#detail-panel').style.display = 'block';
+  container.querySelector('#list-panel').style.display   = 'none';
+  showGeneDetailDesktop(gene, container);
+}
