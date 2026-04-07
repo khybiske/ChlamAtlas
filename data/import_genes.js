@@ -6,6 +6,8 @@
  *   GeneID          → locus_tag
  *   FullGeneName    → gene_name
  *   GeneName        → gene_symbol
+ *   Product         → product
+ *   SortIndex       → sort_index
  *   Function        → functional_category (overridden to 'Inclusion membrane protein' if Inc true = TRUE)
  *   Mem true        → is_membrane_protein
  *   Hyp true        → is_hypothetical
@@ -14,10 +16,10 @@
  *   Length (bp)     → end_bp (approximate — no start coord in source)
  *
  * Columns intentionally SKIPPED (belong in proteins / alphafold_results / expression_data):
- *   Product, Mass (kD), Uniprot ID, AlphaFold ID, AFImageURL, PDB ID, PDB, PDBImageURL,
+ *   Mass (kD), Uniprot ID, AlphaFold ID, AFImageURL, PDB ID, PDB, PDBImageURL,
  *   EB, RB, Microarray / 1h–40h expression, Protein Family, Biological Process,
  *   Cellular Component, Molecular Function, Subcellular Location, Subunit Structure,
- *   Structural homology, OrthologID_*, PZ, SortIndex, LastEdited, EditedByName, Favorite, Version
+ *   Structural homology, OrthologID_*, PZ, LastEdited, EditedByName, Favorite, Version
  */
 
 const fs   = require('fs');
@@ -58,13 +60,16 @@ function mapRow(row, strainId) {
   const locus = (row['GeneID'] || '').trim();
   if (!locus) return null; // skip blank rows
 
-  const lengthBp = parseInt(row['Length (bp)'], 10);
+  const lengthBp  = parseInt(row['Length (bp)'], 10);
+  const sortIndex = parseInt(row['SortIndex'],    10);
 
   return {
     strain_id:           strainId,
     locus_tag:           locus,
     gene_name:           (row['FullGeneName'] || '').trim() || null,
     gene_symbol:         (row['GeneName']     || '').trim() || null,
+    product:             (row['Product']      || '').trim() || null,
+    sort_index:          isNaN(sortIndex) ? null : sortIndex,
     functional_category: funcCat,
     is_membrane_protein: parseBool(row['Mem true']),
     is_hypothetical:     parseBool(row['Hyp true']),
