@@ -70,10 +70,10 @@ function showGeneList(container) {
       <div id="list-panel" style="border-right:1px solid #ececec;display:flex;flex-direction:column;overflow:hidden;">
 
         <!-- Strain tabs -->
-        <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:8px 12px 0;flex-shrink:0;">
+        <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:10px 14px 0;flex-shrink:0;">
           ${STRAINS.map(s => `
             <button data-strain="${s.id}" aria-label="View ${s.label} genes"
-              style="font-size:9.5px;font-weight:600;padding:4px 8px 7px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
+              style="font-size:11.5px;font-weight:600;padding:5px 11px 8px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
               ${s.label}
             </button>`).join('')}
         </div>
@@ -187,23 +187,23 @@ function renderFilterBar(container) {
 
   const chip = (id, label, active) => `
     <button data-filter="${id}"
-      style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
              background:${active ? '#f0fdf4' : 'white'};color:${active ? '#16a34a' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
       ${label}
     </button>`;
 
   bar.innerHTML = `
-    <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
       <!-- Sort -->
       <div style="position:relative;">
         <button id="sort-btn"
-          style="font-size:9.5px;font-weight:500;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:3px 7px;cursor:pointer;font-family:inherit;">
+          style="font-size:11px;font-weight:500;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;">
           ⇅ ${sortLabel}
         </button>
         <div id="sort-dropdown" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:120px;overflow:hidden;">
           ${SORT_OPTIONS.map(o => `
             <button data-sort-field="${o.field}" data-sort-asc="${o.asc}"
-              style="display:block;width:100%;text-align:left;padding:7px 12px;font-size:10px;font-weight:${o.field === _sortField ? '600' : '400'};
+              style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:11.5px;font-weight:${o.field === _sortField ? '600' : '400'};
                      color:${o.field === _sortField ? '#16a34a' : '#333'};background:${o.field === _sortField ? '#f0fdf4' : 'none'};border:none;cursor:pointer;font-family:inherit;">
               ${o.label}
             </button>`).join('')}
@@ -215,7 +215,7 @@ function renderFilterBar(container) {
       ${chip('inc',          'Inc',           _filters.inc)}
       <!-- More button -->
       <button id="more-filters-btn"
-        style="font-size:9px;font-weight:600;color:#9ca3af;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:2px 7px;cursor:pointer;margin-left:auto;font-family:inherit;">
+        style="font-size:10.5px;font-weight:600;color:#9ca3af;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
         + More
       </button>
     </div>
