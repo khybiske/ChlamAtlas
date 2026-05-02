@@ -115,11 +115,52 @@ async function buildGeneMaps(supabase) {
   return maps;
 }
 
-// ── Main (phases added in subsequent tasks) ───────────────────────────────────
+// ── Phase 1: Proteins ─────────────────────────────────────────────────────────
+
+async function importProteins(supabase, geneMaps) {
+  console.log('\n── Phase 1: Proteins ──────────────────────────');
+  let totalInserted = 0, totalSkipped = 0;
+
+  for (const { file, commonName } of STRAIN_FILES) {
+    const rows    = parseCsv(file);
+    const geneMap = geneMaps[commonName] || {};
+    const proteins = [];
+
+    for (const row of rows) {
+      const locus  = trimVal(row['GeneID']);
+      if (!locus) continue;
+      const geneId = geneMap[locus];
+      if (!geneId) { totalSkipped++; continue; }
+
+      const bpLen = parseNum(row['Length (bp)']);
+      proteins.push({
+        gene_id:          geneId,
+        uniprot_id:       trimVal(row['Uniprot ID']),
+        alphafold_id:     trimVal(row['AlphaFold ID']),
+        mass_kd:          parseNum(row['Mass (kD)']),
+        length_aa:        bpLen != null ? Math.round(bpLen / 3) : null,
+        protein_family:   trimVal(row['Protein Family']),
+        localization:     trimVal(row['Subcellular Location']),
+        oligomeric_state: trimVal(row['Subunit Structure']),
+      });
+    }
+
+    const { succeeded, failed } = await batchUpsert(supabase, 'proteins', proteins, 'gene_id');
+    console.log(`  ${commonName}: ${succeeded}/${proteins.length} proteins upserted${failed ? ` (${failed} failed)` : ''}`);
+    totalInserted += succeeded;
+    totalSkipped  += failed;
+  }
+
+  console.log(`  Total: ${totalInserted} proteins inserted, ${totalSkipped} skipped/failed`);
+  return totalSkipped; // return failure count so main() can track it
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const geneMaps = await buildGeneMaps(supabase);
+  console.log(`\nRunning phase: ${PHASE ?? 'all'}`);
 
   const VALID_PHASES = ['proteins', 'alphafold', 'expression', 'orthologs'];
   if (PHASE && !VALID_PHASES.includes(PHASE)) {
@@ -127,9 +168,11 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`\nRunning phase: ${PHASE ?? 'all'}`);
-  // Phase functions will accumulate into totalFailed — added in Tasks 3–6
+  let totalFailed = 0;
+  if (!PHASE || PHASE === 'proteins')  totalFailed += await importProteins(supabase, geneMaps);
+
   console.log('\nDone.');
+  if (totalFailed > 0) process.exit(1);
 }
 
 main().catch(err => { console.error('Unexpected error:', err); process.exit(1); });
