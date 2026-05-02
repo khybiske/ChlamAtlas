@@ -296,16 +296,24 @@ async function importExpression(supabase, geneMaps) {
     }
 
     // Delete existing rows for these genes before inserting fresh data
+    let deleteFailed = false;
     for (let i = 0; i < geneIds.length; i += BATCH_SIZE) {
       const batch = geneIds.slice(i, i + BATCH_SIZE);
       const { error } = await supabase.from('expression_data').delete().in('gene_id', batch);
-      if (error) console.error('  ✗ Delete error (CT-D):', error.message);
+      if (error) {
+        console.error('  ✗ Delete error (CT-D), aborting insert to prevent duplicates:', error.message);
+        deleteFailed = true;
+        break;
+      }
     }
-
-    const { succeeded, failed } = await batchInsert(supabase, 'expression_data', exprRows);
-    console.log(`  CT-D: ${succeeded}/${exprRows.length} expression rows inserted${failed ? ` (${failed} failed)` : ''}`);
-    totalInserted += succeeded;
-    totalFailed   += failed;
+    if (deleteFailed) {
+      totalFailed += exprRows.length;
+    } else {
+      const { succeeded, failed } = await batchInsert(supabase, 'expression_data', exprRows);
+      console.log(`  CT-D: ${succeeded}/${exprRows.length} expression rows inserted${failed ? ` (${failed} failed)` : ''}`);
+      totalInserted += succeeded;
+      totalFailed   += failed;
+    }
   }
 
   // ── CT-L2 ────────────────────────────────────────────────────────────────
@@ -329,7 +337,7 @@ async function importExpression(supabase, geneMaps) {
           gene_id:       geneId,
           timepoint:     'T0',
           method:        'microarray',
-          value:         0,
+          value:         null,
           pattern_label: pattern,
         });
       }
@@ -349,16 +357,24 @@ async function importExpression(supabase, geneMaps) {
       }
     }
 
+    let deleteFailed = false;
     for (let i = 0; i < geneIds.length; i += BATCH_SIZE) {
       const batch = geneIds.slice(i, i + BATCH_SIZE);
       const { error } = await supabase.from('expression_data').delete().in('gene_id', batch);
-      if (error) console.error('  ✗ Delete error (CT-L2):', error.message);
+      if (error) {
+        console.error('  ✗ Delete error (CT-L2), aborting insert to prevent duplicates:', error.message);
+        deleteFailed = true;
+        break;
+      }
     }
-
-    const { succeeded, failed } = await batchInsert(supabase, 'expression_data', exprRows);
-    console.log(`  CT-L2: ${succeeded}/${exprRows.length} expression rows inserted${failed ? ` (${failed} failed)` : ''}`);
-    totalInserted += succeeded;
-    totalFailed   += failed;
+    if (deleteFailed) {
+      totalFailed += exprRows.length;
+    } else {
+      const { succeeded, failed } = await batchInsert(supabase, 'expression_data', exprRows);
+      console.log(`  CT-L2: ${succeeded}/${exprRows.length} expression rows inserted${failed ? ` (${failed} failed)` : ''}`);
+      totalInserted += succeeded;
+      totalFailed   += failed;
+    }
   }
 
   // CM: no expression data
