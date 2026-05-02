@@ -25,7 +25,7 @@ ALTER TABLE expression_data ADD COLUMN pattern_label text;
 
 **Why:** CT-L2 microarray data is qualitative text (e.g. "Constitutive", "Mid_Late"). The existing `eb_expression` column is typed `numeric` and cannot hold strings. `pattern_label` stores the qualitative label cleanly.
 
-Migration file: `supabase/migrations/004_expression_pattern_label.sql`
+Migration file: `supabase/migrations/006_expression_pattern_label.sql`
 
 ---
 
@@ -114,7 +114,7 @@ Skip rows where `AFImageURL` and `AlphaFold ID` are both empty (no structure dat
 
 Delete-then-insert per gene (not upsert) to avoid stale timepoint rows from re-runs.
 
-**CT-D** (877 genes, `Genes_D.csv`):
+**CT-D** (894 genes, `Genes_D.csv`):
 
 Six microarray rows per gene (T0–T5):
 
@@ -131,7 +131,7 @@ Each row: `method='microarray'`, `value=parseNum(col)` (null if `-` or non-numer
 
 One proteomics row per gene: `timepoint='T0'`, `method=NULL`, `value=NULL`, `eb_expression=parseNum(EB)`, `rb_expression=parseNum(RB)`.
 
-**CT-L2** (877 genes, `Genes_L2.csv`):
+**CT-L2** (877 genes, `Genes_L2.csv`): <!-- 877 data rows, 878 lines including header -->
 
 One microarray row per gene: `timepoint='T0'`, `method='microarray'`, `value=0`, `pattern_label=Microarray column value` (trim; null if empty or "ND"), `eb_expression=NULL`, `rb_expression=NULL`.
 
@@ -174,6 +174,6 @@ Canonical ordering: always store `gene_id_a < gene_id_b` (string comparison on U
 
 | File | Action |
 |---|---|
-| `supabase/migrations/004_expression_pattern_label.sql` | New — schema migration |
+| `supabase/migrations/006_expression_pattern_label.sql` | New — schema migration |
 | `data/import_detail_data.js` | New — import script |
 | `web/js/views/genomes.js` | Patch — 2-line fix in `renderDetailTranscriptomics` |
