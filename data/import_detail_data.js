@@ -156,6 +156,83 @@ async function importProteins(supabase, geneMaps) {
   return totalFailed;
 }
 
+// ── Phase 2: AlphaFold Results ────────────────────────────────────────────────
+
+async function importAlphaFold(supabase, geneMaps) {
+  console.log('\n── Phase 2: AlphaFold Results ─────────────────');
+
+  // Build gene_id → protein_id lookup from what was just upserted.
+  // Paginate to avoid the default 1000-row Supabase limit (2687 proteins).
+  const PAGE = 1000;
+  let allProts = [];
+  let from = 0;
+  while (true) {
+    const { data, error: protErr } = await supabase
+      .from('proteins')
+      .select('id, gene_id')
+      .range(from, from + PAGE - 1);
+    if (protErr) { console.error('Failed to fetch proteins:', protErr.message); return 0; }
+    if (!data || data.length === 0) break;
+    allProts = allProts.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  const protMap = Object.fromEntries(allProts.map(p => [p.gene_id, p.id]));
+  console.log(`  ${allProts.length} proteins loaded for lookup`);
+
+  let totalInserted = 0, totalSkipped = 0, totalFailed = 0;
+
+  for (const { file, commonName } of STRAIN_FILES) {
+    const rows    = parseCsv(file);
+    const geneMap = geneMaps[commonName] || {};
+    const afRows  = [];
+
+    for (const row of rows) {
+      const locus = trimVal(row['GeneID']);
+      if (!locus) continue;
+
+      const geneId    = geneMap[locus];
+      const proteinId = geneId ? protMap[geneId] : null;
+      if (!proteinId) { totalSkipped++; continue; }
+
+      const afImageUrl = trimVal(row['AFImageURL']);
+      const afId       = trimVal(row['AlphaFold ID']);
+      if (!afImageUrl && !afId) continue; // no usable structure data
+
+      // Default to 'AF2' when Version is blank — most rows predate the AF3 rollout
+      const afVersion = trimVal(row['Version']) || 'AF2';
+
+      const uniprotId = trimVal(row['Uniprot ID']);
+      const mmcifPath = uniprotId
+        ? `https://alphafold.ebi.ac.uk/files/AF-${uniprotId}-F1-model_v4.cif`
+        : null;
+
+      // Column name differs between strain CSVs:
+      // CT-L2 and CM use "Structural homology (Foldseek)"
+      // CT-D uses "Structural homology inferred function"
+      const inferred = trimVal(row['Structural homology (Foldseek)'])
+                    || trimVal(row['Structural homology inferred function']);
+
+      afRows.push({
+        protein_id:          proteinId,
+        af_version:          afVersion,
+        thumbnail_path:      afImageUrl,
+        mmcif_path:          mmcifPath,
+        top_homolog_pdb_id:  trimVal(row['PDB ID']),
+        inferred_function:   inferred,
+      });
+    }
+
+    const { succeeded, failed } = await batchUpsert(supabase, 'alphafold_results', afRows, 'protein_id,af_version');
+    console.log(`  ${commonName}: ${succeeded}/${afRows.length} AF rows upserted${failed ? ` (${failed} failed)` : ''}`);
+    totalInserted += succeeded;
+    totalFailed   += failed;
+  }
+
+  console.log(`  Total: ${totalInserted} AF rows inserted, ${totalSkipped} no-protein skipped, ${totalFailed} upsert failed`);
+  return totalFailed;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -171,6 +248,7 @@ async function main() {
 
   let totalFailed = 0;
   if (!PHASE || PHASE === 'proteins')  totalFailed += await importProteins(supabase, geneMaps);
+  if (!PHASE || PHASE === 'alphafold') totalFailed += await importAlphaFold(supabase, geneMaps);
 
   console.log('\nDone.');
   if (totalFailed > 0) process.exit(1);
