@@ -197,10 +197,14 @@ async function importAlphaFold(supabase, geneMaps) {
 
       const afImageUrl = trimVal(row['AFImageURL']);
       const afId       = trimVal(row['AlphaFold ID']);
-      if (!afImageUrl && !afId) continue; // no usable structure data
+      if (!afImageUrl && !afId) { totalSkipped++; continue; } // no usable structure data
 
       // Default to 'AF2' when Version is blank — most rows predate the AF3 rollout
-      const afVersion = trimVal(row['Version']) || 'AF2';
+      // Validate af_version against allowlist to catch typos (e.g., 'AF#' in CT-D)
+      const VALID_VERSIONS = new Set(['AF2', 'AF3']);
+      const rawVersion = trimVal(row['Version']) || 'AF2';
+      const afVersion  = VALID_VERSIONS.has(rawVersion) ? rawVersion : 'AF2';
+      if (afVersion !== rawVersion) console.warn(`  ⚠ ${commonName} ${locus}: unrecognized version "${rawVersion}", stored as AF2`);
 
       const uniprotId = trimVal(row['Uniprot ID']);
       const mmcifPath = uniprotId
@@ -222,6 +226,9 @@ async function importAlphaFold(supabase, geneMaps) {
         inferred_function:   inferred,
       });
     }
+
+    const nullThumbs = afRows.filter(r => !r.thumbnail_path).length;
+    if (nullThumbs > 0) console.warn(`  ⚠ ${commonName}: ${nullThumbs}/${afRows.length} rows have no thumbnail_path`);
 
     const { succeeded, failed } = await batchUpsert(supabase, 'alphafold_results', afRows, 'protein_id,af_version');
     console.log(`  ${commonName}: ${succeeded}/${afRows.length} AF rows upserted${failed ? ` (${failed} failed)` : ''}`);
