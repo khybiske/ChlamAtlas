@@ -119,7 +119,7 @@ async function buildGeneMaps(supabase) {
 
 async function importProteins(supabase, geneMaps) {
   console.log('\n── Phase 1: Proteins ──────────────────────────');
-  let totalInserted = 0, totalSkipped = 0;
+  let totalInserted = 0, totalSkipped = 0, totalFailed = 0;
 
   for (const { file, commonName } of STRAIN_FILES) {
     const rows    = parseCsv(file);
@@ -138,8 +138,9 @@ async function importProteins(supabase, geneMaps) {
         uniprot_id:       trimVal(row['Uniprot ID']),
         alphafold_id:     trimVal(row['AlphaFold ID']),
         mass_kd:          parseNum(row['Mass (kD)']),
-        length_aa:        bpLen != null ? Math.round(bpLen / 3) : null,
+        length_aa:        bpLen != null ? Math.floor(bpLen) : null,
         protein_family:   trimVal(row['Protein Family']),
+        function_narrative: trimVal(row['Function']),
         localization:     trimVal(row['Subcellular Location']),
         oligomeric_state: trimVal(row['Subunit Structure']),
       });
@@ -148,11 +149,11 @@ async function importProteins(supabase, geneMaps) {
     const { succeeded, failed } = await batchUpsert(supabase, 'proteins', proteins, 'gene_id');
     console.log(`  ${commonName}: ${succeeded}/${proteins.length} proteins upserted${failed ? ` (${failed} failed)` : ''}`);
     totalInserted += succeeded;
-    totalSkipped  += failed;
+    totalFailed   += failed;
   }
 
-  console.log(`  Total: ${totalInserted} proteins inserted, ${totalSkipped} skipped/failed`);
-  return totalSkipped; // return failure count so main() can track it
+  console.log(`  Total: ${totalInserted} inserted, ${totalSkipped} no-match skipped, ${totalFailed} upsert failed`);
+  return totalFailed;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
