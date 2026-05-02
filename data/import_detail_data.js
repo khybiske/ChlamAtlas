@@ -240,6 +240,133 @@ async function importAlphaFold(supabase, geneMaps) {
   return totalFailed;
 }
 
+// ── Phase 3: Expression Data ──────────────────────────────────────────────────
+
+async function importExpression(supabase, geneMaps) {
+  console.log('\n── Phase 3: Expression Data ───────────────────');
+
+  const CT_D_TIMEPOINTS = [
+    { tp: 'T0', col: '1h'  },
+    { tp: 'T1', col: '3h'  },
+    { tp: 'T2', col: '8h'  },
+    { tp: 'T3', col: '16h' },
+    { tp: 'T4', col: '24h' },
+    { tp: 'T5', col: '40h' },
+  ];
+
+  let totalInserted = 0, totalFailed = 0;
+
+  // ── CT-D ─────────────────────────────────────────────────────────────────
+  {
+    const rows    = parseCsv('ChlamDB - Genes_D.csv');
+    const geneMap = geneMaps['CT-D'] || {};
+    const exprRows = [];
+    const geneIds  = [];
+
+    for (const row of rows) {
+      const locus  = trimVal(row['GeneID']);
+      if (!locus) continue;
+      const geneId = geneMap[locus];
+      if (!geneId) continue;
+      geneIds.push(geneId);
+
+      // Six microarray timepoint rows
+      for (const { tp, col } of CT_D_TIMEPOINTS) {
+        exprRows.push({
+          gene_id:   geneId,
+          timepoint: tp,
+          method:    'microarray',
+          value:     parseNum(row[col]),
+        });
+      }
+
+      // One proteomics row (only if at least one value is present)
+      const eb = parseNum(row['EB']);
+      const rb = parseNum(row['RB']);
+      if (eb != null || rb != null) {
+        exprRows.push({
+          gene_id:       geneId,
+          timepoint:     'T0',
+          method:        null,
+          value:         null,
+          eb_expression: eb,
+          rb_expression: rb,
+        });
+      }
+    }
+
+    // Delete existing rows for these genes before inserting fresh data
+    for (let i = 0; i < geneIds.length; i += BATCH_SIZE) {
+      const batch = geneIds.slice(i, i + BATCH_SIZE);
+      const { error } = await supabase.from('expression_data').delete().in('gene_id', batch);
+      if (error) console.error('  ✗ Delete error (CT-D):', error.message);
+    }
+
+    const { succeeded, failed } = await batchInsert(supabase, 'expression_data', exprRows);
+    console.log(`  CT-D: ${succeeded}/${exprRows.length} expression rows inserted${failed ? ` (${failed} failed)` : ''}`);
+    totalInserted += succeeded;
+    totalFailed   += failed;
+  }
+
+  // ── CT-L2 ────────────────────────────────────────────────────────────────
+  {
+    const rows    = parseCsv('ChlamDB - Genes_L2.csv');
+    const geneMap = geneMaps['CT-L2'] || {};
+    const exprRows = [];
+    const geneIds  = [];
+
+    for (const row of rows) {
+      const locus  = trimVal(row['GeneID']);
+      if (!locus) continue;
+      const geneId = geneMap[locus];
+      if (!geneId) continue;
+      geneIds.push(geneId);
+
+      // One qualitative microarray row (skip if pattern is absent or ND)
+      const pattern = trimVal(row['Microarray']);
+      if (pattern && pattern !== 'ND') {
+        exprRows.push({
+          gene_id:       geneId,
+          timepoint:     'T0',
+          method:        'microarray',
+          value:         0,
+          pattern_label: pattern,
+        });
+      }
+
+      // One proteomics row
+      const eb = parseNum(row['EB']);
+      const rb = parseNum(row['RB']);
+      if (eb != null || rb != null) {
+        exprRows.push({
+          gene_id:       geneId,
+          timepoint:     'T0',
+          method:        null,
+          value:         null,
+          eb_expression: eb,
+          rb_expression: rb,
+        });
+      }
+    }
+
+    for (let i = 0; i < geneIds.length; i += BATCH_SIZE) {
+      const batch = geneIds.slice(i, i + BATCH_SIZE);
+      const { error } = await supabase.from('expression_data').delete().in('gene_id', batch);
+      if (error) console.error('  ✗ Delete error (CT-L2):', error.message);
+    }
+
+    const { succeeded, failed } = await batchInsert(supabase, 'expression_data', exprRows);
+    console.log(`  CT-L2: ${succeeded}/${exprRows.length} expression rows inserted${failed ? ` (${failed} failed)` : ''}`);
+    totalInserted += succeeded;
+    totalFailed   += failed;
+  }
+
+  // CM: no expression data
+  console.log(`  CM: skipped (no expression data in source)`);
+  console.log(`  Total: ${totalInserted} expression rows, ${totalFailed} failed`);
+  return totalFailed;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -254,8 +381,9 @@ async function main() {
   }
 
   let totalFailed = 0;
-  if (!PHASE || PHASE === 'proteins')  totalFailed += await importProteins(supabase, geneMaps);
-  if (!PHASE || PHASE === 'alphafold') totalFailed += await importAlphaFold(supabase, geneMaps);
+  if (!PHASE || PHASE === 'proteins')   totalFailed += await importProteins(supabase, geneMaps);
+  if (!PHASE || PHASE === 'alphafold')  totalFailed += await importAlphaFold(supabase, geneMaps);
+  if (!PHASE || PHASE === 'expression') totalFailed += await importExpression(supabase, geneMaps);
 
   console.log('\nDone.');
   if (totalFailed > 0) process.exit(1);
