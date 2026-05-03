@@ -1144,10 +1144,16 @@ function showGeneDetailDesktop(gene, container) {
   // Hero background: very light tint derived from category color
   const heroBg = `color-mix(in srgb, ${catColor} 12%, white)`;
 
+  const heroThumbUrl = gene.proteins?.[0]?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path ?? null;
+  const heroThumb = heroThumbUrl
+    ? `<img src="${heroThumbUrl}" alt="Structure" loading="lazy"
+         style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">`
+    : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.85);border:2px solid rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-size:18px;color:#d1d5db;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">⬡</div>`;
+
   const heroHtml = `
     <div style="padding:16px 20px 14px;border-bottom:3px solid ${catColor};background:linear-gradient(150deg,${heroBg} 0%,#ffffff 65%);">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;">
-        <div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.85);border:2px solid rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-size:18px;color:#d1d5db;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">⬡</div>
+        ${heroThumb}
         <div style="flex:1;min-width:0;">
           ${gene.gene_name
             ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)}</div>
