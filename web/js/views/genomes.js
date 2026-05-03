@@ -323,7 +323,8 @@ async function fetchGenes(container, reset = false) {
       'start_bp,end_bp,strand,' +
       'functional_category,is_characterized,is_membrane_protein,' +
       'is_hypothetical,is_dna_binding,is_t3_secreted,' +
-      'strains!inner(common_name,color_hex)',
+      'strains!inner(common_name,color_hex),' +
+      'proteins(alphafold_results(thumbnail_path))',
       { count: 'exact' }
     )
     .eq('strains.common_name', _strain)
@@ -430,8 +431,11 @@ function geneRow(g) {
   const favs  = loadFavorites();
   const isFav = favs.has(String(g.id));
 
-  // af_image_url lives in alphafold_results (joined in Task 6+); placeholder for now
-  const thumb = `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#d1d5db;flex-shrink:0;">⬡</div>`;
+  const thumbUrl = g.proteins?.[0]?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path ?? null;
+  const thumb = thumbUrl
+    ? `<img src="${thumbUrl}" alt="Structure" loading="lazy"
+         style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
+    : `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#d1d5db;flex-shrink:0;">⬡</div>`;
 
   const nameEl = g.gene_name
     ? `<span style="font-size:10.5px;font-weight:600;color:#111;">${g.gene_name}</span>
