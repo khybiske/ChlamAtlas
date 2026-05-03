@@ -797,7 +797,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
     const cx = ax + w / 2;
     const opacity   = isCurrent ? '1' : '0.82';
     const strokeEl  = isCurrent
-      ? `<polygon points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.9"/>`
+      ? `<polygon points="${pts}" fill="none" stroke="#333" stroke-width="1"/>`
       : '';
 
     const labelEl = `
@@ -898,7 +898,7 @@ function renderDetailProtein(detail, gene, protein) {
         .replace(/\s*\{[^}]+\}/g, '')          // strip {ECO:...|...} blocks
         .split(/[;.]+/)                          // split on ; or .
         .map(s => s.trim())
-        .filter(s => s && s.length > 1 && !/note=/i.test(s) && !/prorule/i.test(s) && !/hamap/i.test(s) && s.length < 60)
+        .filter(s => s && s.length > 1 && !/note=/i.test(s) && !/prorule/i.test(s) && !/hamap/i.test(s) && !/pubmed/i.test(s) && s.length < 60)
     : [];
   const locHtml = locTags.length
     ? `<div style="margin-top:10px;">
@@ -927,7 +927,7 @@ function renderDetailProtein(detail, gene, protein) {
       </div>
       ${propBlock('Product', gene.product ? esc(gene.product) : null)}
       ${locHtml}
-      ${propBlock('Subunit Structure', protein.oligomeric_state ? esc(protein.oligomeric_state) : null)}
+      ${propBlock('Subunit Structure', protein.oligomeric_state ? esc(stripEvidenceTags(protein.oligomeric_state)) : null)}
     </div>`;
 
   // Update hero ext links now that we have the UniProt ID
@@ -1256,6 +1256,19 @@ function showGeneDetailDesktop(gene, container) {
   _sectionOpen = { gene: true, protein: true, structure: true,
                    transcriptomics: true, proteomics: true,
                    localization: false, interactions: false };
+
+  // Sync gene list selection + scroll the active row into view
+  _selectedId = String(gene.id);
+  const geneScroll = container.querySelector('#gene-scroll');
+  if (geneScroll) {
+    geneScroll.querySelectorAll('.gene-row').forEach(r => {
+      const sel = r.dataset.id === _selectedId;
+      r.style.background  = sel ? '#f0fdf4' : '';
+      r.style.borderLeft  = sel ? '2px solid #16a34a' : '';
+      r.style.paddingLeft = sel ? '10px' : '';
+      if (sel) r.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
 
   const favs   = loadFavorites();
   const isFav  = favs.has(String(gene.id));
