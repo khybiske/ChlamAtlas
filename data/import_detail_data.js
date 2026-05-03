@@ -383,6 +383,72 @@ async function importExpression(supabase, geneMaps) {
   return totalFailed;
 }
 
+// ── Phase 4: Orthologs ────────────────────────────────────────────────────────
+
+async function importOrthologs(supabase, geneMaps) {
+  console.log('\n── Phase 4: Orthologs ──────────────────────────');
+
+  // Fetch strain UUIDs
+  const { data: strains, error: strainErr } = await supabase
+    .from('strains')
+    .select('id, common_name');
+  if (strainErr) { console.error('Failed to fetch strains:', strainErr.message); return 0; }
+  const strainMap = Object.fromEntries(strains.map(s => [s.common_name, s.id]));
+
+  const l2Map = geneMaps['CT-L2'] || {};
+  const dMap  = geneMaps['CT-D']  || {};
+  const cmMap = geneMaps['CM']    || {};
+
+  const pairs = [];
+  const seen  = new Set(); // canonical sorted UUID pair key
+
+  function addPair(idA, cnA, idB, cnB) {
+    if (!idA || !idB) return;
+    // Canonical ordering by UUID string to satisfy UNIQUE(gene_id_a, gene_id_b)
+    const [gA, gB] = idA < idB ? [idA, idB] : [idB, idA];
+    const [sA, sB] = idA < idB ? [cnA, cnB] : [cnB, cnA];
+    const key = `${gA}|${gB}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    pairs.push({
+      gene_id_a:   gA,
+      gene_id_b:   gB,
+      strain_id_a: strainMap[sA],
+      strain_id_b: strainMap[sB],
+      method:      'reciprocal_blast',
+    });
+  }
+
+  // CT-L2 CSV: L2↔D and L2↔CM pairs
+  const l2Rows = parseCsv('ChlamDB - Genes_L2.csv');
+  for (const row of l2Rows) {
+    const l2Id = l2Map[trimVal(row['GeneID'])];
+    if (!l2Id) continue;
+
+    const dLocus  = trimVal(row['OrthologID_D']);
+    if (dLocus)  addPair(l2Id, 'CT-L2', dMap[dLocus],  'CT-D');
+
+    const cmLocus = trimVal(row['OrthologID_CM']);
+    if (cmLocus) addPair(l2Id, 'CT-L2', cmMap[cmLocus], 'CM');
+  }
+
+  // CT-D CSV: D↔CM pairs only (L2↔D already covered above)
+  const dRows = parseCsv('ChlamDB - Genes_D.csv');
+  for (const row of dRows) {
+    const dId = dMap[trimVal(row['GeneID'])];
+    if (!dId) continue;
+
+    const cmLocus = trimVal(row['OrthologID_CM']);
+    if (cmLocus) addPair(dId, 'CT-D', cmMap[cmLocus], 'CM');
+  }
+
+  console.log(`  ${pairs.length} ortholog pairs assembled`);
+
+  const { succeeded, failed } = await batchUpsert(supabase, 'orthologs', pairs, 'gene_id_a,gene_id_b');
+  console.log(`  ${succeeded} ortholog pairs upserted${failed ? ` (${failed} failed)` : ''}`);
+  return failed;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -400,6 +466,7 @@ async function main() {
   if (!PHASE || PHASE === 'proteins')   totalFailed += await importProteins(supabase, geneMaps);
   if (!PHASE || PHASE === 'alphafold')  totalFailed += await importAlphaFold(supabase, geneMaps);
   if (!PHASE || PHASE === 'expression') totalFailed += await importExpression(supabase, geneMaps);
+  if (!PHASE || PHASE === 'orthologs')  totalFailed += await importOrthologs(supabase, geneMaps);
 
   console.log('\nDone.');
   if (totalFailed > 0) process.exit(1);
