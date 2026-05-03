@@ -822,8 +822,8 @@ function renderDetailProtein(detail, gene, protein) {
 
   const extLink = (label, href) => href
     ? `<a href="${href}" target="_blank" rel="noopener"
-        style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;"
-        onmouseenter="this.style.background='#dcfce7'" onmouseleave="this.style.background='#f0fdf4'">${label} ↗</a>`
+        style="font-size:9.5px;font-weight:500;color:#6b7280;text-decoration:none;padding:2px 7px;border:1px solid #e5e7eb;border-radius:5px;background:#f9fafb;"
+        onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='#f9fafb'">${label} ↗</a>`
     : '';
 
   const tmLabel  = protein.transmembrane_domains > 0 ? String(protein.transmembrane_domains) : 'None';
@@ -858,8 +858,8 @@ function renderDetailProtein(detail, gene, protein) {
 // Helper: NCBI gene link (always available from locus tag)
 function ncbiLink(locusTag) {
   return `<a href="https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(locusTag)}" target="_blank" rel="noopener"
-    style="font-size:9.5px;font-weight:500;color:#16a34a;text-decoration:none;padding:2px 7px;border:1px solid #bbf7d0;border-radius:5px;background:#f0fdf4;"
-    onmouseenter="this.style.background='#dcfce7'" onmouseleave="this.style.background='#f0fdf4'">NCBI ↗</a>`;
+    style="font-size:9.5px;font-weight:500;color:#6b7280;text-decoration:none;padding:2px 7px;border:1px solid #e5e7eb;border-radius:5px;background:#f9fafb;"
+    onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='#f9fafb'">NCBI ↗</a>`;
 }
 
 function renderDetailTranscriptomics(detail, gene, exprRows) {
