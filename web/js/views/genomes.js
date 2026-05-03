@@ -578,7 +578,7 @@ function toggleFavorite(geneId) {
 function sectionHead(label, rightContent = '') {
   return `
     <div style="display:flex;align-items:center;padding:10px 16px 8px;">
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#374151;">${label}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#1a6b4a;">${label}</span>
       ${rightContent ? `<span style="margin-left:auto;font-size:8.5px;color:#bbb;font-family:'DM Mono',monospace;">${rightContent}</span>` : ''}
     </div>`;
 }
