@@ -571,9 +571,8 @@ function toggleFavorite(geneId) {
 // rightContent: optional HTML string rendered right-aligned in the header.
 function sectionHead(label, rightContent = '') {
   return `
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 16px 7px;">
-      <div style="width:2px;height:12px;background:#1a6b4a;border-radius:1px;flex-shrink:0;"></div>
-      <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a6b4a;">${label}</span>
+    <div style="display:flex;align-items:center;padding:10px 16px 8px;border-bottom:1px solid #f0f0f0;">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#374151;">${label}</span>
       ${rightContent ? `<span style="margin-left:auto;font-size:8.5px;color:#bbb;font-family:'DM Mono',monospace;">${rightContent}</span>` : ''}
     </div>`;
 }
@@ -863,24 +862,42 @@ function renderDetailProtein(detail, gene, protein) {
 
   const tmLabel  = protein.transmembrane_domains > 0 ? String(protein.transmembrane_domains) : 'None';
   const spLabel  = protein.signal_peptide ? 'Yes' : 'No';
-  const descText = gene.product ?? protein.function_narrative ?? null;
+
+  // Parse localization string into display tags, stripping evidence codes and noise
+  const locTags = protein.localization
+    ? protein.localization
+        .replace(/\s*\{[^}]+\}/g, '')          // strip {ECO:...|...} blocks
+        .split(/[;.]+/)                          // split on ; or .
+        .map(s => s.trim())
+        .filter(s => s && s.length > 1 && !/note=/i.test(s) && !/prorule/i.test(s) && !/hamap/i.test(s) && s.length < 60)
+    : [];
+  const locHtml = locTags.length
+    ? `<div style="margin-top:10px;">
+        <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:5px;">Localization</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          ${locTags.map(t => `<span style="font-size:9px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t)}</span>`).join('')}
+        </div>
+      </div>`
+    : '';
+
+  const propBlock = (label, value) => !value ? '' : `
+    <div style="margin-top:10px;">
+      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:3px;">${label}</div>
+      <div style="font-size:10.5px;color:#444;line-height:1.55;">${value}</div>
+    </div>`;
 
   el.innerHTML = `
     ${sectionHead('Protein')}
     <div style="padding:2px 16px 14px;">
-      ${descText ? `
-        <div style="font-size:10.5px;color:#555;line-height:1.65;margin-bottom:10px;
-                    padding:7px 10px;background:#fafafa;border-radius:6px;border-left:3px solid #e5e7eb;">
-          ${esc(descText)}
-        </div>` : ''}
       <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Mass',           protein.mass_kd ? `${protein.mass_kd} kDa` : null)}
         ${prop('Length',         protein.length_aa ? `${protein.length_aa} aa` : null)}
         ${prop('TM Domains',     tmLabel)}
         ${prop('Signal Peptide', spLabel)}
-        ${prop('Localization',   protein.localization   != null ? esc(stripEvidenceTags(protein.localization))   : null)}
         ${prop('Family',         protein.protein_family != null ? esc(protein.protein_family) : null)}
       </div>
+      ${locHtml}
+      ${propBlock('Subunit Structure', protein.oligomeric_state ? esc(protein.oligomeric_state) : null)}
     </div>`;
 
   // Update hero ext links now that we have the UniProt ID
@@ -1238,7 +1255,7 @@ function showGeneDetailDesktop(gene, container) {
                <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${esc(gene.locus_tag)}</div>`
             : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
-          <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.45;">${esc(gene.product ?? (gene.functional_category ?? 'Hypothetical protein'))}</div>
+          ${gene.product ? `<div style="margin-top:5px;"><div style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#c0c0c0;margin-bottom:2px;">Product</div><div style="font-size:10.5px;color:#555;line-height:1.45;">${esc(gene.product)}</div></div>` : ''}
         </div>
         <button id="detail-fav-btn" data-id="${gene.id}"
           style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
