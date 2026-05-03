@@ -963,16 +963,19 @@ function renderDetailProteomics(detail, gene, exprRows) {
   const rbVal = protRow.rb_expression ?? 0;
   const maxVal = Math.max(ebVal, rbVal, 1);
 
-  const bar = (label, val) => {
+  const bar = (label, val, iconSrc) => {
     const pct = Math.round((val / maxVal) * 100);
     return `
-      <div style="margin-bottom:9px;">
-        <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;margin-bottom:3px;">${label}</div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div style="height:5px;background:#f3f4f6;border-radius:3px;flex:1;">
-            <div style="height:5px;border-radius:3px;background:#4ade80;width:${pct}%;"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <img src="${iconSrc}" alt="${label}" style="width:22px;height:22px;flex-shrink:0;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;margin-bottom:3px;">${label}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="height:5px;background:#f3f4f6;border-radius:3px;flex:1;">
+              <div style="height:5px;border-radius:3px;background:#4ade80;width:${pct}%;"></div>
+            </div>
+            <span style="font-size:9px;font-family:'DM Mono',monospace;color:#555;white-space:nowrap;">${val}</span>
           </div>
-          <span style="font-size:9px;font-family:'DM Mono',monospace;color:#555;white-space:nowrap;">${val}</span>
         </div>
       </div>`;
   };
@@ -980,8 +983,8 @@ function renderDetailProteomics(detail, gene, exprRows) {
   el.innerHTML = `
     ${sectionHead('EB / RB Proteomics')}
     <div style="padding:2px 16px 14px;">
-      ${bar('EB (elementary body)', ebVal)}
-      ${bar('RB (reticulate body)', rbVal)}
+      ${bar('EB (elementary body)', ebVal, '/web/images/eb.png')}
+      ${bar('RB (reticulate body)', rbVal, '/web/images/rb.png')}
       <div style="font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 spectral counts</div>
     </div>`;
 }
