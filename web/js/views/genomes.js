@@ -53,14 +53,15 @@ const PAGE_SIZE = 50;
 const FAVORITES_KEY = 'chlamatlas_favorites';
 
 // ── Module-level state (reset on each renderGenomes call) ──
-let _strain      = null;
-let _search      = '';
-let _searchTimer = null;
-let _sortField   = 'locus_tag';
-let _sortAsc     = true;
-let _filters     = { favorites: false, characterized: false, inc: false,
-                     membrane: false, secreted: false, hasStructure: false };
-let _offset      = 0;
+let _strain         = null;
+let _search         = '';
+let _searchTimer    = null;
+let _sortField      = 'locus_tag';
+let _sortAsc        = true;
+let _filters        = { favorites: false, characterized: false, inc: false,
+                        membrane: false, secreted: false, dnaBinding: false, hasStructure: false };
+let _categoryFilter = null;
+let _offset         = 0;
 let _total       = 0;
 let _hasMore     = false;
 let _loading     = false;
@@ -86,9 +87,9 @@ export function renderGenomes(container) {
   // Pick up strain preference set by home page organisms section
   _strain = window.__preferredStrain ?? 'CT-L2';
   delete window.__preferredStrain;
-  _search = ''; _offset = 0; _selectedId = null;
+  _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null;
   _filters = { favorites: false, characterized: false, inc: false,
-               membrane: false, secreted: false, hasStructure: false };
+               membrane: false, secreted: false, dnaBinding: false, hasStructure: false };
   showGeneList(container);
 }
 
@@ -150,9 +151,9 @@ function showGeneList(container) {
   container.querySelectorAll('[data-strain]').forEach(btn => {
     btn.addEventListener('click', () => {
       _strain = btn.dataset.strain;
-      _search = ''; _offset = 0; _selectedId = null;
+      _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null;
       _filters = { favorites: false, characterized: false, inc: false,
-                   membrane: false, secreted: false, hasStructure: false };
+                   membrane: false, secreted: false, dnaBinding: false, hasStructure: false };
       // Update tab styles
       container.querySelectorAll('[data-strain]').forEach(b => {
         const active = b.dataset.strain === _strain;
@@ -249,6 +250,7 @@ function renderFilterBar(container) {
       ${chip('favorites',    '★ Favorites',  _filters.favorites)}
       ${chip('characterized','Characterized', _filters.characterized)}
       ${chip('inc',          'Inc',           _filters.inc)}
+      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${_categoryFilter} ×</button>` : ''}
       <!-- More button -->
       <button id="more-filters-btn"
         style="font-size:10.5px;font-weight:600;color:#9ca3af;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
@@ -259,6 +261,7 @@ function renderFilterBar(container) {
     <div id="more-panel" style="display:none;padding:8px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;gap:5px;">
       ${chip('membrane',    'Membrane',     _filters.membrane)}
       ${chip('secreted',    'Secreted',     _filters.secreted)}
+      ${chip('dnaBinding',  'DNA Binding',  _filters.dnaBinding)}
       ${chip('hasStructure','Has structure', _filters.hasStructure)}
     </div>
   `;
@@ -291,6 +294,17 @@ function renderFilterBar(container) {
       fetchGenes(container, true);
     });
   });
+
+  // Clear category filter
+  const clearCatBtn = bar.querySelector('[data-clear-category]');
+  if (clearCatBtn) {
+    clearCatBtn.addEventListener('click', () => {
+      _categoryFilter = null;
+      _offset = 0;
+      renderFilterBar(container);
+      fetchGenes(container, true);
+    });
+  }
 
   // More filters toggle
   const moreBtn = bar.querySelector('#more-filters-btn');
@@ -339,6 +353,8 @@ async function fetchGenes(container, reset = false) {
   if (_filters.inc)            q = q.eq('functional_category', 'Inclusion membrane protein');
   if (_filters.membrane)       q = q.eq('is_membrane_protein', true);
   if (_filters.secreted)       q = q.eq('is_t3_secreted', true);
+  if (_filters.dnaBinding)     q = q.eq('is_dna_binding', true);
+  if (_categoryFilter)         q = q.eq('functional_category', _categoryFilter);
   // hasStructure filter deferred — af_image_url lives in alphafold_results, not genes
 
   const { data: genes, count, error } = await q;
@@ -1106,6 +1122,22 @@ function renderDetailLocalizationPlaceholder(detail) {
 }
 
 // Stubs — implemented in Tasks 3 and 10
+function wireHeroBadgeClicks(detail) {
+  detail.querySelectorAll('[data-hero-filter]').forEach(el => {
+    el.addEventListener('click', () => {
+      const filterType = el.dataset.heroFilter;
+      _offset = 0;
+      if (filterType === 'category') {
+        _categoryFilter = el.dataset.value;
+      } else {
+        _filters[filterType] = true;
+      }
+      renderFilterBar(_container);
+      fetchGenes(_container, true);
+    });
+  });
+}
+
 function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
   if (!detail) return;
@@ -1153,11 +1185,11 @@ function showGeneDetailDesktop(gene, container) {
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
         <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
-        ${catLabel ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};">${esc(catLabel)}</span>` : ''}
-        ${gene.is_characterized   ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);">Characterized</span>` : ''}
-        ${gene.is_membrane_protein ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#0369a1;border:1px solid rgba(3,105,161,0.3);">Membrane</span>` : ''}
-        ${gene.is_t3_secreted      ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);">T3 Secreted</span>` : ''}
-        ${gene.is_dna_binding      ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#b45309;border:1px solid rgba(180,83,9,0.3);">DNA Binding</span>` : ''}
+        ${catLabel ? `<span data-hero-filter="category" data-value="${esc(gene.functional_category)}" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};cursor:pointer;" title="Filter list by ${esc(catLabel)}">${esc(catLabel)}</span>` : ''}
+        ${gene.is_characterized   ? `<span data-hero-filter="characterized" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);cursor:pointer;" title="Filter list: Characterized">Characterized</span>` : ''}
+        ${gene.is_membrane_protein ? `<span data-hero-filter="membrane" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#0369a1;border:1px solid rgba(3,105,161,0.3);cursor:pointer;" title="Filter list: Membrane proteins">Membrane</span>` : ''}
+        ${gene.is_t3_secreted      ? `<span data-hero-filter="secreted" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);cursor:pointer;" title="Filter list: T3 Secreted">T3 Secreted</span>` : ''}
+        ${gene.is_dna_binding      ? `<span data-hero-filter="dnaBinding" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#b45309;border:1px solid rgba(180,83,9,0.3);cursor:pointer;" title="Filter list: DNA Binding">DNA Binding</span>` : ''}
         <span id="d-hero-ext-links" style="margin-left:auto;display:flex;gap:4px;align-items:center;"></span>
       </div>
     </div>`;
@@ -1207,6 +1239,7 @@ function showGeneDetailDesktop(gene, container) {
   });
 
   // Render synchronous sections immediately
+  wireHeroBadgeClicks(detail);
   renderDetailGeneInfo(detail, gene);
   renderDetailLocalizationPlaceholder(detail);
 
