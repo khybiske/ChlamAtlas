@@ -898,9 +898,9 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
   const values = sorted.map(r => r.value ?? 0);
   const maxVal = Math.max(...values, 1);
 
-  // CT-L2 qualitative case: all numeric values are 0 but eb_expression has a pattern label
-  if (values.every(v => v === 0) && sorted[0]?.eb_expression) {
-    const pattern = String(sorted[0].eb_expression ?? 'Unknown').toUpperCase().replace('_', ' ');
+  // CT-L2 qualitative case: pattern_label column holds the expression pattern string
+  if (values.every(v => v === 0) && sorted[0]?.pattern_label) {
+    const pattern = String(sorted[0].pattern_label ?? 'Unknown').toUpperCase().replace(/_/g, ' ');
     el.innerHTML = `
       ${sectionHead('Transcriptomics')}
       <div style="padding:8px 16px 14px;">
