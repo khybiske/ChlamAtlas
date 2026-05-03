@@ -116,11 +116,13 @@ function showGeneList(container) {
         </div>
 
         <!-- Search -->
-        <div style="padding:7px 10px;border-bottom:1px solid #f3f3f3;flex-shrink:0;">
-          <input id="gene-search" type="search"
+        <div style="padding:7px 10px;border-bottom:1px solid #f3f3f3;flex-shrink:0;position:relative;">
+          <input id="gene-search" type="search" autocomplete="off"
             placeholder="Search genes, locus tags, products…"
             aria-label="Search genes, locus tags, products"
             style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;padding:5px 10px;font-size:10.5px;outline:none;font-family:inherit;" />
+          <div id="search-suggestions"
+            style="display:none;position:absolute;left:10px;right:10px;top:calc(100% - 7px);background:white;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;box-shadow:0 6px 16px rgba(0,0,0,0.08);z-index:100;overflow:hidden;"></div>
         </div>
 
         <!-- Filter/sort toolbar -->
@@ -166,16 +168,22 @@ function showGeneList(container) {
     });
   });
 
-  // Wire search (value set via JS to avoid XSS from user input interpolated into HTML)
+  // Wire search
   const searchEl = container.querySelector('#gene-search');
+  const suggestEl = container.querySelector('#search-suggestions');
   searchEl.value = _search;
   searchEl.addEventListener('input', e => {
     clearTimeout(_searchTimer);
-    _search = e.target.value.trim();
-    _searchTimer = setTimeout(() => {
-      _offset = 0;
-      fetchGenes(container, true);
-    }, 280);
+    const q = e.target.value.trim();
+    _search = q;
+    showSearchSuggestions(container, q);
+    _searchTimer = setTimeout(() => { _offset = 0; fetchGenes(container, true); }, 280);
+  });
+  searchEl.addEventListener('blur', () => {
+    setTimeout(() => { if (suggestEl) suggestEl.style.display = 'none'; }, 180);
+  });
+  searchEl.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { suggestEl.style.display = 'none'; searchEl.blur(); }
   });
 
   // Dismiss sort dropdown on any outside click
@@ -226,8 +234,20 @@ function renderFilterBar(container) {
     <button data-filter="${id}"
       style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
              background:${active ? '#f0fdf4' : 'white'};color:${active ? '#16a34a' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
-      ${label}
+      ${label}${active ? ' ×' : ''}
     </button>`;
+
+  const ALL_SECONDARY = [
+    { id: 'characterized', label: 'Characterized' },
+    { id: 'inc',           label: 'Inc Protein'   },
+    { id: 'membrane',      label: 'Membrane'      },
+    { id: 'secreted',      label: 'T3 Secreted'   },
+    { id: 'dnaBinding',    label: 'DNA Binding'   },
+    { id: 'hasStructure',  label: 'Has Structure' },
+  ];
+
+  const activeSecondary   = ALL_SECONDARY.filter(f => _filters[f.id]);
+  const inactiveSecondary = ALL_SECONDARY.filter(f => !_filters[f.id]);
 
   bar.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
@@ -246,24 +266,23 @@ function renderFilterBar(container) {
             </button>`).join('')}
         </div>
       </div>
-      <!-- Always-visible chips -->
-      ${chip('favorites',    '★ Favorites',  _filters.favorites)}
-      ${chip('characterized','Characterized', _filters.characterized)}
-      ${chip('inc',          'Inc',           _filters.inc)}
-      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${_categoryFilter} ×</button>` : ''}
-      <!-- More button -->
-      <button id="more-filters-btn"
+      <!-- Favorites always visible -->
+      ${chip('favorites', '★ Favorites', _filters.favorites)}
+      <!-- Active secondary filters promoted to main bar -->
+      ${activeSecondary.map(f => chip(f.id, f.label, true)).join('')}
+      <!-- Active category filter -->
+      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${esc(_categoryFilter)} ×</button>` : ''}
+      <!-- More button — hidden when all secondary filters are already active -->
+      ${inactiveSecondary.length ? `<button id="more-filters-btn"
         style="font-size:10.5px;font-weight:600;color:#9ca3af;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
         + More
-      </button>
+      </button>` : ''}
     </div>
-    <!-- Expanded "more" panel -->
+    <!-- More panel: only inactive secondary filters -->
+    ${inactiveSecondary.length ? `
     <div id="more-panel" style="display:none;padding:8px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;gap:5px;">
-      ${chip('membrane',    'Membrane',     _filters.membrane)}
-      ${chip('secreted',    'Secreted',     _filters.secreted)}
-      ${chip('dnaBinding',  'DNA Binding',  _filters.dnaBinding)}
-      ${chip('hasStructure','Has structure', _filters.hasStructure)}
-    </div>
+      ${inactiveSecondary.map(f => chip(f.id, f.label, false)).join('')}
+    </div>` : ''}
   `;
 
   // Sort dropdown toggle
@@ -347,7 +366,7 @@ async function fetchGenes(container, reset = false) {
     .range(_offset, _offset + PAGE_SIZE - 1);
 
   if (_search) {
-    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%`);
+    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%`);
   }
   if (_filters.characterized) q = q.eq('is_characterized', true);
   if (_filters.inc)            q = q.eq('functional_category', 'Inclusion membrane protein');
@@ -1122,6 +1141,50 @@ function renderDetailLocalizationPlaceholder(detail) {
 }
 
 // Stubs — implemented in Tasks 3 and 10
+async function showSearchSuggestions(container, query) {
+  const suggestEl = container.querySelector('#search-suggestions');
+  if (!suggestEl) return;
+  if (!query || query.length < 2) { suggestEl.style.display = 'none'; return; }
+
+  const { data } = await sb.from('genes')
+    .select('id,locus_tag,gene_name,product,functional_category,strains!inner(common_name)')
+    .eq('strains.common_name', _strain)
+    .or(`locus_tag.ilike.%${query}%,gene_name.ilike.%${query}%,product.ilike.%${query}%`)
+    .order('locus_tag', { ascending: true })
+    .limit(7);
+
+  if (!data?.length) { suggestEl.style.display = 'none'; return; }
+
+  suggestEl.innerHTML = data.map(g => {
+    const color = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const name  = g.gene_name ? `<span style="font-weight:600;color:#111;">${esc(g.gene_name)}</span> ` : '';
+    const locus = `<span style="font-family:'DM Mono',monospace;font-size:9px;color:#9ca3af;">${esc(g.locus_tag)}</span>`;
+    const prod  = g.product ? `<div style="font-size:9px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(g.product)}</div>` : '';
+    return `
+      <div class="sg-item" data-id="${g.id}" data-locus="${esc(g.locus_tag)}"
+        style="padding:6px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:8px;background:white;"
+        onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='white'">
+        <div style="width:3px;min-height:28px;background:${color};border-radius:2px;flex-shrink:0;align-self:stretch;"></div>
+        <div style="flex:1;min-width:0;font-size:10.5px;">${name}${locus}${prod}</div>
+      </div>`;
+  }).join('');
+
+  suggestEl.style.display = 'block';
+
+  suggestEl.querySelectorAll('.sg-item').forEach(item => {
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const locus = item.dataset.locus;
+      const searchEl = container.querySelector('#gene-search');
+      if (searchEl) searchEl.value = locus;
+      _search = locus;
+      _offset = 0;
+      suggestEl.style.display = 'none';
+      fetchGenes(container, true);
+    });
+  });
+}
+
 function wireHeroBadgeClicks(detail) {
   detail.querySelectorAll('[data-hero-filter]').forEach(el => {
     el.addEventListener('click', () => {
