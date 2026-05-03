@@ -608,8 +608,8 @@ async function loadDetailAsync(detail, gene) {
       ? sb.from('genes')
           .select('id,locus_tag,gene_name,functional_category,strand,end_bp,sort_index')
           .eq('strain_id', gene.strain_id)
-          .gte('sort_index', gene.sort_index - 6)
-          .lte('sort_index', gene.sort_index + 6)
+          .gte('sort_index', gene.sort_index - 4)
+          .lte('sort_index', gene.sort_index + 4)
           .order('sort_index', { ascending: true })
       : Promise.resolve({ data: null, error: null }),
   ]);
@@ -756,14 +756,14 @@ function renderDetailGeneMap(detail, gene, neighbors) {
     const labelEl = `
       <text x="${cx}" y="${labelY}" text-anchor="middle"
         font-family="${isNamed ? 'DM Sans,sans-serif' : 'DM Mono,monospace'}"
-        font-size="${isCurrent ? '7.5' : '6'}"
+        font-size="${isCurrent ? '9' : '7.5'}"
         font-weight="${(isNamed || isCurrent) ? '600' : '400'}"
         fill="${isCurrent ? '#444' : '#999'}">${esc(label)}</text>`;
 
     const locusEl = (isNamed && locusY)
-      ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${esc(ng.locus_tag)}</text>`
+      ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="7" fill="#bbb">${esc(ng.locus_tag)}</text>`
       : ((!isNamed && isPlus && locusY)
-        ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">${esc(ng.locus_tag)}</text>`
+        ? `<text x="${cx}" y="${locusY}" text-anchor="middle" font-family="DM Mono,monospace" font-size="7" fill="#bbb">${esc(ng.locus_tag)}</text>`
         : '');
 
     return `
@@ -779,7 +779,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
     ${sectionHead('Genomic Context', gene.strains?.common_name + ' chromosome')}
     <div style="padding:4px 16px 12px;">
       <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;">
-        <svg viewBox="0 8 ${VB_W} ${VB_H - 8}" xmlns="http://www.w3.org/2000/svg"
+        <svg viewBox="0 0 ${VB_W} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
              style="width:100%;height:auto;display:block;overflow:visible;">
           ${backbone}
           ${strandLbl}
