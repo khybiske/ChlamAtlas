@@ -8,9 +8,9 @@ const STRAINS = [
 ];
 
 const ORGANISM_FULL = {
-  'CT-L2': 'Chlamydia trachomatis L2/434',
-  'CT-D':  'Chlamydia trachomatis D/UW-3',
-  'CM':    'Chlamydia muridarum Nigg',
+  'CT-L2': '<em>Chlamydia trachomatis</em> L2/434',
+  'CT-D':  '<em>Chlamydia trachomatis</em> D/UW-3',
+  'CM':    '<em>Chlamydia muridarum</em> Nigg',
 };
 
 const CATEGORY_COLORS = {
@@ -577,7 +577,7 @@ function toggleFavorite(geneId) {
 // rightContent: optional HTML string rendered right-aligned in the header.
 function sectionHead(label, rightContent = '') {
   return `
-    <div style="display:flex;align-items:center;padding:10px 16px 8px;border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex;align-items:center;padding:10px 16px 8px;">
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#374151;">${label}</span>
       ${rightContent ? `<span style="margin-left:auto;font-size:8.5px;color:#bbb;font-family:'DM Mono',monospace;">${rightContent}</span>` : ''}
     </div>`;
@@ -615,7 +615,7 @@ function renderDetailGeneInfo(detail, gene) {
         ${prop('Length', lengthLabel)}
         ${prop('Strand', strandLabel)}
         ${posLabel ? prop('Position', posLabel) : ''}
-        ${prop('Organism', ORGANISM_FULL[gene.strains?.common_name] ? `<em>${esc(ORGANISM_FULL[gene.strains.common_name])}</em>` : null)}
+        ${prop('Organism', ORGANISM_FULL[gene.strains?.common_name] ?? null)}
       </div>
     </div>`;
 
@@ -680,9 +680,9 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
     const strain    = g.strains?.common_name ?? '?';
     const colorHex  = g.strains?.color_hex ?? '#9ca3af';
     const nameHtml  = g.gene_name
-      ? `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#222;font-weight:600;">${esc(g.locus_tag)}</span>
+      ? `<span style="font-size:9.5px;color:#222;font-weight:600;">${esc(g.locus_tag)}</span>
          <span style="font-size:9.5px;color:#9ca3af;margin-left:4px;overflow:hidden;text-overflow:ellipsis;">${esc(g.gene_name)}</span>`
-      : `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#9ca3af;">${esc(g.locus_tag)}</span>`;
+      : `<span style="font-size:9.5px;color:#9ca3af;">${esc(g.locus_tag)}</span>`;
 
     return `
       <div class="orth-row-btn" data-id="${g.id}"
@@ -759,9 +759,11 @@ function renderDetailGeneMap(detail, gene, neighbors) {
     x += w + 2;
     return def;
   });
+  // Actual content right edge + right padding — may exceed VB_W if MIN_W bumps genes
+  const actualVbW = x + 8;
 
   // ── Build SVG elements ────────────────────────────────────────
-  const backbone = `<line x1="10" y1="${SPINE_Y}" x2="${VB_W - 10}" y2="${SPINE_Y}" stroke="#d9d9d9" stroke-width="1.2"/>`;
+  const backbone = `<line x1="10" y1="${SPINE_Y}" x2="${actualVbW - 10}" y2="${SPINE_Y}" stroke="#d9d9d9" stroke-width="1.2"/>`;
   const strandLbl = `
     <text x="5" y="${P_MID + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">+</text>
     <text x="5" y="${N_MID + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">−</text>`;
@@ -824,7 +826,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
     ${sectionHead('Genomic Context', gene.strains?.common_name + ' chromosome')}
     <div style="padding:4px 16px 12px;">
       <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;">
-        <svg viewBox="0 0 ${VB_W} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
+        <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
              style="width:100%;height:auto;display:block;overflow:visible;">
           ${backbone}
           ${strandLbl}
@@ -833,14 +835,30 @@ function renderDetailGeneMap(detail, gene, neighbors) {
       </div>
     </div>`;
 
-  // Wire neighbor gene clicks
+  // Wire neighbor gene clicks — use cache or fetch from DB
   el.querySelectorAll('.ga[data-id]').forEach(gEl =>
     gEl.addEventListener('click', () => {
       const targetId = gEl.dataset.id;
       const cached   = _geneCache.get(targetId);
       if (cached) {
         showGeneDetailDesktop(cached, _container);
+        return;
       }
+      sb.from('genes')
+        .select(
+          'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+          'start_bp,end_bp,strand,functional_category,is_characterized,' +
+          'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+          'strains!inner(common_name,color_hex)'
+        )
+        .eq('id', targetId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            _geneCache.set(String(data.id), data);
+            showGeneDetailDesktop(data, _container);
+          }
+        });
     })
   );
 }
@@ -907,6 +925,7 @@ function renderDetailProtein(detail, gene, protein) {
         ${prop('Signal Peptide', spLabel)}
         ${prop('Family',         protein.protein_family != null ? esc(protein.protein_family) : null)}
       </div>
+      ${propBlock('Product', gene.product ? esc(gene.product) : null)}
       ${locHtml}
       ${propBlock('Subunit Structure', protein.oligomeric_state ? esc(protein.oligomeric_state) : null)}
     </div>`;
@@ -1266,7 +1285,6 @@ function showGeneDetailDesktop(gene, container) {
                <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${esc(gene.locus_tag)}</div>`
             : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
-          ${gene.product ? `<div style="margin-top:5px;"><div style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#c0c0c0;margin-bottom:2px;">Product</div><div style="font-size:10.5px;color:#555;line-height:1.45;">${esc(gene.product)}</div></div>` : ''}
         </div>
         <button id="detail-fav-btn" data-id="${gene.id}"
           style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
