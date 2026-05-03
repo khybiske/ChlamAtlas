@@ -80,6 +80,7 @@ let _sectionOpen = {
 
 // HTML-escape helper for DB strings interpolated into innerHTML.
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const stripEvidenceTags = s => s ? s.replace(/\s*\{[^}]+\}/g, '').replace(/\s+\./g, '.').trim() : s;
 
 export function renderGenomes(container) {
   // Pick up strain preference set by home page organisms section
@@ -552,15 +553,6 @@ function detailSkeleton(lines = 3) {
 }
 
 function renderDetailGeneInfo(detail, gene) {
-  const flags = [];
-  if (gene.functional_category?.includes('Inclusion')) flags.push('Inc Protein');
-  if (gene.is_membrane_protein)  flags.push('Membrane');
-  if (gene.is_t3_secreted)       flags.push('T3 Secreted');
-  if (gene.is_dna_binding)       flags.push('DNA Binding');
-
-  const flagPill = (label) =>
-    `<span style="font-size:8.5px;font-weight:600;padding:2px 7px;border-radius:10px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">${label}</span>`;
-
   const prop = (label, value) => value == null ? '' : `
     <div style="display:flex;flex-direction:column;gap:1px;">
       <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
@@ -584,7 +576,6 @@ function renderDetailGeneInfo(detail, gene) {
         ${prop('Strand', strandLabel)}
         ${posLabel ? prop('Position', posLabel) : ''}
       </div>
-      ${flags.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">${flags.map(flagPill).join('')}</div>` : ''}
       <div id="d-ext-links" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
         <!-- Populated in Task 7 when protein data arrives (UniProt/NCBI IDs) -->
       </div>
@@ -703,11 +694,11 @@ function renderDetailGeneMap(detail, gene, neighbors) {
 
   // ── Layout constants ──────────────────────────────────────────
   const VB_W    = 620;
-  const VB_H    = 62;
-  const SPINE_Y = 31;
-  const P_TOP   = 18; const P_BOT = 30; const P_MID = 24;
-  const N_TOP   = 32; const N_BOT = 44; const N_MID = 38;
-  const CUR_TOP = 14; const CUR_BOT = 34;
+  const VB_H    = 74;
+  const SPINE_Y = 41;
+  const P_TOP   = 28; const P_BOT = 40; const P_MID = 34;
+  const N_TOP   = 42; const N_BOT = 54; const N_MID = 48;
+  const CUR_TOP = 24; const CUR_BOT = 44;
   const TIP     = 10;
   const MIN_W   = 28;
 
@@ -729,7 +720,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
     <text x="5" y="${P_MID + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">+</text>
     <text x="5" y="${N_MID + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">−</text>`;
 
-  const arrows = arrowDefs.map(({ g: ng, x: ax, w }) => {
+  const arrows = arrowDefs.map(({ g: ng, x: ax, w }, idx) => {
     const isCurrent = String(ng.id) === String(gene.id);
     const color     = CATEGORY_COLORS[ng.functional_category] ?? CATEGORY_COLOR_DEFAULT;
     const isPlus    = ng.strand !== '-';
@@ -743,11 +734,15 @@ function renderDetailGeneMap(detail, gene, neighbors) {
       const bot = isCurrent ? CUR_BOT : P_BOT;
       const mid = (top + bot) / 2;
       pts     = `${ax},${top} ${ax + w - TIP},${top} ${ax + w},${mid} ${ax + w - TIP},${bot} ${ax},${bot}`;
-      labelY  = top - 3.5;
-      locusY  = bot + 7;
+      // Stagger odd-indexed neighbors to a higher row to reduce label crowding
+      const stagger = (!isCurrent && idx % 2 !== 0) ? -10 : 0;
+      labelY  = top - 4 + stagger;
+      locusY  = bot + 8;
     } else {
       pts     = `${ax + w},${N_TOP} ${ax + TIP},${N_TOP} ${ax},${N_MID} ${ax + TIP},${N_BOT} ${ax + w},${N_BOT}`;
-      labelY  = N_BOT + 7;
+      // Stagger - strand labels below
+      const stagger = (idx % 2 !== 0) ? 9 : 0;
+      labelY  = N_BOT + 8 + stagger;
       locusY  = null;
     }
 
@@ -844,7 +839,7 @@ function renderDetailProtein(detail, gene, protein) {
     ${sectionHead('Protein')}
     <div style="padding:2px 16px 14px;">
       ${descText ? `
-        <div style="font-size:10.5px;color:#555;line-height:1.65;font-style:italic;margin-bottom:10px;
+        <div style="font-size:10.5px;color:#555;line-height:1.65;margin-bottom:10px;
                     padding:7px 10px;background:#fafafa;border-radius:6px;border-left:3px solid #e5e7eb;">
           ${esc(descText)}
         </div>` : ''}
@@ -853,7 +848,7 @@ function renderDetailProtein(detail, gene, protein) {
         ${prop('Length',         protein.length_aa ? `${protein.length_aa} aa` : null)}
         ${prop('TM Domains',     tmLabel)}
         ${prop('Signal Peptide', spLabel)}
-        ${prop('Localization',   protein.localization   != null ? esc(protein.localization)   : null)}
+        ${prop('Localization',   protein.localization   != null ? esc(stripEvidenceTags(protein.localization))   : null)}
         ${prop('Family',         protein.protein_family != null ? esc(protein.protein_family) : null)}
       </div>
       ${protein.function_narrative && protein.function_narrative !== gene.product ? `
@@ -1174,7 +1169,10 @@ function showGeneDetailDesktop(gene, container) {
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
         <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
         ${catLabel ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};">${esc(catLabel)}</span>` : ''}
-        ${gene.is_characterized ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);">Characterized</span>` : ''}
+        ${gene.is_characterized   ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);">Characterized</span>` : ''}
+        ${gene.is_membrane_protein ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#0369a1;border:1px solid rgba(3,105,161,0.3);">Membrane</span>` : ''}
+        ${gene.is_t3_secreted      ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);">T3 Secreted</span>` : ''}
+        ${gene.is_dna_binding      ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#b45309;border:1px solid rgba(180,83,9,0.3);">DNA Binding</span>` : ''}
       </div>
     </div>`;
 
