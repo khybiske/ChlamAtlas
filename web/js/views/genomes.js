@@ -571,15 +571,16 @@ function renderDetailGeneInfo(detail, gene) {
   el.innerHTML = `
     ${sectionHead('Gene Info')}
     <div style="padding:2px 16px 14px;">
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
+      <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Length', lengthLabel)}
         ${prop('Strand', strandLabel)}
         ${posLabel ? prop('Position', posLabel) : ''}
       </div>
-      <div id="d-ext-links" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-        <!-- Populated in Task 7 when protein data arrives (UniProt/NCBI IDs) -->
-      </div>
     </div>`;
+
+  // Seed hero ext links with NCBI immediately (UniProt added when protein loads)
+  const heroLinks = detail.querySelector('#d-hero-ext-links');
+  if (heroLinks) heroLinks.innerHTML = ncbiLink(gene.locus_tag);
 }
 
 async function loadDetailAsync(detail, gene) {
@@ -807,12 +808,6 @@ function renderDetailProtein(detail, gene, protein) {
     el.innerHTML = `
       ${sectionHead('Protein')}
       <div style="padding:8px 16px 14px;font-size:10px;color:#bbb;font-style:italic;">No protein data imported yet</div>`;
-
-    // Still fill Gene Info ext links with NCBI (always available)
-    const extLinks = detail.querySelector('#d-ext-links');
-    if (extLinks) {
-      extLinks.innerHTML = ncbiLink(gene.locus_tag);
-    }
     return;
   }
 
@@ -843,7 +838,7 @@ function renderDetailProtein(detail, gene, protein) {
                     padding:7px 10px;background:#fafafa;border-radius:6px;border-left:3px solid #e5e7eb;">
           ${esc(descText)}
         </div>` : ''}
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
+      <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Mass',           protein.mass_kd ? `${protein.mass_kd} kDa` : null)}
         ${prop('Length',         protein.length_aa ? `${protein.length_aa} aa` : null)}
         ${prop('TM Domains',     tmLabel)}
@@ -851,23 +846,13 @@ function renderDetailProtein(detail, gene, protein) {
         ${prop('Localization',   protein.localization   != null ? esc(stripEvidenceTags(protein.localization))   : null)}
         ${prop('Family',         protein.protein_family != null ? esc(protein.protein_family) : null)}
       </div>
-      ${protein.function_narrative && protein.function_narrative !== gene.product ? `
-        <div style="font-size:10px;color:#444;background:#f0fdf4;border-radius:6px;padding:6px 10px;border-left:3px solid #16a34a;line-height:1.55;margin-bottom:8px;">
-          ${esc(protein.function_narrative)}
-        </div>` : ''}
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-        ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
-        ${ncbiLink(gene.locus_tag)}
-      </div>
     </div>`;
 
-  // Fill Gene Info ext links now that we have UniProt/NCBI IDs
-  const extLinksEl = detail.querySelector('#d-ext-links');
-  if (extLinksEl) {
-    extLinksEl.innerHTML = `
-      ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
-      ${ncbiLink(gene.locus_tag)}`;
-  }
+  // Update hero ext links now that we have the UniProt ID
+  const heroLinks = detail.querySelector('#d-hero-ext-links');
+  if (heroLinks) heroLinks.innerHTML = `
+    ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
+    ${ncbiLink(gene.locus_tag)}`;
 }
 
 // Helper: NCBI gene link (always available from locus tag)
@@ -1166,13 +1151,14 @@ function showGeneDetailDesktop(gene, container) {
           ${isFav ? '★' : '☆'}
         </button>
       </div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
         <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
         ${catLabel ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};">${esc(catLabel)}</span>` : ''}
         ${gene.is_characterized   ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);">Characterized</span>` : ''}
         ${gene.is_membrane_protein ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#0369a1;border:1px solid rgba(3,105,161,0.3);">Membrane</span>` : ''}
         ${gene.is_t3_secreted      ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);">T3 Secreted</span>` : ''}
         ${gene.is_dna_binding      ? `<span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#b45309;border:1px solid rgba(180,83,9,0.3);">DNA Binding</span>` : ''}
+        <span id="d-hero-ext-links" style="margin-left:auto;display:flex;gap:4px;align-items:center;"></span>
       </div>
     </div>`;
 
