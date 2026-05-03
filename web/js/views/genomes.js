@@ -7,6 +7,12 @@ const STRAINS = [
   { id: 'CM',    label: 'CM'         },
 ];
 
+const ORGANISM_FULL = {
+  'CT-L2': 'Chlamydia trachomatis L2/434',
+  'CT-D':  'Chlamydia trachomatis D/UW-3',
+  'CM':    'Chlamydia muridarum Nigg',
+};
+
 const CATEGORY_COLORS = {
   'Amino acid metabolism':      '#E66729',
   'Cell envelope':              '#00A69D',
@@ -609,6 +615,7 @@ function renderDetailGeneInfo(detail, gene) {
         ${prop('Length', lengthLabel)}
         ${prop('Strand', strandLabel)}
         ${posLabel ? prop('Position', posLabel) : ''}
+        ${prop('Organism', ORGANISM_FULL[gene.strains?.common_name] ? `<em>${esc(ORGANISM_FULL[gene.strains.common_name])}</em>` : null)}
       </div>
     </div>`;
 
@@ -678,21 +685,25 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
       : `<span style="font-size:9.5px;font-family:'DM Mono',monospace;color:#9ca3af;">${esc(g.locus_tag)}</span>`;
 
     return `
-      <div class="orth-row-btn" data-id="${g.id}" style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid #f7f7f7;cursor:pointer;"
-        onmouseenter="this.style.background='#fafafa';this.style.margin='0 -16px';this.style.padding='6px 16px';"
-        onmouseleave="this.style.background='';this.style.margin='';this.style.padding='6px 0';">
-        <div style="width:3px;height:24px;border-radius:1px;background:${colorHex};flex-shrink:0;"></div>
-        <span style="font-size:8px;font-weight:700;color:#9ca3af;width:36px;flex-shrink:0;">${esc(strain)}</span>
-        <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:4px;">${nameHtml}</div>
-        <span style="font-size:11px;color:#ddd;">›</span>
+      <div class="orth-row-btn" data-id="${g.id}"
+        style="display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid #f0f0f0;border-radius:6px;cursor:pointer;background:white;"
+        onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='white'">
+        <div style="width:3px;min-height:22px;border-radius:1px;background:${colorHex};flex-shrink:0;align-self:stretch;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:7.5px;font-weight:700;color:#9ca3af;margin-bottom:1px;">${esc(strain)}</div>
+          <div style="display:flex;align-items:baseline;gap:4px;">${nameHtml}</div>
+        </div>
+        <span style="font-size:11px;color:#ddd;flex-shrink:0;">›</span>
       </div>`;
   }).join('');
 
   el.innerHTML = `
     ${sectionHead('Orthologs')}
-    <div style="padding:2px 16px 14px;">
-      ${rows}
-      <div style="margin-top:8px;font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length}/3 strains</div>
+    <div style="padding:8px 16px 12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+        ${rows}
+      </div>
+      <div style="font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length}/3 strains</div>
     </div>`;
 
   el.querySelectorAll('.orth-row-btn').forEach(btn =>
