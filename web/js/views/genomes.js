@@ -625,7 +625,7 @@ function renderDetailGeneInfo(detail, gene) {
 }
 
 async function loadDetailAsync(detail, gene) {
-  const [protResult, orthoResult, neighborResult] = await Promise.all([
+  const [protResult, orthoFwdResult, orthoRevResult, neighborResult] = await Promise.all([
     sb.from('proteins')
       .select('*,alphafold_results(*)')
       .eq('gene_id', gene.id)
@@ -641,6 +641,16 @@ async function loadDetailAsync(detail, gene) {
       `)
       .eq('gene_id_a', gene.id),
 
+    sb.from('orthologs')
+      .select(`
+        id,
+        gene_a:genes!gene_id_a(
+          id, locus_tag, gene_name, strand, functional_category,
+          strains(common_name, color_hex)
+        )
+      `)
+      .eq('gene_id_b', gene.id),
+
     gene.sort_index != null
       ? sb.from('genes')
           .select('id,locus_tag,gene_name,functional_category,strand,end_bp,sort_index')
@@ -655,7 +665,13 @@ async function loadDetailAsync(detail, gene) {
     .select('*')
     .eq('gene_id', gene.id);
 
-  renderDetailOrthologs(detail, orthoResult.data ?? [], gene);
+  // Normalize reverse-direction rows to the same {gene_b} shape, then merge + deduplicate
+  const fwdRows = orthoFwdResult.data ?? [];
+  const revRows = (orthoRevResult.data ?? []).map(o => ({ id: o.id, gene_b: o.gene_a }));
+  const seenIds = new Set(fwdRows.map(o => o.id));
+  const orthoRows = [...fwdRows, ...revRows.filter(o => !seenIds.has(o.id))];
+
+  renderDetailOrthologs(detail, orthoRows, gene);
   renderDetailGeneMap(detail, gene, neighborResult.data ?? []);
   renderDetailProtein(detail, gene, protResult.data);
   renderDetailTranscriptomics(detail, gene, exprRows ?? []);
