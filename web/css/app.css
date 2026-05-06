@@ -179,3 +179,12 @@
   border-radius: 0.5rem; object-fit: cover;
   border: 1px solid #f3f4f6;
 }
+
+/* SwissBioPics: highlight the active subcellular compartment */
+#swissbiopics-svg .subcell_present path,
+#swissbiopics-svg .subcell_present circle,
+#swissbiopics-svg .subcell_present ellipse,
+#swissbiopics-svg .subcell_present polygon {
+  fill: rgba(74, 222, 128, 0.5) !important;
+  stroke: #16a34a !important;
+}

@@ -1397,12 +1397,15 @@ function showGeneDetailDesktop(gene, container) {
       </div>
       <!-- Genomic Context -->
       <div id="d-gene-map" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(2)}</div>
-      <!-- Protein -->
-      <div id="d-protein" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(4)}</div>
-      <!-- 3-col: Transcriptomics + EB/RB + Localization -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #f0f0f0;">
-        <div id="d-transcriptomics" style="border-right:1px solid #f0f0f0;">${detailSkeleton(3)}</div>
-        <div id="d-proteomics"      style="border-right:1px solid #f0f0f0;">${detailSkeleton(2)}</div>
+      <!-- Protein + Transcriptomics + EB/RB (left 2/3) + Cell Localization (right 1/3, full height) -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;border-bottom:1px solid #f0f0f0;">
+        <div style="display:flex;flex-direction:column;border-right:1px solid #f0f0f0;">
+          <div id="d-protein" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(4)}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;">
+            <div id="d-transcriptomics" style="border-right:1px solid #f0f0f0;">${detailSkeleton(3)}</div>
+            <div id="d-proteomics">${detailSkeleton(2)}</div>
+          </div>
+        </div>
         <div id="d-localization"></div>
       </div>
       <!-- Structure -->
