@@ -46,6 +46,23 @@ const STRAIN_FILES = [
 const BATCH_SIZE = 200; // rows per upsert call
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Strip UniProt formatting artifacts from product strings:
+ * - [Includes: ...] and [Cleaved into: ...] blocks
+ * - Parenthetical synonym/EC lists, e.g. (EC 2.7.1.1) (Synonym name)
+ * Preserves hyphen-connected paren groups that are part of the primary name,
+ * e.g. tRNA (guanine-N(7)-)-methyltransferase.
+ */
+function cleanProduct(s) {
+  if (!s) return s;
+  s = s.replace(/\s*\[(?:Includes|Cleaved into):[\s\S]*$/i, '');
+  const annotParen = /\s+\((?:[^()]*|\((?:[^()]*|\([^()]*\))*\))*\)(?!-)/g;
+  s = s.replace(annotParen, '');
+  s = s.replace(annotParen, '');
+  return s.trim();
+}
+
 function parseBool(val) {
   if (!val) return false;
   return val.trim().toUpperCase() === 'TRUE';
@@ -68,7 +85,7 @@ function mapRow(row, strainId) {
     locus_tag:           locus,
     gene_name:           (row['FullGeneName'] || '').trim() || null,
     gene_symbol:         (row['GeneName']     || '').trim() || null,
-    product:             (row['Product']      || '').trim() || null,
+    product:             cleanProduct((row['Product'] || '').trim()) || null,
     sort_index:          isNaN(sortIndex) ? null : sortIndex,
     functional_category: funcCat,
     is_membrane_protein: parseBool(row['Mem true']),
