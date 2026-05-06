@@ -908,23 +908,6 @@ function renderDetailProtein(detail, gene, protein) {
   const tmLabel  = protein.transmembrane_domains > 0 ? String(protein.transmembrane_domains) : 'None';
   const spLabel  = protein.signal_peptide ? 'Yes' : 'No';
 
-  // Parse localization string into display tags, stripping evidence codes and noise
-  const locTags = protein.localization
-    ? protein.localization
-        .replace(/\s*\{[^}]+\}/g, '')          // strip {ECO:...|...} blocks
-        .split(/[;.]+/)                          // split on ; or .
-        .map(s => s.trim())
-        .filter(s => s && s.length > 1 && !/note=/i.test(s) && !/prorule/i.test(s) && !/hamap/i.test(s) && !/pubmed/i.test(s) && s.length < 60)
-    : [];
-  const locHtml = locTags.length
-    ? `<div style="margin-top:10px;">
-        <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:5px;">Localization</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;">
-          ${locTags.map(t => `<span style="font-size:9px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t)}</span>`).join('')}
-        </div>
-      </div>`
-    : '';
-
   const propBlock = (label, value) => !value ? '' : `
     <div style="margin-top:10px;">
       <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:3px;">${label}</div>
@@ -942,7 +925,6 @@ function renderDetailProtein(detail, gene, protein) {
         ${prop('Family',         protein.protein_family != null ? esc(protein.protein_family) : null)}
       </div>
       ${propBlock('Product', gene.product ? esc(gene.product) : null)}
-      ${locHtml}
       ${propBlock('Subunit Structure', protein.oligomeric_state ? esc(stripEvidenceTags(protein.oligomeric_state)) : null)}
     </div>`;
 
