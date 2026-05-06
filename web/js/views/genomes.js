@@ -1186,7 +1186,7 @@ function renderDetailLocalization(detail, gene, protein) {
   const taxid   = Number(STRAIN_TAXID[gene.strains?.common_name]) || 813;
 
   if (slTerms.length) {
-    const sls = slTerms.map(t => esc(t)).join(',');
+    const sls = slTerms.map(t => t.replace(/^SL-/, '')).join(',');
     const pillsHtml = buildLocPills(protein?.localization ?? '');
     const sourceLabel = curated ? 'Curated' : 'UniProt';
     const sourceBg    = curated ? '#fef3c7' : '#f3f4f6';
