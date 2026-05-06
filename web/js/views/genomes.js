@@ -13,6 +13,8 @@ const ORGANISM_FULL = {
   'CM':    '<em>Chlamydia muridarum</em> Nigg',
 };
 
+const STRAIN_TAXID = { 'CT-L2': 813, 'CT-D': 813, 'CM': 243161 };
+
 const CATEGORY_COLORS = {
   'Amino acid metabolism':      '#E66729',
   'Cell envelope':              '#00A69D',
@@ -677,6 +679,7 @@ async function loadDetailAsync(detail, gene) {
   renderDetailTranscriptomics(detail, gene, exprRows ?? []);
   renderDetailProteomics(detail, gene, exprRows ?? []);
   renderDetailStructure(detail, gene, protResult.data?.alphafold_results ?? []);
+  renderDetailLocalization(detail, gene, protResult.data);
 }
 
 function renderDetailOrthologs(detail, orthoRows, gene) {
@@ -1173,15 +1176,64 @@ function wireStructureEvents(el, gene) {
   });
 }
 
-function renderDetailLocalizationPlaceholder(detail) {
+function renderDetailLocalization(detail, gene, protein) {
   const el = detail.querySelector('#d-localization');
   if (!el) return;
+
+  const slTerms = protein?.subcellular_location_sl ?? [];
+  const curated = protein?.localization_curated ?? false;
+  const isHypo  = gene.is_hypothetical ?? false;
+  const taxid   = STRAIN_TAXID[gene.strains?.common_name] ?? 813;
+
+  if (slTerms.length) {
+    const sls = slTerms.join(',');
+    const pillsHtml = buildLocPills(protein?.localization ?? '');
+    const sourceLabel = curated ? 'Curated' : 'UniProt';
+    const sourceBg    = curated ? '#fef3c7' : '#f3f4f6';
+    const sourceColor = curated ? '#92400e' : '#6b7280';
+    el.innerHTML = `
+      ${sectionHead('Cell Localization',
+        `<span style="font-size:7.5px;font-weight:600;padding:1px 6px;border-radius:8px;background:${sourceBg};color:${sourceColor};">${sourceLabel}</span>`)}
+      <div style="padding:6px 12px 12px;">
+        <sib-swissbiopics-sl taxid="${taxid}" sls="${sls}"
+          style="display:block;max-width:100%;"></sib-swissbiopics-sl>
+        ${pillsHtml}
+      </div>`;
+    return;
+  }
+
+  if (isHypo || !protein?.localization) {
+    el.innerHTML = `
+      ${sectionHead('Cell Localization')}
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:18px 8px 14px;text-align:center;">
+        <div style="font-size:20px;color:#d1d5db;">◎</div>
+        <div style="font-size:9px;font-weight:600;color:#aaa;">Location unknown</div>
+      </div>`;
+    return;
+  }
+
+  const pillsHtml = buildLocPills(protein.localization);
   el.innerHTML = `
     ${sectionHead('Cell Localization')}
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:18px 8px 14px;text-align:center;">
-      <div style="font-size:20px;color:#d1d5db;">◎</div>
-      <div style="font-size:9px;font-weight:600;color:#aaa;">Coming soon</div>
-      <div style="font-size:8.5px;color:#ccc;max-width:130px;line-height:1.4;">SwissBioPics cell diagram with subcellular localization</div>
+    <div style="padding:6px 12px 12px;">
+      ${pillsHtml || '<div style="font-size:10px;color:#bbb;font-style:italic;padding:8px 0;">No diagram available</div>'}
+    </div>`;
+}
+
+function buildLocPills(localization) {
+  if (!localization) return '';
+  const tags = localization
+    .replace(/\s*\{[^}]+\}/g, '')
+    .split(/[;.]+/)
+    .map(s => s.trim())
+    .filter(s => s && s.length > 1
+      && !/note=/i.test(s) && !/prorule/i.test(s)
+      && !/hamap/i.test(s) && !/pubmed/i.test(s)
+      && s.length < 60);
+  if (!tags.length) return '';
+  return `
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
+      ${tags.map(t => `<span style="font-size:9px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t)}</span>`).join('')}
     </div>`;
 }
 
@@ -1361,7 +1413,12 @@ function showGeneDetailDesktop(gene, container) {
   // Render synchronous sections immediately
   wireHeroBadgeClicks(detail);
   renderDetailGeneInfo(detail, gene);
-  renderDetailLocalizationPlaceholder(detail);
+  const locEl = detail.querySelector('#d-localization');
+  if (locEl) locEl.innerHTML = `
+    ${sectionHead('Cell Localization')}
+    <div style="padding:18px 8px 14px;text-align:center;">
+      <div style="font-size:20px;color:#e5e7eb;">◎</div>
+    </div>`;
 
   // Fire async queries in parallel
   loadDetailAsync(detail, gene);
