@@ -1183,10 +1183,10 @@ function renderDetailLocalization(detail, gene, protein) {
   const slTerms = protein?.subcellular_location_sl ?? [];
   const curated = protein?.localization_curated ?? false;
   const isHypo  = gene.is_hypothetical ?? false;
-  const taxid   = STRAIN_TAXID[gene.strains?.common_name] ?? 813;
+  const taxid   = Number(STRAIN_TAXID[gene.strains?.common_name]) || 813;
 
   if (slTerms.length) {
-    const sls = slTerms.join(',');
+    const sls = slTerms.map(t => esc(t)).join(',');
     const pillsHtml = buildLocPills(protein?.localization ?? '');
     const sourceLabel = curated ? 'Curated' : 'UniProt';
     const sourceBg    = curated ? '#fef3c7' : '#f3f4f6';
