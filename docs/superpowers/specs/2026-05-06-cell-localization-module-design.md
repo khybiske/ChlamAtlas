@@ -96,7 +96,8 @@ The annotation editing form (planned Phase 2 feature) will write to `subcellular
 ## Key Technical Notes
 
 - SwissBioPics CDN: `https://www.swissbiopics.org/static/swissbiopics.js` (load once in `index.html`)
-- taxid 813 = *Chlamydia trachomatis* (used for all three strains until strain-specific taxids are confirmed)
+- taxid 813 = *Chlamydia trachomatis* (CT-L2 and CT-D)
+- taxid 243161 = *Chlamydia muridarum* Nigg (CM) — pass the correct taxid per gene's strain
 - SL-0204 = Secreted (used for Inc and T3SS proteins)
 - SL-0086 = Cytoplasm
 - SL-0039 = Cell inner membrane
