@@ -179,10 +179,3 @@
   border-radius: 0.5rem; object-fit: cover;
   border: 1px solid #f3f4f6;
 }
-
-/* SwissBioPics — hide internal term list; we render our own pills */
-sib-swissbiopics-sl::part(terms),
-sib-swissbiopics-sl .subcellular-location-terms,
-sib-swissbiopics-sl ul {
-  display: none !important;
-}

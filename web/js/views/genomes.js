@@ -1195,10 +1195,23 @@ function renderDetailLocalization(detail, gene, protein) {
       ${sectionHead('Cell Localization',
         `<span style="font-size:7.5px;font-weight:600;padding:1px 6px;border-radius:8px;background:${sourceBg};color:${sourceColor};">${sourceLabel}</span>`)}
       <div style="padding:6px 12px 12px;">
-        <sib-swissbiopics-sl taxid="${taxid}" sls="${sls}"
-          style="display:block;max-width:100%;"></sib-swissbiopics-sl>
+        <div id="swissbiopics-svg" style="max-width:100%;min-height:80px;display:flex;align-items:center;justify-content:center;">
+          <div style="font-size:9px;color:#aaa;">Loading diagram…</div>
+        </div>
         ${pillsHtml}
       </div>`;
+    const svgContainer = el.querySelector('#swissbiopics-svg');
+    fetch(`https://www.swissbiopics.org/api/${taxid}/sl/${sls}`)
+      .then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); })
+      .then(svg => {
+        const responsive = svg
+          .replace(/\s(?:width|height)="[^"]*"/g, '')
+          .replace('<svg', '<svg style="width:100%;height:auto;display:block;"');
+        svgContainer.innerHTML = responsive;
+      })
+      .catch(() => {
+        svgContainer.innerHTML = '<div style="font-size:9px;color:#aaa;font-style:italic;padding:8px 0;">Diagram unavailable</div>';
+      });
     return;
   }
 
