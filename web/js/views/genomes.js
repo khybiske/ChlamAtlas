@@ -1273,8 +1273,8 @@ function renderDetailLocalization(detail, gene, protein) {
     const isInc = gene.functional_category === 'Inclusion membrane protein';
     const isT3  = gene.is_t3_secreted === true;
     // Prefer UniProt SL terms for diagram geometry (they have subcell_present markup);
-    // fall back to SL-0204 only when UniProt has no SL annotation at all.
-    const diagramSls = slTerms.length ? slTerms : ['SL-0204'];
+    // SL-0243 (Secreted, extracellular) has subcell_present; SL-0204 does not — use 0243 as fallback.
+    const diagramSls = slTerms.length ? slTerms : ['SL-0243'];
     diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/${diagramSls.map(t => t.replace(/^SL-/, '')).join(',')}`;
     activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
     const reason = isInc
