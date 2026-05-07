@@ -112,7 +112,7 @@ function showGeneList(container) {
   container.style.padding = '0';
 
   container.innerHTML = `
-    <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:300px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});width:100%;overflow:hidden;padding:0 12px;box-sizing:border-box;">
+    <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:260px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});width:100%;overflow:hidden;padding:0 12px;box-sizing:border-box;">
 
       <!-- ── List panel ── -->
       <div id="list-panel" style="border-right:1px solid #ececec;display:flex;flex-direction:column;overflow:hidden;">
