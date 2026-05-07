@@ -1339,7 +1339,7 @@ function renderDetailLocalization(detail, gene, protein) {
   el.innerHTML = `
     ${sectionHead('Cell Localization', sourceBadge)}
     <div style="padding:6px 12px 12px;">
-      <div id="swissbiopics-svg" style="max-width:100%;min-height:80px;display:flex;align-items:center;justify-content:center;">
+      <div id="swissbiopics-svg" style="max-width:100%;min-height:80px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
         <div style="font-size:9px;color:#aaa;">Loading diagram…</div>
       </div>
       ${primaryPillsHtml ? pillGroupLabel + primaryPillsHtml : ''}
@@ -1373,7 +1373,7 @@ function renderDetailLocalization(detail, gene, protein) {
         const responsive = svg
           .replace(/(<svg\b[^>]*?)\s(?:width|height)="[^"]*"/g, '$1')
           .replace(/(<svg\b[^>]*?)\s(?:width|height)="[^"]*"/g, '$1')
-          .replace('<svg', '<svg style="width:100%;height:auto;display:block;"');
+          .replace('<svg', '<svg style="width:100%;height:auto;display:block;overflow:hidden;"');
         svgContainer.innerHTML = responsive;
       })
       .catch(() => {
