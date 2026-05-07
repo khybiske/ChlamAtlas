@@ -312,12 +312,12 @@ function renderFilterBar(container, expandMore = false) {
   const activeStruct = STRUCT_FILTERS.filter(f => _filters[f.id]);
   const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter;
 
-  // Auto-expand a section if it has an active filter
+  // Section open state is purely user-controlled — no forced-open based on active filters
   const secOpen = {
-    characterization: _expandedSections.characterization || activeChar.length > 0,
-    function:         _expandedSections.function         || !!_categoryFilter,
-    location:         _expandedSections.location         || !!_locationFilter,
-    structure:        _expandedSections.structure         || activeStruct.length > 0,
+    characterization: _expandedSections.characterization,
+    function:         _expandedSections.function,
+    location:         _expandedSections.location,
+    structure:        _expandedSections.structure,
   };
 
   const groupHead = (id, icon, label, isOpen, hint = '') => `
@@ -1437,6 +1437,7 @@ function renderDetailLocalization(detail, gene, protein) {
     btn.addEventListener('click', () => {
       const term = btn.dataset.locTerm;
       _locationFilter = (_locationFilter === term) ? null : term;
+      if (_locationFilter) _expandedSections.location = true;
       renderFilterBar(_container, true);
       fetchGenes(_container, true);
       // Update pill highlight in place without re-rendering full localization
@@ -1538,8 +1539,10 @@ function wireHeroBadgeClicks(detail) {
       _offset = 0;
       if (filterType === 'category') {
         _categoryFilter = el.dataset.value;
+        _expandedSections.function = true;
       } else {
         _filters[filterType] = true;
+        _expandedSections.characterization = true;
       }
       renderFilterBar(_container);
       fetchGenes(_container, true);
