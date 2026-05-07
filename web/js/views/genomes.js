@@ -1272,10 +1272,9 @@ function renderDetailLocalization(detail, gene, protein) {
   } else if (source === 'lab_flag') {
     const isInc = gene.functional_category === 'Inclusion membrane protein';
     const isT3  = gene.is_t3_secreted === true;
-    // Prefer UniProt SL terms for diagram geometry (they have subcell_present markup);
-    // SL-0243 (Secreted, extracellular) has subcell_present; SL-0204 does not — use 0243 as fallback.
-    const diagramSls = slTerms.length ? slTerms : ['SL-0243'];
-    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/${diagramSls.map(t => t.replace(/^SL-/, '')).join(',')}`;
+    // lab_flag = we're overriding to Secreted. Always use SL-0243 for diagram geometry —
+    // SL-0204 (UniProt generic "Secreted") has no subcell_present elements; SL-0243 does.
+    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/0243`;
     activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
     const reason = isInc
       ? 'Inc (inclusion membrane) proteins are actively secreted into the host cell via the T3SS. UniProt incorrectly annotates them as bacterial membrane proteins. Location overridden to Secreted.'
