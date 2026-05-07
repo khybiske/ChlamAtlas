@@ -150,7 +150,7 @@ function showGeneList(container) {
       </div>
 
       <!-- ── Detail panel ── -->
-      <div id="detail-panel" style="overflow-y:auto;min-width:0;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
+      <div id="detail-panel" style="overflow-y:auto;overflow-x:hidden;min-width:0;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#d1d5db;gap:8px;">
           <span style="font-size:28px;opacity:0.4;">🧬</span>
           <span style="font-size:12px;">Select a gene to view details</span>
@@ -886,9 +886,9 @@ function renderDetailGeneMap(detail, gene, neighbors) {
   el.innerHTML = `
     ${sectionHead('Genomic Context', gene.strains?.common_name + ' chromosome')}
     <div style="padding:4px 16px 12px;">
-      <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;">
+      <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;overflow:hidden;">
         <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
-             style="width:100%;height:auto;display:block;overflow:visible;">
+             style="width:100%;height:auto;display:block;overflow:hidden;">
           ${backbone}
           ${strandLbl}
           ${arrows}
