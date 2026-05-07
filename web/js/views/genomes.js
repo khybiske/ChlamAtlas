@@ -67,8 +67,10 @@ let _searchTimer    = null;
 let _sortField      = 'locus_tag';
 let _sortAsc        = true;
 let _filters        = { favorites: false, characterized: false, inc: false,
-                        membrane: false, secreted: false, dnaBinding: false, hasStructure: false };
-let _categoryFilter = null;
+                        membrane: false, secreted: false, dnaBinding: false,
+                        hasAf3: false, hasCrystal: false };
+let _categoryFilter  = null;
+let _locationFilter  = null;  // SL or GO term id set by clicking a localization pill
 let _offset         = 0;
 let _total       = 0;
 let _hasMore     = false;
@@ -95,9 +97,10 @@ export function renderGenomes(container) {
   // Pick up strain preference set by home page organisms section
   _strain = window.__preferredStrain ?? 'CT-L2';
   delete window.__preferredStrain;
-  _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null;
+  _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
   _filters = { favorites: false, characterized: false, inc: false,
-               membrane: false, secreted: false, dnaBinding: false, hasStructure: false };
+               membrane: false, secreted: false, dnaBinding: false,
+               hasAf3: false, hasCrystal: false };
   showGeneList(container);
 }
 
@@ -161,9 +164,10 @@ function showGeneList(container) {
   container.querySelectorAll('[data-strain]').forEach(btn => {
     btn.addEventListener('click', () => {
       _strain = btn.dataset.strain;
-      _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null;
+      _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
       _filters = { favorites: false, characterized: false, inc: false,
-                   membrane: false, secreted: false, dnaBinding: false, hasStructure: false };
+                   membrane: false, secreted: false, dnaBinding: false,
+                   hasAf3: false, hasCrystal: false };
       // Update tab styles
       container.querySelectorAll('[data-strain]').forEach(b => {
         const active = b.dataset.strain === _strain;
@@ -232,34 +236,47 @@ const SORT_OPTIONS = [
   { field: 'gene_name',  asc: true,  label: 'Gene name' },
 ];
 
-function renderFilterBar(container) {
+function renderFilterBar(container, expandMore = false) {
   const bar = container.querySelector('#filter-bar');
   if (!bar) return;
 
   const sortLabel = SORT_OPTIONS.find(o => o.field === _sortField)?.label ?? 'Locus tag';
 
-  const chip = (id, label, active) => `
-    <button data-filter="${id}"
+  const chip = (id, label, active, title = '') => `
+    <button data-filter="${id}" ${title ? `title="${title}"` : ''}
       style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
              background:${active ? '#f0fdf4' : 'white'};color:${active ? '#16a34a' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
       ${label}${active ? ' ×' : ''}
     </button>`;
 
-  const ALL_SECONDARY = [
+  // Active characterization filters shown in the main bar (as before)
+  const CHAR_FILTERS = [
     { id: 'characterized', label: 'Characterized' },
     { id: 'inc',           label: 'Inc Protein'   },
     { id: 'membrane',      label: 'Membrane'      },
     { id: 'secreted',      label: 'T3 Secreted'   },
     { id: 'dnaBinding',    label: 'DNA Binding'   },
-    { id: 'hasStructure',  label: 'Has Structure' },
+  ];
+  const STRUCT_FILTERS = [
+    { id: 'hasAf3',    label: 'AlphaFold3',       title: 'Filter to genes with an AlphaFold3 structure prediction' },
+    { id: 'hasCrystal', label: 'Crystal structure', title: 'Filter to genes with an experimentally resolved structure' },
   ];
 
-  const activeSecondary   = ALL_SECONDARY.filter(f => _filters[f.id]);
-  const inactiveSecondary = ALL_SECONDARY.filter(f => !_filters[f.id]);
+  const activeChar   = CHAR_FILTERS.filter(f => _filters[f.id]);
+  const activeStruct = STRUCT_FILTERS.filter(f => _filters[f.id]);
+  const anyActive    = activeChar.length || activeStruct.length || _locationFilter;
+
+  const groupHead = label => `
+    <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#b0b0b0;
+                padding:0 2px 4px;width:100%;margin-top:6px;border-top:1px solid #efefef;padding-top:7px;">
+      ${label}
+    </div>`;
+
+  // Determine if More panel should start open
+  const startOpen = expandMore || anyActive || false;
 
   bar.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
-      <!-- Sort -->
       <div style="position:relative;">
         <button id="sort-btn"
           style="font-size:11px;font-weight:500;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;">
@@ -274,33 +291,38 @@ function renderFilterBar(container) {
             </button>`).join('')}
         </div>
       </div>
-      <!-- Favorites always visible -->
       ${chip('favorites', '★ Favorites', _filters.favorites)}
-      <!-- Active secondary filters promoted to main bar -->
-      ${activeSecondary.map(f => chip(f.id, f.label, true)).join('')}
-      <!-- Active category filter -->
+      ${activeChar.map(f => chip(f.id, f.label, true)).join('')}
+      ${activeStruct.map(f => chip(f.id, f.label, true, f.title)).join('')}
       ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${esc(_categoryFilter)} ×</button>` : ''}
-      <!-- More button — hidden when all secondary filters are already active -->
-      ${inactiveSecondary.length ? `<button id="more-filters-btn"
-        style="font-size:10.5px;font-weight:600;color:#9ca3af;background:white;border:1px solid #e5e7eb;border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
-        + More
-      </button>` : ''}
+      ${_locationFilter ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>` : ''}
+      <button id="more-filters-btn"
+        style="font-size:10.5px;font-weight:600;color:${startOpen ? '#16a34a' : '#9ca3af'};background:white;border:1px solid ${startOpen ? '#bbf7d0' : '#e5e7eb'};border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
+        ${startOpen ? '− Less' : '+ More'}
+      </button>
     </div>
-    <!-- More panel: only inactive secondary filters -->
-    ${inactiveSecondary.length ? `
-    <div id="more-panel" style="display:none;padding:8px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;gap:5px;">
-      ${inactiveSecondary.map(f => chip(f.id, f.label, false)).join('')}
-    </div>` : ''}
+    <div id="more-panel" style="display:${startOpen ? 'block' : 'none'};padding:6px 12px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;">
+      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start;">
+        ${groupHead('Characterization')}
+        ${CHAR_FILTERS.map(f => chip(f.id, f.label, _filters[f.id])).join('')}
+        ${groupHead('Location')}
+        ${_locationFilter
+          ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>
+             <span style="font-size:9px;color:#9ca3af;align-self:center;">Click a location pill on any gene to filter by it</span>`
+          : `<span style="font-size:9px;color:#9ca3af;">Click a location pill on any gene to filter by it</span>`}
+        ${groupHead('Structure')}
+        ${STRUCT_FILTERS.map(f => chip(f.id, f.label, _filters[f.id], f.title)).join('')}
+      </div>
+    </div>
   `;
 
-  // Sort dropdown toggle
-  const sortBtn = bar.querySelector('#sort-btn');
+  // Sort dropdown
+  const sortBtn  = bar.querySelector('#sort-btn');
   const sortDrop = bar.querySelector('#sort-dropdown');
   sortBtn.addEventListener('click', e => {
     e.stopPropagation();
     sortDrop.style.display = sortDrop.style.display === 'none' ? 'block' : 'none';
   });
-
   bar.querySelectorAll('[data-sort-field]').forEach(btn => {
     btn.addEventListener('click', () => {
       _sortField = btn.dataset.sortField;
@@ -323,24 +345,33 @@ function renderFilterBar(container) {
   });
 
   // Clear category filter
-  const clearCatBtn = bar.querySelector('[data-clear-category]');
-  if (clearCatBtn) {
-    clearCatBtn.addEventListener('click', () => {
-      _categoryFilter = null;
+  bar.querySelector('[data-clear-category]')?.addEventListener('click', () => {
+    _categoryFilter = null;
+    _offset = 0;
+    renderFilterBar(container);
+    fetchGenes(container, true);
+  });
+
+  // Clear location filter (appears in both main bar and More panel)
+  bar.querySelectorAll('[data-clear-location]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _locationFilter = null;
       _offset = 0;
       renderFilterBar(container);
       fetchGenes(container, true);
     });
-  }
+  });
 
-  // More filters toggle
-  const moreBtn = bar.querySelector('#more-filters-btn');
+  // More panel toggle
+  const moreBtn   = bar.querySelector('#more-filters-btn');
   const morePanel = bar.querySelector('#more-panel');
   if (moreBtn && morePanel) {
     moreBtn.addEventListener('click', () => {
-      const open = morePanel.style.display === 'flex';
-      morePanel.style.display = open ? 'none' : 'flex';
-      moreBtn.textContent = open ? '+ More' : '− Less';
+      const open = morePanel.style.display !== 'none';
+      morePanel.style.display = open ? 'none' : 'block';
+      moreBtn.textContent     = open ? '+ More' : '− Less';
+      moreBtn.style.color     = open ? '#9ca3af' : '#16a34a';
+      moreBtn.style.borderColor = open ? '#e5e7eb' : '#bbf7d0';
     });
   }
 }
@@ -366,7 +397,9 @@ async function fetchGenes(container, reset = false) {
       'functional_category,is_characterized,is_membrane_protein,' +
       'is_hypothetical,is_dna_binding,is_t3_secreted,' +
       'strains!inner(common_name,color_hex),' +
-      'proteins(alphafold_results(thumbnail_path))',
+      'proteins(has_af3_structure,has_crystal_structure,' +
+      'subcellular_location_sl,subcellular_location_go,localization_source,' +
+      'alphafold_results(thumbnail_path))',
       { count: 'exact' }
     )
     .eq('strains.common_name', _strain)
@@ -381,8 +414,17 @@ async function fetchGenes(container, reset = false) {
   if (_filters.membrane)       q = q.eq('is_membrane_protein', true);
   if (_filters.secreted)       q = q.eq('is_t3_secreted', true);
   if (_filters.dnaBinding)     q = q.eq('is_dna_binding', true);
+  if (_filters.hasAf3)         q = q.eq('proteins.has_af3_structure', true);
+  if (_filters.hasCrystal)     q = q.eq('proteins.has_crystal_structure', true);
   if (_categoryFilter)         q = q.eq('functional_category', _categoryFilter);
-  // hasStructure filter deferred — af_image_url lives in alphafold_results, not genes
+  if (_locationFilter) {
+    // Try SL term first; if it starts with GO: use the go column
+    if (_locationFilter.startsWith('GO:')) {
+      q = q.filter('proteins.subcellular_location_go', 'cs', `{${_locationFilter}}`);
+    } else {
+      q = q.filter('proteins.subcellular_location_sl', 'cs', `{${_locationFilter}}`);
+    }
+  }
 
   const { data: genes, count, error } = await q;
   _loading = false;
@@ -1176,32 +1218,158 @@ function wireStructureEvents(el, gene) {
   });
 }
 
+// Mapping of common GO cellular component IDs → human-readable labels
+const GO_LABELS = {
+  'GO:0005737': 'Cytoplasm',
+  'GO:0005829': 'Cytosol',
+  'GO:0005576': 'Extracellular region',
+  'GO:0005615': 'Extracellular space',
+  'GO:0005886': 'Plasma membrane',
+  'GO:0016020': 'Membrane',
+  'GO:0009986': 'Cell surface',
+  'GO:0030312': 'External side of plasma membrane',
+  'GO:0042025': 'Host cell nucleus',
+  'GO:0044164': 'Host cell cytosol',
+  'GO:0030140': 'Trans-Golgi network transport vesicle',
+};
+
+function locTermLabel(termId) {
+  if (!termId) return termId;
+  if (termId.startsWith('GO:')) return GO_LABELS[termId] ?? termId;
+  // SL ID → human label via a small common map; fallback to SL-XXXX
+  const SL_LABELS = {
+    'SL-0086': 'Cytoplasm', 'SL-0037': 'Cell inner membrane',
+    'SL-0204': 'Secreted',  'SL-0243': 'Secreted',
+    'SL-0191': 'Periplasm', 'SL-0020': 'Cell outer membrane',
+    'SL-0122': 'Host cell membrane', 'SL-0093': 'Cell membrane',
+    'SL-0023': 'Cell surface', 'SL-0478': 'Host cytoplasm',
+  };
+  return SL_LABELS[termId] ?? termId;
+}
+
 function renderDetailLocalization(detail, gene, protein) {
   const el = detail.querySelector('#d-localization');
   if (!el) return;
 
-  const slTerms = protein?.subcellular_location_sl ?? [];
-  const curated = protein?.localization_curated ?? false;
-  const isHypo  = gene.is_hypothetical ?? false;
-  const taxid   = Number(STRAIN_TAXID[gene.strains?.common_name]) || 813;
+  const source   = protein?.localization_source ?? null;
+  const slTerms  = protein?.subcellular_location_sl ?? [];
+  const goTerms  = protein?.subcellular_location_go ?? [];
+  const taxid    = Number(STRAIN_TAXID[gene.strains?.common_name]) || 813;
+  const isHypo   = gene.is_hypothetical ?? false;
 
-  if (slTerms.length) {
-    const sls = slTerms.map(t => t.replace(/^SL-/, '')).join(',');
-    const pillsHtml = buildLocPills(protein?.localization ?? '');
-    const sourceLabel = curated ? 'Curated' : 'UniProt';
-    const sourceBg    = curated ? '#fef3c7' : '#f3f4f6';
-    const sourceColor = curated ? '#92400e' : '#6b7280';
-    el.innerHTML = `
-      ${sectionHead('Cell Localization',
-        `<span style="font-size:7.5px;font-weight:600;padding:1px 6px;border-radius:8px;background:${sourceBg};color:${sourceColor};">${sourceLabel}</span>`)}
-      <div style="padding:6px 12px 12px;">
-        <div id="swissbiopics-svg" style="max-width:100%;min-height:80px;display:flex;align-items:center;justify-content:center;">
-          <div style="font-size:9px;color:#aaa;">Loading diagram…</div>
-        </div>
-        ${pillsHtml}
+  // --- Determine diagram endpoint and pill set ---
+  let diagramUrl  = null;
+  let activeTerms = [];  // { id, label } pairs for pills
+  let sourceBadge = '';
+  let sourceNote  = '';
+
+  if (source === 'user') {
+    diagramUrl  = slTerms.length ? `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/, '')).join(',')}` : null;
+    activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
+    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#d1fae5;color:#065f46;letter-spacing:0.04em;">Curated</span>`;
+  } else if (source === 'lab_flag') {
+    const isInc = gene.functional_category === 'Inclusion membrane protein';
+    const isT3  = gene.is_t3_secreted === true;
+    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/0204`;
+    activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
+    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#fef3c7;color:#92400e;letter-spacing:0.04em;cursor:default;"
+      title="ChlamAtlas lab annotation — overrides UniProt">Lab annotation</span>`;
+    const reason = isInc
+      ? 'Inc (inclusion membrane) proteins'
+      : isT3 ? 'T3SS effector proteins'
+      : 'This protein';
+    sourceNote = `
+      <div style="margin-top:8px;padding:7px 9px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:8.5px;color:#92400e;line-height:1.5;">
+        <strong>ChlamAtlas annotation:</strong> ${esc(reason)} are actively secreted into the host cell via the type III secretion system.
+        UniProt annotates them as bacterial membrane proteins — this is biologically incorrect for <em>Chlamydia</em>.
+        Location has been overridden to <em>Secreted</em>.
       </div>`;
+  } else if (source === 'uniprot_sl') {
+    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/, '')).join(',')}`;
+    activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
+    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#f3f4f6;color:#6b7280;letter-spacing:0.04em;">UniProt</span>`;
+  } else if (source === 'uniprot_go') {
+    const goIds = goTerms.map(t => t.replace(/^GO:/, '')).join(',');
+    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/go/${goIds}`;
+    activeTerms = goTerms.map(id => ({ id, label: locTermLabel(id) }));
+    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#f3f4f6;color:#6b7280;letter-spacing:0.04em;">GO</span>`;
+  }
+
+  // --- No data ---
+  if (!diagramUrl && (isHypo || !protein?.localization)) {
+    el.innerHTML = `
+      ${sectionHead('Cell Localization')}
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:18px 8px 14px;text-align:center;">
+        <div style="font-size:20px;color:#d1d5db;">◎</div>
+        <div style="font-size:9px;font-weight:600;color:#aaa;">Location unknown</div>
+      </div>`;
+    return;
+  }
+
+  // --- UniProt localization text pills (supplementary, below the primary pills) ---
+  const textPillsHtml = buildLocTextPills(protein?.localization ?? '');
+
+  // --- Primary pills (clickable, from term IDs) ---
+  const primaryPillsHtml = activeTerms.length
+    ? `<div style="display:flex;gap:5px;flex-wrap:wrap;">
+        ${activeTerms.map(t => `
+          <button data-loc-term="${esc(t.id)}"
+            style="font-size:9px;font-weight:600;padding:2px 10px;border-radius:10px;
+                   background:${_locationFilter === t.id ? '#dbeafe' : '#f3f4f6'};
+                   color:${_locationFilter === t.id ? '#1d4ed8' : '#374151'};
+                   border:1px solid ${_locationFilter === t.id ? '#93c5fd' : '#e5e7eb'};
+                   cursor:pointer;font-family:inherit;"
+            title="Filter gene list to ${esc(t.label)} location">
+            ${esc(t.label)}
+          </button>`).join('')}
+       </div>`
+    : '';
+
+  // --- Section label under pills ---
+  const primarySource = source === 'lab_flag' ? 'ChlamAtlas' : source === 'user' ? 'Curated' : source === 'uniprot_go' ? 'GO (cellular component)' : 'UniProt';
+  const pillGroupLabel = `<div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#b0b0b0;margin:8px 0 4px;">${primarySource}</div>`;
+
+  // Extra UniProt text pills only shown for lab_flag case (to acknowledge what UniProt says)
+  const uniprotTextSection = (source === 'lab_flag' && textPillsHtml)
+    ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#d1d5db;margin:10px 0 4px;">UniProt (overridden)</div>
+       <div style="opacity:0.5;">${textPillsHtml}</div>`
+    : (source === 'uniprot_sl' && textPillsHtml)
+    ? `<div style="font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#b0b0b0;margin:10px 0 4px;">UniProt text annotation</div>
+       ${textPillsHtml}`
+    : '';
+
+  el.innerHTML = `
+    ${sectionHead('Cell Localization', sourceBadge)}
+    <div style="padding:6px 12px 12px;">
+      <div id="swissbiopics-svg" style="max-width:100%;min-height:80px;display:flex;align-items:center;justify-content:center;">
+        <div style="font-size:9px;color:#aaa;">Loading diagram…</div>
+      </div>
+      ${sourceNote}
+      ${primaryPillsHtml ? pillGroupLabel + primaryPillsHtml : ''}
+      ${uniprotTextSection}
+    </div>`;
+
+  // Wire pill clicks → location filter
+  el.querySelectorAll('[data-loc-term]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const term = btn.dataset.locTerm;
+      _locationFilter = (_locationFilter === term) ? null : term;
+      renderFilterBar(_container, true);
+      fetchGenes(_container, true);
+      // Update pill highlight in place without re-rendering full localization
+      el.querySelectorAll('[data-loc-term]').forEach(b => {
+        const active = _locationFilter === b.dataset.locTerm;
+        b.style.background   = active ? '#dbeafe' : '#f3f4f6';
+        b.style.color        = active ? '#1d4ed8' : '#374151';
+        b.style.borderColor  = active ? '#93c5fd' : '#e5e7eb';
+      });
+    });
+  });
+
+  // Load SwissBioPics SVG
+  if (diagramUrl) {
     const svgContainer = el.querySelector('#swissbiopics-svg');
-    fetch(`https://www.swissbiopics.org/api/${taxid}/sl/${sls}`)
+    fetch(diagramUrl)
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); })
       .then(svg => {
         const responsive = svg
@@ -1212,28 +1380,11 @@ function renderDetailLocalization(detail, gene, protein) {
       .catch(() => {
         svgContainer.innerHTML = '<div style="font-size:9px;color:#aaa;font-style:italic;padding:8px 0;">Diagram unavailable</div>';
       });
-    return;
   }
-
-  if (isHypo || !protein?.localization) {
-    el.innerHTML = `
-      ${sectionHead('Cell Localization')}
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:18px 8px 14px;text-align:center;">
-        <div style="font-size:20px;color:#d1d5db;">◎</div>
-        <div style="font-size:9px;font-weight:600;color:#aaa;">Location unknown</div>
-      </div>`;
-    return;
-  }
-
-  const pillsHtml = buildLocPills(protein.localization);
-  el.innerHTML = `
-    ${sectionHead('Cell Localization')}
-    <div style="padding:6px 12px 12px;">
-      ${pillsHtml || '<div style="font-size:10px;color:#bbb;font-style:italic;padding:8px 0;">No diagram available</div>'}
-    </div>`;
 }
 
-function buildLocPills(localization) {
+// Parses the UniProt localization free-text field into non-clickable display pills
+function buildLocTextPills(localization) {
   if (!localization) return '';
   const tags = localization
     .replace(/\s*\{[^}]+\}/g, '')
@@ -1245,8 +1396,8 @@ function buildLocPills(localization) {
       && s.length < 60);
   if (!tags.length) return '';
   return `
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
-      ${tags.map(t => `<span style="font-size:9px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t)}</span>`).join('')}
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      ${tags.map(t => `<span style="font-size:9px;font-weight:500;padding:2px 8px;border-radius:10px;background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;">${esc(t)}</span>`).join('')}
     </div>`;
 }
 
