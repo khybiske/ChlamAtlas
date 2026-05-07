@@ -1261,38 +1261,34 @@ function renderDetailLocalization(detail, gene, protein) {
   let diagramUrl  = null;
   let activeTerms = [];  // { id, label } pairs for pills
   let sourceBadge = '';
-  let sourceNote  = '';
+
+  const badgeStyle = (bg, color) =>
+    `font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:${bg};color:${color};letter-spacing:0.04em;font-family:inherit;`;
 
   if (source === 'user') {
     diagramUrl  = slTerms.length ? `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/, '')).join(',')}` : null;
     activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
-    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#d1fae5;color:#065f46;letter-spacing:0.04em;">Curated</span>`;
+    sourceBadge = `<span style="${badgeStyle('#d1fae5','#065f46')}">Curated</span>`;
   } else if (source === 'lab_flag') {
     const isInc = gene.functional_category === 'Inclusion membrane protein';
     const isT3  = gene.is_t3_secreted === true;
     diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/0204`;
     activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
-    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#fef3c7;color:#92400e;letter-spacing:0.04em;cursor:default;"
-      title="ChlamAtlas lab annotation — overrides UniProt">Lab annotation</span>`;
     const reason = isInc
-      ? 'Inc (inclusion membrane) proteins'
-      : isT3 ? 'T3SS effector proteins'
-      : 'This protein';
-    sourceNote = `
-      <div style="margin-top:8px;padding:7px 9px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:8.5px;color:#92400e;line-height:1.5;">
-        <strong>ChlamAtlas annotation:</strong> ${esc(reason)} are actively secreted into the host cell via the type III secretion system.
-        UniProt annotates them as bacterial membrane proteins — this is biologically incorrect for <em>Chlamydia</em>.
-        Location has been overridden to <em>Secreted</em>.
-      </div>`;
+      ? 'Inc (inclusion membrane) proteins are actively secreted into the host cell via the T3SS. UniProt incorrectly annotates them as bacterial membrane proteins. Location overridden to Secreted.'
+      : isT3
+      ? 'T3SS effector proteins are actively secreted into the host cell via the type III secretion system. UniProt incorrectly annotates them as bacterial membrane proteins. Location overridden to Secreted.'
+      : 'Location overridden by ChlamAtlas to Secreted based on experimental evidence.';
+    sourceBadge = `<span style="${badgeStyle('#fef3c7','#92400e')}cursor:default;" title="${esc(reason)}">ChlamAtlas</span>`;
   } else if (source === 'uniprot_sl') {
     diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/, '')).join(',')}`;
     activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
-    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#f3f4f6;color:#6b7280;letter-spacing:0.04em;">UniProt</span>`;
+    sourceBadge = `<span style="${badgeStyle('#f3f4f6','#6b7280')}">UniProt</span>`;
   } else if (source === 'uniprot_go') {
     const goIds = goTerms.map(t => t.replace(/^GO:/, '')).join(',');
     diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/go/${goIds}`;
     activeTerms = goTerms.map(id => ({ id, label: locTermLabel(id) }));
-    sourceBadge = `<span style="font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:#f3f4f6;color:#6b7280;letter-spacing:0.04em;">GO</span>`;
+    sourceBadge = `<span style="${badgeStyle('#f3f4f6','#6b7280')}">GO</span>`;
   }
 
   // --- No data ---
@@ -1344,7 +1340,6 @@ function renderDetailLocalization(detail, gene, protein) {
       <div id="swissbiopics-svg" style="max-width:100%;min-height:80px;display:flex;align-items:center;justify-content:center;">
         <div style="font-size:9px;color:#aaa;">Loading diagram…</div>
       </div>
-      ${sourceNote}
       ${primaryPillsHtml ? pillGroupLabel + primaryPillsHtml : ''}
       ${uniprotTextSection}
     </div>`;
