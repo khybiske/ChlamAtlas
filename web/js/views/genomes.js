@@ -112,7 +112,7 @@ function showGeneList(container) {
   container.style.padding = '0';
 
   container.innerHTML = `
-    <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:300px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});width:100%;overflow:hidden;">
+    <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:300px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});width:100%;overflow:hidden;padding:0 12px;box-sizing:border-box;">
 
       <!-- ── List panel ── -->
       <div id="list-panel" style="border-right:1px solid #ececec;display:flex;flex-direction:column;overflow:hidden;">
@@ -150,7 +150,7 @@ function showGeneList(container) {
       </div>
 
       <!-- ── Detail panel ── -->
-      <div id="detail-panel" style="overflow-y:auto;min-width:0;overflow-x:hidden;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
+      <div id="detail-panel" style="overflow-y:auto;min-width:0;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#d1d5db;gap:8px;">
           <span style="font-size:28px;opacity:0.4;">🧬</span>
           <span style="font-size:12px;">Select a gene to view details</span>
