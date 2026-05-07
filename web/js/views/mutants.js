@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab
-import { sb, state } from '../app.js';
+import { sb, state } from '../app.js?v=3';
 
 const COLLECTIONS = [
   { id: 'C. trachomatis', name: 'C. trachomatis', sub: 'Pathogenic human strain',  icon: '/design/L2icon.jpg'      },
