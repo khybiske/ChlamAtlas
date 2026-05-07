@@ -1,5 +1,15 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/web/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/web/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    },
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
   ]
 }
