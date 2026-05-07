@@ -120,6 +120,9 @@ let _sectionOpen = {
   localization: false, interactions: false,
 };
 
+// Which More-panel sections are expanded (persists across filter bar re-renders)
+let _expandedSections = { characterization: false, function: false, location: false, structure: false };
+
 // HTML-escape helper for DB strings interpolated into innerHTML.
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const stripEvidenceTags = s => s ? s.replace(/\s*\{[^}]+\}/g, '').replace(/\s+\./g, '.').trim() : s;
@@ -132,6 +135,7 @@ export function renderGenomes(container) {
   _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
                membrane: false, secreted: false, dnaBinding: false,
                hasAf3: false, hasCrystal: false };
+  _expandedSections = { characterization: false, function: false, location: false, structure: false };
   showGeneList(container);
 }
 
@@ -285,33 +289,47 @@ function renderFilterBar(container, expandMore = false) {
     return `<button data-cat-filter="${esc(value)}"
       style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#fde68a' : '#e5e7eb'};
              background:${active ? '#fefce8' : 'white'};color:${active ? '#92400e' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
-      ⚙️ ${label}${active ? ' ×' : ''}
+      ${active ? '⚙️ ' : ''}${label}${active ? ' ×' : ''}
     </button>`;
   };
 
+  // Redundancies removed: Inc Protein, T3 Secreted, Membrane covered by Function/Location sections
   const CHAR_FILTERS = [
     { id: 'characterized', label: 'Characterized' },
     { id: 'hypothetical',  label: 'Hypothetical'  },
-    { id: 'inc',           label: 'Inc Protein'   },
-    { id: 'membrane',      label: 'Membrane'      },
-    { id: 'secreted',      label: 'T3 Secreted'   },
     { id: 'dnaBinding',    label: 'DNA Binding'   },
   ];
-  const FUNC_FILTERS = Object.keys(FUNC_LABELS).map(cat => ({ value: cat, label: FUNC_LABELS[cat] }));
+  // Unknown excluded — covered by Hypothetical in Characterization
+  const FUNC_FILTERS = Object.keys(FUNC_LABELS)
+    .filter(cat => cat !== 'Unknown')
+    .map(cat => ({ value: cat, label: FUNC_LABELS[cat] }));
   const STRUCT_FILTERS = [
-    { id: 'hasAf3',     label: 'AlphaFold3',        title: 'Filter to genes with an AlphaFold3 structure prediction' },
-    { id: 'hasCrystal', label: 'Crystal structure',  title: 'Filter to genes with an experimentally resolved structure' },
+    { id: 'hasAf3',     label: 'AlphaFold3',       title: 'Filter to genes with an AlphaFold3 structure prediction' },
+    { id: 'hasCrystal', label: 'Crystal structure', title: 'Filter to genes with an experimentally resolved structure' },
   ];
 
   const activeChar   = CHAR_FILTERS.filter(f => _filters[f.id]);
   const activeStruct = STRUCT_FILTERS.filter(f => _filters[f.id]);
   const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter;
 
-  const groupHead = (label) => `
-    <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#b0b0b0;
-                padding:0 2px 4px;width:100%;margin-top:6px;border-top:1px solid #efefef;padding-top:7px;">
-      ${label}
-    </div>`;
+  // Auto-expand a section if it has an active filter
+  const secOpen = {
+    characterization: _expandedSections.characterization || activeChar.length > 0,
+    function:         _expandedSections.function         || !!_categoryFilter,
+    location:         _expandedSections.location         || !!_locationFilter,
+    structure:        _expandedSections.structure         || activeStruct.length > 0,
+  };
+
+  const groupHead = (id, icon, label, isOpen, hint = '') => `
+    <button data-section="${id}"
+      style="display:flex;align-items:center;gap:4px;font-size:8.5px;font-weight:700;text-transform:uppercase;
+             letter-spacing:0.07em;color:#888;width:100%;margin-top:6px;border-top:1px solid #efefef;
+             padding-top:7px;padding-bottom:${isOpen ? '4px' : '2px'};background:none;border-left:none;
+             border-right:none;border-bottom:none;cursor:pointer;text-align:left;font-family:inherit;">
+      <span>${icon}</span><span>${label}</span>
+      <span style="margin-left:auto;font-size:9px;color:#ccc;">${isOpen ? '▾' : '▸'}</span>
+      ${!isOpen && hint ? `<span style="font-size:8px;color:#bbb;font-weight:400;margin-left:2px;">${hint}</span>` : ''}
+    </button>`;
 
   const startOpen = expandMore || anyActive || false;
 
@@ -341,24 +359,23 @@ function renderFilterBar(container, expandMore = false) {
         ${startOpen ? '− Less' : '+ More'}
       </button>
     </div>
-    <div id="more-panel" style="display:${startOpen ? 'block' : 'none'};padding:6px 12px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;">
-      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start;">
-        ${groupHead('⭐ Popular')}
-        ${POPULAR_FILTERS.map(p =>
-            p.type === 'cat'
-              ? catChip(p.value, p.label)
-              : chip(p.value, p.label, _filters[p.value])
-          ).join('')}
-        ${groupHead('Characterization')}
+    <div id="more-panel" style="display:${startOpen ? 'block' : 'none'};padding:4px 12px 8px;background:#fafafa;border-bottom:1px solid #f0f0f0;overflow-y:auto;max-height:calc(100vh - 200px);">
+      ${groupHead('characterization', '', 'Characterization', secOpen.characterization)}
+      <div style="display:${secOpen.characterization ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${CHAR_FILTERS.map(f => chip(f.id, f.label, _filters[f.id])).join('')}
-        ${groupHead('⚙️ Function')}
+      </div>
+      ${groupHead('function', '⚙️', 'Function', secOpen.function, '— filter by role')}
+      <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${FUNC_FILTERS.map(f => catChip(f.value, f.label)).join('')}
-        ${groupHead('📍 Location')}
+      </div>
+      ${groupHead('location', '📍', 'Location', secOpen.location, '— click a pill on any gene')}
+      <div style="display:${secOpen.location ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${_locationFilter
-          ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>
-             <span style="font-size:9px;color:#9ca3af;align-self:center;">Click a location pill on any gene to filter by it</span>`
-          : `<span style="font-size:9px;color:#9ca3af;">Click a location pill on any gene to filter</span>`}
-        ${groupHead('🧊 Structure')}
+          ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>`
+          : `<span style="font-size:9px;color:#bbb;padding:2px 0;">Click a location pill on any gene to filter</span>`}
+      </div>
+      ${groupHead('structure', '🧊', 'Structure', secOpen.structure)}
+      <div style="display:${secOpen.structure ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${STRUCT_FILTERS.map(f => chip(f.id, f.label, _filters[f.id], f.title)).join('')}
       </div>
     </div>
@@ -378,6 +395,15 @@ function renderFilterBar(container, expandMore = false) {
       _offset = 0;
       renderFilterBar(container);
       fetchGenes(container, true);
+    });
+  });
+
+  // Section header collapse/expand
+  bar.querySelectorAll('[data-section]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.section;
+      _expandedSections[id] = !secOpen[id];
+      renderFilterBar(container, true);
     });
   });
 
