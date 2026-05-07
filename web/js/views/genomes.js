@@ -57,6 +57,37 @@ const CATEGORY_BADGE = {
   'Unknown':                    { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' },
 };
 
+// Short display labels for functional categories used in filter chips
+const FUNC_LABELS = {
+  'Amino acid metabolism':      'Amino acid',
+  'Cell envelope':              'Cell envelope',
+  'Cell processes':             'Cell processes',
+  'Cofactor metabolism':        'Cofactor',
+  'Energy metabolism':          'Energy',
+  'Inclusion membrane protein': 'Inc',
+  'Inermediary metabolism':     'Intermediary',
+  'Lipid metabolism':           'Lipid',
+  'Membrane transport':         'Transport',
+  'Nucleotide metabolism':      'Nucleotide',
+  'Other':                      'Other',
+  'Replication':                'Replication',
+  'Secreted effector':          'Secreted effector',
+  'Transcription':              'Transcription',
+  'Translation':                'Translation',
+  'Type III secretion':         'T3SS',
+  'Unknown':                    'Unknown',
+};
+const funcLabel = cat => FUNC_LABELS[cat] ?? cat;
+
+// Hardcoded popular filter combos (replace with analytics-backed list later)
+const POPULAR_FILTERS = [
+  { type: 'cat',   value: 'Inclusion membrane protein', label: 'Inc'         },
+  { type: 'cat',   value: 'Secreted effector',          label: 'Secreted'    },
+  { type: 'char',  value: 'characterized',              label: 'Characterized'},
+  { type: 'cat',   value: 'Replication',                label: 'Replication' },
+  { type: 'char',  value: 'secreted',                   label: 'T3 Secreted' },
+];
+
 const PAGE_SIZE = 50;
 const FAVORITES_KEY = 'chlamatlas_favorites';
 
@@ -66,8 +97,8 @@ let _search         = '';
 let _searchTimer    = null;
 let _sortField      = 'locus_tag';
 let _sortAsc        = true;
-let _filters        = { favorites: false, characterized: false, inc: false,
-                        membrane: false, secreted: false, dnaBinding: false,
+let _filters        = { favorites: false, characterized: false, hypothetical: false,
+                        inc: false, membrane: false, secreted: false, dnaBinding: false,
                         hasAf3: false, hasCrystal: false };
 let _categoryFilter  = null;
 let _locationFilter  = null;  // SL or GO term id set by clicking a localization pill
@@ -98,7 +129,7 @@ export function renderGenomes(container) {
   _strain = window.__preferredStrain ?? 'CT-L2';
   delete window.__preferredStrain;
   _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
-  _filters = { favorites: false, characterized: false, inc: false,
+  _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
                membrane: false, secreted: false, dnaBinding: false,
                hasAf3: false, hasCrystal: false };
   showGeneList(container);
@@ -165,7 +196,7 @@ function showGeneList(container) {
     btn.addEventListener('click', () => {
       _strain = btn.dataset.strain;
       _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
-      _filters = { favorites: false, characterized: false, inc: false,
+      _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
                    membrane: false, secreted: false, dnaBinding: false,
                    hasAf3: false, hasCrystal: false };
       // Update tab styles
@@ -249,30 +280,39 @@ function renderFilterBar(container, expandMore = false) {
       ${label}${active ? ' ×' : ''}
     </button>`;
 
-  // Active characterization filters shown in the main bar (as before)
+  const catChip = (value, label) => {
+    const active = _categoryFilter === value;
+    return `<button data-cat-filter="${esc(value)}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#fde68a' : '#e5e7eb'};
+             background:${active ? '#fefce8' : 'white'};color:${active ? '#92400e' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
+      ⚙️ ${label}${active ? ' ×' : ''}
+    </button>`;
+  };
+
   const CHAR_FILTERS = [
     { id: 'characterized', label: 'Characterized' },
+    { id: 'hypothetical',  label: 'Hypothetical'  },
     { id: 'inc',           label: 'Inc Protein'   },
     { id: 'membrane',      label: 'Membrane'      },
     { id: 'secreted',      label: 'T3 Secreted'   },
     { id: 'dnaBinding',    label: 'DNA Binding'   },
   ];
+  const FUNC_FILTERS = Object.keys(FUNC_LABELS).map(cat => ({ value: cat, label: FUNC_LABELS[cat] }));
   const STRUCT_FILTERS = [
-    { id: 'hasAf3',    label: 'AlphaFold3',       title: 'Filter to genes with an AlphaFold3 structure prediction' },
-    { id: 'hasCrystal', label: 'Crystal structure', title: 'Filter to genes with an experimentally resolved structure' },
+    { id: 'hasAf3',     label: 'AlphaFold3',        title: 'Filter to genes with an AlphaFold3 structure prediction' },
+    { id: 'hasCrystal', label: 'Crystal structure',  title: 'Filter to genes with an experimentally resolved structure' },
   ];
 
   const activeChar   = CHAR_FILTERS.filter(f => _filters[f.id]);
   const activeStruct = STRUCT_FILTERS.filter(f => _filters[f.id]);
-  const anyActive    = activeChar.length || activeStruct.length || _locationFilter;
+  const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter;
 
-  const groupHead = label => `
+  const groupHead = (label) => `
     <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#b0b0b0;
                 padding:0 2px 4px;width:100%;margin-top:6px;border-top:1px solid #efefef;padding-top:7px;">
       ${label}
     </div>`;
 
-  // Determine if More panel should start open
   const startOpen = expandMore || anyActive || false;
 
   bar.innerHTML = `
@@ -294,7 +334,7 @@ function renderFilterBar(container, expandMore = false) {
       ${chip('favorites', '★ Favorites', _filters.favorites)}
       ${activeChar.map(f => chip(f.id, f.label, true)).join('')}
       ${activeStruct.map(f => chip(f.id, f.label, true, f.title)).join('')}
-      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${esc(_categoryFilter)} ×</button>` : ''}
+      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${esc(funcLabel(_categoryFilter))} ×</button>` : ''}
       ${_locationFilter ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>` : ''}
       <button id="more-filters-btn"
         style="font-size:10.5px;font-weight:600;color:${startOpen ? '#16a34a' : '#9ca3af'};background:white;border:1px solid ${startOpen ? '#bbf7d0' : '#e5e7eb'};border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
@@ -303,14 +343,22 @@ function renderFilterBar(container, expandMore = false) {
     </div>
     <div id="more-panel" style="display:${startOpen ? 'block' : 'none'};padding:6px 12px 10px;background:#fafafa;border-bottom:1px solid #f0f0f0;">
       <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start;">
+        ${groupHead('⭐ Popular')}
+        ${POPULAR_FILTERS.map(p =>
+            p.type === 'cat'
+              ? catChip(p.value, p.label)
+              : chip(p.value, p.label, _filters[p.value])
+          ).join('')}
         ${groupHead('Characterization')}
         ${CHAR_FILTERS.map(f => chip(f.id, f.label, _filters[f.id])).join('')}
-        ${groupHead('Location')}
+        ${groupHead('⚙️ Function')}
+        ${FUNC_FILTERS.map(f => catChip(f.value, f.label)).join('')}
+        ${groupHead('📍 Location')}
         ${_locationFilter
           ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>
              <span style="font-size:9px;color:#9ca3af;align-self:center;">Click a location pill on any gene to filter by it</span>`
-          : `<span style="font-size:9px;color:#9ca3af;">Click a location pill on any gene to filter by it</span>`}
-        ${groupHead('Structure')}
+          : `<span style="font-size:9px;color:#9ca3af;">Click a location pill on any gene to filter</span>`}
+        ${groupHead('🧊 Structure')}
         ${STRUCT_FILTERS.map(f => chip(f.id, f.label, _filters[f.id], f.title)).join('')}
       </div>
     </div>
@@ -333,13 +381,24 @@ function renderFilterBar(container, expandMore = false) {
     });
   });
 
-  // Filter chip toggles
+  // Boolean filter chip toggles
   bar.querySelectorAll('[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.filter;
       _filters[key] = !_filters[key];
       _offset = 0;
-      renderFilterBar(container);
+      renderFilterBar(container, startOpen);
+      fetchGenes(container, true);
+    });
+  });
+
+  // Function / category filter chips
+  bar.querySelectorAll('[data-cat-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.catFilter;
+      _categoryFilter = _categoryFilter === val ? null : val;
+      _offset = 0;
+      renderFilterBar(container, true);
       fetchGenes(container, true);
     });
   });
@@ -409,7 +468,8 @@ async function fetchGenes(container, reset = false) {
   if (_search) {
     q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%`);
   }
-  if (_filters.characterized) q = q.eq('is_characterized', true);
+  if (_filters.characterized)  q = q.eq('is_characterized', true);
+  if (_filters.hypothetical)   q = q.eq('is_hypothetical', true);
   if (_filters.inc)            q = q.eq('functional_category', 'Inclusion membrane protein');
   if (_filters.membrane)       q = q.eq('is_membrane_protein', true);
   if (_filters.secreted)       q = q.eq('is_t3_secreted', true);
