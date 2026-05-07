@@ -1,0 +1,166 @@
+<h2>Cell Localization — Layout Options</h2>
+<p class="subtitle">Where should the SwissBioPics diagram live in the gene detail panel?</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#fafafa;">
+      <!-- Simulated gene detail panel -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;font-family:'DM Sans',sans-serif;">
+        <!-- Hero stub -->
+        <div style="height:48px;background:linear-gradient(135deg,rgba(26,107,74,0.08),white);border-bottom:1px solid #f0f0f0;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:4px;background:#e5e7eb;"></div>
+          <div>
+            <div style="height:9px;width:70px;background:#d1d5db;border-radius:3px;margin-bottom:4px;"></div>
+            <div style="height:7px;width:45px;background:#e5e7eb;border-radius:3px;"></div>
+          </div>
+        </div>
+        <!-- Protein section stub -->
+        <div style="border-bottom:1px solid #f0f0f0;padding:10px 14px;">
+          <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Protein</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <div style="height:14px;width:80px;background:#f3f4f6;border-radius:10px;"></div>
+            <div style="height:14px;width:55px;background:#f3f4f6;border-radius:10px;"></div>
+            <div style="height:14px;width:65px;background:#f3f4f6;border-radius:10px;"></div>
+          </div>
+        </div>
+        <!-- 3-col row — current layout unchanged -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #f0f0f0;">
+          <!-- Transcriptomics -->
+          <div style="border-right:1px solid #f0f0f0;padding:10px 12px;">
+            <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Transcriptomics</div>
+            <div style="display:flex;align-items:flex-end;gap:2px;height:36px;">
+              <div style="width:8px;height:14px;background:#d1fae5;border-radius:1px 1px 0 0;"></div>
+              <div style="width:8px;height:28px;background:#6ee7b7;border-radius:1px 1px 0 0;"></div>
+              <div style="width:8px;height:36px;background:#10b981;border-radius:1px 1px 0 0;"></div>
+              <div style="width:8px;height:30px;background:#6ee7b7;border-radius:1px 1px 0 0;"></div>
+              <div style="width:8px;height:22px;background:#d1fae5;border-radius:1px 1px 0 0;"></div>
+              <div style="width:8px;height:18px;background:#d1fae5;border-radius:1px 1px 0 0;"></div>
+            </div>
+          </div>
+          <!-- EB/RB -->
+          <div style="border-right:1px solid #f0f0f0;padding:10px 12px;">
+            <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">EB / RB Proteomics</div>
+            <div style="display:flex;gap:4px;margin-bottom:4px;">
+              <div style="flex:1;height:10px;background:#dbeafe;border-radius:2px;"></div>
+              <div style="flex:2;height:10px;background:#93c5fd;border-radius:2px;"></div>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <div style="flex:2;height:10px;background:#bfdbfe;border-radius:2px;"></div>
+              <div style="flex:1;height:10px;background:#dbeafe;border-radius:2px;"></div>
+            </div>
+          </div>
+          <!-- Localization — SwissBioPics in 3rd col -->
+          <div style="padding:10px 12px;">
+            <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Cell Localization</div>
+            <!-- SwissBioPics sim: bacterial cell oval -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <svg width="90" height="56" viewBox="0 0 90 56" style="overflow:visible;">
+                <!-- Outer membrane -->
+                <ellipse cx="45" cy="28" rx="43" ry="26" fill="none" stroke="#d1d5db" stroke-width="1.5"/>
+                <!-- Inner membrane -->
+                <ellipse cx="45" cy="28" rx="36" ry="19" fill="none" stroke="#d1d5db" stroke-width="1.5"/>
+                <!-- Cytoplasm fill -->
+                <ellipse cx="45" cy="28" rx="35" ry="18" fill="#f9fafb"/>
+                <!-- Highlighted: cytoplasm (green) -->
+                <ellipse cx="45" cy="28" rx="35" ry="18" fill="#d1fae5" opacity="0.8"/>
+                <!-- Label -->
+                <text x="45" y="30" text-anchor="middle" font-size="6" fill="#065f46" font-weight="600">Cytoplasm</text>
+              </svg>
+              <div style="font-size:6.5px;color:#6b7280;">Cytoplasm · SL-0086</div>
+            </div>
+          </div>
+        </div>
+        <!-- Structure stub -->
+        <div style="padding:10px 14px;">
+          <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Structure</div>
+          <div style="height:20px;background:#f9fafb;border-radius:4px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Stay in 3rd column</h3>
+      <p>Keeps the 3-col layout intact. SwissBioPics scales to fill the column. Compact but the diagram is relatively small. Works fine for the simple bacterial cell shape.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#fafafa;">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;font-family:'DM Sans',sans-serif;">
+        <!-- Hero stub -->
+        <div style="height:48px;background:linear-gradient(135deg,rgba(26,107,74,0.08),white);border-bottom:1px solid #f0f0f0;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:4px;background:#e5e7eb;"></div>
+          <div>
+            <div style="height:9px;width:70px;background:#d1d5db;border-radius:3px;margin-bottom:4px;"></div>
+            <div style="height:7px;width:45px;background:#e5e7eb;border-radius:3px;"></div>
+          </div>
+        </div>
+        <!-- Protein stub -->
+        <div style="border-bottom:1px solid #f0f0f0;padding:10px 14px;">
+          <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Protein</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <div style="height:14px;width:80px;background:#f3f4f6;border-radius:10px;"></div>
+            <div style="height:14px;width:55px;background:#f3f4f6;border-radius:10px;"></div>
+          </div>
+        </div>
+        <!-- 2-col: transcriptomics + EB/RB only -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0;">
+          <div style="border-right:1px solid #f0f0f0;padding:10px 12px;">
+            <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Transcriptomics</div>
+            <div style="display:flex;align-items:flex-end;gap:2px;height:36px;">
+              <div style="width:10px;height:14px;background:#d1fae5;border-radius:1px 1px 0 0;"></div>
+              <div style="width:10px;height:28px;background:#6ee7b7;border-radius:1px 1px 0 0;"></div>
+              <div style="width:10px;height:36px;background:#10b981;border-radius:1px 1px 0 0;"></div>
+              <div style="width:10px;height:30px;background:#6ee7b7;border-radius:1px 1px 0 0;"></div>
+              <div style="width:10px;height:22px;background:#d1fae5;border-radius:1px 1px 0 0;"></div>
+              <div style="width:10px;height:18px;background:#d1fae5;border-radius:1px 1px 0 0;"></div>
+            </div>
+          </div>
+          <div style="padding:10px 12px;">
+            <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">EB / RB Proteomics</div>
+            <div style="display:flex;gap:4px;margin-bottom:4px;">
+              <div style="flex:1;height:12px;background:#dbeafe;border-radius:2px;"></div>
+              <div style="flex:2;height:12px;background:#93c5fd;border-radius:2px;"></div>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <div style="flex:2;height:12px;background:#bfdbfe;border-radius:2px;"></div>
+              <div style="flex:1;height:12px;background:#dbeafe;border-radius:2px;"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Localization — full-width row -->
+        <div style="border-bottom:1px solid #f0f0f0;padding:10px 14px;">
+          <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Cell Localization</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <svg width="120" height="72" viewBox="0 0 120 72">
+              <ellipse cx="60" cy="36" rx="57" ry="33" fill="none" stroke="#d1d5db" stroke-width="1.5"/>
+              <ellipse cx="60" cy="36" rx="48" ry="24" fill="none" stroke="#d1d5db" stroke-width="1.5"/>
+              <ellipse cx="60" cy="36" rx="47" ry="23" fill="#f9fafb"/>
+              <ellipse cx="60" cy="36" rx="47" ry="23" fill="#d1fae5" opacity="0.7"/>
+              <text x="60" y="38" text-anchor="middle" font-size="7" fill="#065f46" font-weight="600">Cytoplasm</text>
+            </svg>
+            <div>
+              <div style="font-size:8px;color:#374151;font-weight:600;margin-bottom:2px;">Cytoplasm</div>
+              <div style="font-size:7px;color:#9ca3af;margin-bottom:6px;">SL-0086 · UniProt</div>
+              <div style="display:flex;gap:4px;">
+                <span style="font-size:6.5px;padding:2px 6px;background:#d1fae5;color:#065f46;border-radius:10px;font-weight:600;">Cytoplasm</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Structure stub -->
+        <div style="padding:10px 14px;">
+          <div style="font-size:7px;font-weight:700;color:#1a6b4a;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Structure</div>
+          <div style="height:20px;background:#f9fafb;border-radius:4px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Own full-width row</h3>
+      <p>Localization gets a dedicated row below Transcriptomics + EB/RB. Diagram is larger and sits beside the term label + source tag. More breathing room, easier to read on smaller screens.</p>
+    </div>
+  </div>
+
+</div>

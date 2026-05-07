@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChlamAtlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green:       #1a6b4a;
+    --green-dark:  #0f4530;
+    --green-light: #e8f5ef;
+    --cream:       #faf9f6;
+    --ink:         #1a1a18;
+    --muted:       #6b7280;
+    --border:      #e8e6e0;
+    --purple:      #5b21b6;
+    --blue:        #1d4ed8;
+    --orange:      #c2410c;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--green-dark);
+    display: flex; align-items: center; gap: 0;
+    padding: 0 32px;
+    height: 52px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .nav-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 600; letter-spacing: 0.02em;
+    color: white;
+    margin-right: 28px;
+    flex-shrink: 0;
+  }
+  .nav-logo span { color: rgba(255,255,255,0.45); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .nav-links { display: flex; gap: 2px; }
+  .nav-links a {
+    color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer;
+    text-decoration: none; transition: all 0.15s;
+  }
+  .nav-links a:hover { color: white; background: rgba(255,255,255,0.08); }
+  .nav-links a.active { color: white; }
+  .nav-search {
+    flex: 1; max-width: 380px; margin: 0 16px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 34px; cursor: text;
+    transition: background 0.15s;
+  }
+  .nav-search:hover { background: rgba(255,255,255,0.14); }
+  .nav-search span { font-size: 12px; color: rgba(255,255,255,0.35); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .nav-heart { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.55); display: flex; padding: 4px; transition: color 0.15s; }
+  .nav-heart:hover { color: #f43f5e; }
+  .nav-user { display: flex; align-items: center; gap: 7px; }
+  .nav-inst {
+    width: 24px; height: 24px; border-radius: 4px;
+    background: #4b2e83;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px; font-weight: 700; color: #b7a57a;
+    font-style: italic;
+  }
+  .nav-user span { font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 500; }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    background: var(--green-dark);
+    padding: 72px 32px 64px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+  }
+
+  /* Microscopy-inspired radial pattern */
+  .hero-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    opacity: 0.07;
+  }
+  .hero-bg circle { fill: none; stroke: white; }
+
+  /* Thin horizontal rule accent -->*/
+  .hero::after {
+    content: '';
+    position: absolute; bottom: 0; left: 10%; right: 10%;
+    height: 1px; background: rgba(255,255,255,0.1);
+  }
+
+  .hero-inner { position: relative; z-index: 1; max-width: 680px; }
+
+  .hero-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(255,255,255,0.45);
+    margin-bottom: 24px;
+  }
+  .hero-label::before, .hero-label::after {
+    content: ''; flex: 1; width: 32px; height: 1px;
+    background: rgba(255,255,255,0.2);
+  }
+
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(52px, 8vw, 80px);
+    font-weight: 600; line-height: 0.95;
+    color: white;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+  .hero-title em {
+    font-style: italic; font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    display: block; font-size: 0.72em;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-sub {
+    font-size: 15px; font-weight: 300; line-height: 1.65;
+    color: rgba(255,255,255,0.55);
+    max-width: 480px; margin: 0 auto 36px;
+  }
+  .hero-sub strong { color: rgba(255,255,255,0.8); font-weight: 500; }
+
+  .hero-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: white; color: var(--green-dark);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+    padding: 11px 24px; border-radius: 6px; border: none;
+    cursor: pointer; transition: transform 0.12s, box-shadow 0.12s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.25); }
+  .btn-ghost {
+    background: transparent; color: rgba(255,255,255,0.8);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    padding: 11px 24px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.22);
+    cursor: pointer; transition: all 0.12s;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.08); color: white; }
+
+  /* ── STATS ── */
+  .stats {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: center;
+  }
+  .stats-inner {
+    display: grid; grid-template-columns: repeat(5,1fr);
+    max-width: 800px; width: 100%;
+  }
+  .stat {
+    padding: 22px 12px; text-align: center;
+    border-right: 1px solid var(--border);
+    position: relative;
+    transition: background 0.15s;
+    cursor: default;
+  }
+  .stat:last-child { border-right: none; }
+  .stat:hover { background: var(--green-light); }
+  .stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px; font-weight: 700;
+    color: var(--green); line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .stat-label {
+    font-size: 10px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.07em; margin-top: 5px;
+  }
+
+  /* ── BODY ── */
+  .body-grid {
+    max-width: 1040px; margin: 0 auto;
+    padding: 48px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto;
+    gap: 20px;
+  }
+
+  /* ── STRAINS ── */
+  .section-strains { grid-column: 1 / -1; }
+  .section-head {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .section-head h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 600; color: var(--ink);
+  }
+  .section-head p {
+    font-size: 12px; color: var(--muted);
+  }
+
+  .strains-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  .strain-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .strain-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+  .strain-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+  }
+  .strain-ct-l2::before { background: var(--purple); }
+  .strain-ct-d::before  { background: var(--blue); }
+  .strain-cm::before    { background: var(--orange); }
+
+  .strain-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .strain-pip {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .strain-name { font-size: 16px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+  .strain-sci { font-size: 11px; font-style: italic; color: var(--muted); }
+
+  .strain-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .strain-stat { background: var(--cream); border-radius: 5px; padding: 8px 10px; }
+  .strain-stat-num { font-size: 16px; font-weight: 700; color: var(--ink); font-family: 'Cormorant Garamond', serif; }
+  .strain-stat-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+
+  .strain-cta {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600;
+    color: var(--green);
+  }
+
+  /* ── UPDATES + SIDEBAR ── */
+  .section-updates { grid-column: span 2; }
+  .section-sidebar  { grid-column: span 1; }
+
+  .update-list { display: flex; flex-direction: column; gap: 1px; }
+  .update-item {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex; align-items: flex-start; gap: 14px;
+    margin-bottom: 8px;
+    transition: box-shadow 0.12s;
+  }
+  .update-item:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+  .update-marker {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 5px;
+  }
+  .update-body { flex: 1; }
+  .update-body strong { font-weight: 600; font-size: 13px; color: var(--ink); }
+  .update-body p { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 2px; }
+  .update-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; color: var(--muted);
+    white-space: nowrap; margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Sidebar cards -->*/
+  .sidebar-card {
+    background: white; border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 10px;
+  }
+  .sidebar-card h3 { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
+  .quick-link {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 6px; border-radius: 5px;
+    font-size: 12px; font-weight: 500; color: #374151;
+    cursor: pointer; transition: all 0.12s;
+    text-decoration: none;
+  }
+  .quick-link:hover { background: var(--green-light); color: var(--green); }
+  .quick-link svg { flex-shrink: 0; color: var(--muted); }
+  .quick-link:hover svg { color: var(--green); }
+
+  /* ── CITATION ── */
+  .section-citation { grid-column: 1 / -1; }
+  .cite-banner {
+    background: white;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--green);
+    border-radius: 0 10px 10px 0;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .cite-text { flex: 1; }
+  .cite-text h3 {
+    font-size: 13px; font-weight: 600; color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .cite-text p {
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+    font-style: italic;
+  }
+  .cite-btn {
+    background: var(--green); color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 600;
+    padding: 8px 16px; border-radius: 6px; border: none;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.12s;
+    flex-shrink: 0;
+  }
+  .cite-btn:hover { background: var(--green-dark); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero-label  { animation: fadeUp 0.5s ease both; }
+  .hero-title  { animation: fadeUp 0.5s 0.1s ease both; }
+  .hero-sub    { animation: fadeUp 0.5s 0.2s ease both; }
+  .hero-actions{ animation: fadeUp 0.5s 0.3s ease both; }
+
+  /* Stat counter animation -->*/
+  .stat-num { transition: color 0.3s; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: white;
+    font-size: 11px; color: var(--muted);
+  }
+  footer a { color: var(--green); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">ChlamAtlas <span>beta</span></div>
+  <div class="nav-links">
+    <a class="active">Home</a>
+    <a>Genomes</a>
+    <a>Mutants</a>
+  </div>
+  <div class="nav-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Search genes, mutants, locus tags…</span>
+  </div>
+  <div class="nav-right">
+    <button class="nav-heart" title="Favorites">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </button>
+    <div class="nav-user">
+      <div class="nav-inst">W</div>
+      <span>Kevin</span>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <!-- Radial microscopy-inspired background -->
+  <svg class="hero-bg" viewBox="0 0 1200 480" preserveAspectRatio="xMidYMid slice">
+    <circle cx="600" cy="240" r="60"/>
+    <circle cx="600" cy="240" r="120"/>
+    <circle cx="600" cy="240" r="190"/>
+    <circle cx="600" cy="240" r="270"/>
+    <circle cx="600" cy="240" r="365"/>
+    <circle cx="600" cy="240" r="480"/>
+    <circle cx="600" cy="240" r="610"/>
+    <!-- Crosshairs -->
+    <line x1="600" y1="0" x2="600" y2="480" stroke="white" stroke-opacity="0.3"/>
+    <line x1="0" y1="240" x2="1200" y2="240" stroke="white" stroke-opacity="0.3"/>
+    <line x1="430" y1="70" x2="770" y2="410" stroke="white" stroke-opacity="0.12"/>
+    <line x1="770" y1="70" x2="430" y2="410" stroke="white" stroke-opacity="0.12"/>
+    <!-- Tick marks on crosshairs -->
+    <line x1="540" y1="236" x2="540" y2="244" stroke="white" stroke-opacity="0.4"/>
+    <line x1="600" y1="236" x2="600" y2="244" stroke="white" stroke-opacity="0.4"/>
+    <line x1="660" y1="236" x2="660" y2="244" stroke="white" stroke-opacity="0.4"/>
+    <line x1="596" y1="180" x2="604" y2="180" stroke="white" stroke-opacity="0.4"/>
+    <line x1="596" y1="240" x2="604" y2="240" stroke="white" stroke-opacity="0.4"/>
+    <line x1="596" y1="300" x2="604" y2="300" stroke="white" stroke-opacity="0.4"/>
+  </svg>
+
+  <div class="hero-inner">
+    <div class="hero-label">Hybiske Lab · University of Washington · Est. 2026</div>
+    <h1 class="hero-title">
+      ChlamAtlas
+      <em>A Chlamydia research database</em>
+    </h1>
+    <p class="hero-sub">
+      Integrated genomic, proteomic, structural, and mutant data for
+      <strong>Chlamydia</strong> model organisms — curated for the research community.
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary">Browse Genomes</button>
+      <button class="btn-ghost">Explore Mutants</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stats-inner">
+    <div class="stat">
+      <div class="stat-num" id="s1">2,687</div>
+      <div class="stat-label">Annotated Genes</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="s2">421</div>
+      <div class="stat-label">Mutant Strains</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="s3">3</div>
+      <div class="stat-label">Organisms</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="s4">2,687</div>
+      <div class="stat-label">AF Structures</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="s5">3</div>
+      <div class="stat-label">Partner Labs</div>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body-grid">
+
+  <!-- STRAINS -->
+  <div class="section-strains">
+    <div class="section-head">
+      <h2>Browse by organism</h2>
+      <p>Select a strain to explore genes, proteins, and structures</p>
+    </div>
+    <div class="strains-grid">
+
+      <div class="strain-card strain-ct-l2">
+        <div class="strain-header">
+          <div class="strain-pip" style="background:#5b21b6;"></div>
+          <div>
+            <div class="strain-name">CT-L2</div>
+            <div class="strain-sci">C. trachomatis L2/434</div>
+          </div>
+        </div>
+        <div class="strain-stats">
+          <div class="strain-stat"><div class="strain-stat-num">921</div><div class="strain-stat-lbl">Genes</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">300+</div><div class="strain-stat-lbl">Mutants</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">921</div><div class="strain-stat-lbl">Structures</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">~60%</div><div class="strain-stat-lbl">Characterized</div></div>
+        </div>
+        <div class="strain-cta">
+          Browse CT-L2 genome
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="strain-card strain-ct-d">
+        <div class="strain-header">
+          <div class="strain-pip" style="background:#1d4ed8;"></div>
+          <div>
+            <div class="strain-name">CT-D</div>
+            <div class="strain-sci">C. trachomatis D/UW-3</div>
+          </div>
+        </div>
+        <div class="strain-stats">
+          <div class="strain-stat"><div class="strain-stat-num">921</div><div class="strain-stat-lbl">Genes</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">—</div><div class="strain-stat-lbl">Mutants</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">921</div><div class="strain-stat-lbl">Structures</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">~60%</div><div class="strain-stat-lbl">Characterized</div></div>
+        </div>
+        <div class="strain-cta">
+          Browse CT-D genome
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="strain-card strain-cm">
+        <div class="strain-header">
+          <div class="strain-pip" style="background:#c2410c;"></div>
+          <div>
+            <div class="strain-name">CM</div>
+            <div class="strain-sci">C. muridarum Nigg</div>
+          </div>
+        </div>
+        <div class="strain-stats">
+          <div class="strain-stat"><div class="strain-stat-num">845</div><div class="strain-stat-lbl">Genes</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">~50</div><div class="strain-stat-lbl">Mutants</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">845</div><div class="strain-stat-lbl">Structures</div></div>
+          <div class="strain-stat"><div class="strain-stat-num">~55%</div><div class="strain-stat-lbl">Characterized</div></div>
+        </div>
+        <div class="strain-cta">
+          Browse CM genome
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- UPDATES -->
+  <div class="section-updates">
+    <div class="section-head">
+      <h2>Recent updates</h2>
+    </div>
+    <div class="update-list">
+      <div class="update-item">
+        <div class="update-marker" style="background:#1a6b4a;"></div>
+        <div class="update-body">
+          <strong>42 new mutants added</strong>
+          <p>CT-L2 collection updated with 42 new strains including the complete Lucky 17 chimera set with phenotype data.</p>
+        </div>
+        <div class="update-date">Mar 2026</div>
+      </div>
+      <div class="update-item">
+        <div class="update-marker" style="background:#5b21b6;"></div>
+        <div class="update-body">
+          <strong>AlphaFold v3 models integrated</strong>
+          <p>Lab-generated AF3 structure models linked for all 921 CT-L2 proteins. Interactive Mol* viewer available on all gene pages.</p>
+        </div>
+        <div class="update-date">Feb 2026</div>
+      </div>
+      <div class="update-item">
+        <div class="update-marker" style="background:#c2410c;"></div>
+        <div class="update-body">
+          <strong>C. muridarum integration complete</strong>
+          <p>845 CM genes with expression data and ortholog mappings. Cross-strain comparison now available for all three organisms.</p>
+        </div>
+        <div class="update-date">Jan 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="section-sidebar">
+    <div class="section-head"><h2>Quick access</h2></div>
+    <div class="sidebar-card">
+      <h3>Navigate</h3>
+      <a class="quick-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search all genes
+      </a>
+      <a class="quick-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3H6a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V9l-5-6z"/><path d="M14 3v4a2 2 0 0 0 2 2h4"/></svg>
+        Browse mutant collections
+      </a>
+      <a class="quick-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        View active pipeline
+      </a>
+      <a class="quick-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Publications
+      </a>
+    </div>
+
+    <div class="sidebar-card">
+      <h3>Contributing labs</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:5px;background:#4b2e83;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;color:#b7a57a;font-style:italic;flex-shrink:0;">W</div>
+          <div><div style="font-size:11px;font-weight:600;color:#1e293b;">Hybiske Lab</div><div style="font-size:10px;color:#6b7280;">University of Washington</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:5px;background:#d73f09;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0;">O</div>
+          <div><div style="font-size:11px;font-weight:600;color:#1e293b;">Rockey Lab</div><div style="font-size:10px;color:#6b7280;">Oregon State University</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:5px;background:#512888;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0;">K</div>
+          <div><div style="font-size:11px;font-weight:600;color:#1e293b;">Hefty Lab</div><div style="font-size:10px;color:#6b7280;">Kansas State University</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CITATION -->
+  <div class="section-citation">
+    <div class="cite-banner">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b4a" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <div class="cite-text">
+        <h3>Please cite ChlamAtlas if you use it in your research</h3>
+        <p>Hybiske et al. ChlamAtlas: an integrated genomic, structural, and mutant resource for Chlamydia research. Manuscript in preparation, 2026.</p>
+      </div>
+      <button class="cite-btn">Copy citation</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Hybiske Lab, University of Washington · <a href="#">Contact</a> · <a href="#">GitHub</a></span>
+  <span>ChlamAtlas v2.0 · Data updated March 2026</span>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genomes — Desktop Split Pane</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: #f0f2f4; color: #111; padding: 24px 16px 48px; }
+
+    .page-title { font-size: 13px; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #888; margin-bottom: 24px; line-height: 1.5; }
+
+    /* ── Nav ── */
+    .ca-nav {
+      background: #0f4530;
+      padding: 0 20px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 0;
+    }
+    .ca-nav-logo { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 18px; color: white; }
+    .ca-nav-tabs { display: flex; gap: 2px; }
+    .ca-nav-tab { padding: 4px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,0.55); }
+    .ca-nav-tab.active { color: white; background: rgba(255,255,255,0.18); }
+    .ca-nav-right { font-size: 11px; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 6px; }
+
+    /* ── Outer frame ── */
+    .frame {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      margin-bottom: 32px;
+    }
+
+    /* ── Split layout ── */
+    .split-body {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: 520px;
+    }
+
+    /* ── LEFT: Gene list panel ── */
+    .list-panel {
+      border-right: 1px solid #ececec;
+      display: flex;
+      flex-direction: column;
+    }
+    .strain-switcher {
+      border-bottom: 1px solid #f0f0f0;
+      padding: 10px 12px 0;
+    }
+    .strain-tab {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 5px 8px 8px;
+      color: #9ca3af;
+      border-bottom: 2px solid transparent;
+      margin-right: 2px;
+      margin-bottom: -1px;
+      font-style: italic;
+      cursor: pointer;
+    }
+    .strain-tab.active {
+      color: #16a34a;
+      border-bottom-color: #16a34a;
+    }
+    .search-wrap {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f3f3f3;
+    }
+    .search-mock {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-size: 10.5px;
+      color: #9ca3af;
+    }
+    .gene-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      border-bottom: 1px solid #f5f5f5;
+      cursor: pointer;
+    }
+    .gene-row:hover { background: #fafafa; }
+    .gene-row.selected { background: #f0fdf4; border-left: 2px solid #16a34a; }
+    .gene-thumb { width: 30px; height: 30px; border-radius: 6px; flex-shrink: 0; object-fit: cover; }
+    .gene-thumb-empty { background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #d1d5db; }
+    .gene-name { font-size: 11px; font-weight: 600; color: #16a34a; }
+    .gene-locus { font-size: 9.5px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-left: 4px; }
+    .gene-unnamed { font-size: 11px; font-weight: 500; color: #fca5a5; font-family: 'DM Mono', monospace; }
+    .gene-product { font-size: 10px; color: #9ca3af; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+    .pg-row { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f3f3f3; margin-top: auto; }
+    .pg-btn { font-size: 10px; color: #9ca3af; border: 1px solid #e5e7eb; padding: 3px 8px; border-radius: 5px; }
+    .pg-count { font-size: 10px; color: #ccc; font-family: 'DM Mono', monospace; }
+
+    /* ── RIGHT: Detail panel ── */
+    .detail-panel {
+      padding: 0;
+      overflow-y: auto;
+    }
+
+    /* Empty state */
+    .detail-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #d1d5db;
+      gap: 8px;
+    }
+    .detail-empty-icon { font-size: 32px; }
+    .detail-empty-text { font-size: 12px; }
+
+    /* Gene detail header */
+    .detail-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid #f3f3f3;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .detail-af-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid #e5e7eb; flex-shrink: 0; }
+    .detail-gene-name { font-size: 20px; font-weight: 700; color: #111; line-height: 1.15; }
+    .detail-locus { font-size: 10.5px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-top: 2px; }
+    .detail-product { font-size: 12px; color: #555; margin-top: 4px; }
+    .detail-strain-badge {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #16a34a;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 20px;
+      padding: 3px 8px;
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+
+    /* Sections */
+    .detail-section { padding: 14px 24px; border-bottom: 1px solid #f5f5f5; }
+    .section-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #1a6b4a; margin-bottom: 10px; }
+    .prop-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid #fafafa; }
+    .prop-label { font-size: 10.5px; color: #9ca3af; width: 120px; flex-shrink: 0; }
+    .prop-value { font-size: 10.5px; color: #333; }
+    .prop-link { font-size: 10.5px; color: #1a6b4a; }
+
+    /* Expression bars */
+    .expr-bars { display: flex; align-items: flex-end; gap: 5px; height: 44px; margin-top: 8px; }
+    .expr-bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+    .expr-bar { width: 100%; background: #93c5fd; border-radius: 2px 2px 0 0; }
+    .expr-label { font-size: 8px; color: #9ca3af; }
+
+    /* Orthologs */
+    .ortholog-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0; border-bottom: 1px solid #fafafa; cursor: pointer;
+    }
+    .orth-bar { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; }
+    .orth-name { font-size: 10.5px; font-weight: 600; }
+    .orth-locus { font-size: 9.5px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-left: 3px; }
+  </style>
+</head>
+<body>
+
+  <div class="page-title">Genomes — Desktop layout</div>
+  <div class="page-sub">Split pane: strain switcher + gene list on the left, gene detail on the right. The right panel updates when you select a gene — no page navigation needed on desktop.</div>
+
+  <!-- ── MOCKUP: EMPTY STATE (no gene selected) ── -->
+  <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">State 1 — No gene selected</div>
+  <div class="frame">
+    <div class="ca-nav">
+      <div class="ca-nav-logo">ChlamAtlas</div>
+      <div class="ca-nav-tabs">
+        <div class="ca-nav-tab active">Genomes</div>
+        <div class="ca-nav-tab">Mutants</div>
+      </div>
+      <div class="ca-nav-right">Sign in</div>
+    </div>
+    <div class="split-body">
+      <!-- List panel -->
+      <div class="list-panel">
+        <div class="strain-switcher">
+          <span class="strain-tab active">C. trachomatis L2/434</span>
+          <span class="strain-tab">D/UW-3</span>
+          <span class="strain-tab">C. muridarum</span>
+        </div>
+        <div class="search-wrap">
+          <div class="search-mock">🔍 Search genes, locus tags, products…</div>
+        </div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">tarp</span><span class="gene-locus">CTL0008</span></div><div class="gene-product">Translocated actin-recruiting phosphoprotein</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><div class="gene-thumb gene-thumb-empty">⬡</div><div><div><span class="gene-unnamed">CTL0012</span></div><div class="gene-product">Hypothetical protein</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">incA</span><span class="gene-locus">CTL0021</span></div><div class="gene-product">Inclusion membrane protein A</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">incB</span><span class="gene-locus">CTL0022</span></div><div class="gene-product">Inclusion membrane protein B</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><div class="gene-thumb gene-thumb-empty">⬡</div><div><div><span class="gene-unnamed">CTL0031</span></div><div class="gene-product">Hypothetical protein</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">sycE</span><span class="gene-locus">CTL0040</span></div><div class="gene-product">Type III secretion chaperone</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">copB</span><span class="gene-locus">CTL0058</span></div><div class="gene-product">Type III secretion outer membrane protein B</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="pg-row">
+          <div class="pg-btn">← Prev</div>
+          <div class="pg-count">1–50 of 895</div>
+          <div class="pg-btn">Next →</div>
+        </div>
+      </div>
+      <!-- Detail: empty state -->
+      <div class="detail-panel">
+        <div class="detail-empty">
+          <div class="detail-empty-icon">🧬</div>
+          <div class="detail-empty-text">Select a gene to view details</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MOCKUP: GENE SELECTED ── -->
+  <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">State 2 — Gene selected (tarp)</div>
+  <div class="frame">
+    <div class="ca-nav">
+      <div class="ca-nav-logo">ChlamAtlas</div>
+      <div class="ca-nav-tabs">
+        <div class="ca-nav-tab active">Genomes</div>
+        <div class="ca-nav-tab">Mutants</div>
+      </div>
+      <div class="ca-nav-right">Sign in</div>
+    </div>
+    <div class="split-body">
+      <!-- List panel -->
+      <div class="list-panel">
+        <div class="strain-switcher">
+          <span class="strain-tab active">C. trachomatis L2/434</span>
+          <span class="strain-tab">D/UW-3</span>
+          <span class="strain-tab">C. muridarum</span>
+        </div>
+        <div class="search-wrap">
+          <div class="search-mock">🔍 Search genes, locus tags, products…</div>
+        </div>
+        <div class="gene-row selected"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">tarp</span><span class="gene-locus">CTL0008</span></div><div class="gene-product">Translocated actin-recruiting phosphoprotein</div></div><span style="color:#16a34a;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><div class="gene-thumb gene-thumb-empty">⬡</div><div><div><span class="gene-unnamed">CTL0012</span></div><div class="gene-product">Hypothetical protein</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">incA</span><span class="gene-locus">CTL0021</span></div><div class="gene-product">Inclusion membrane protein A</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">incB</span><span class="gene-locus">CTL0022</span></div><div class="gene-product">Inclusion membrane protein B</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><div class="gene-thumb gene-thumb-empty">⬡</div><div><div><span class="gene-unnamed">CTL0031</span></div><div class="gene-product">Hypothetical protein</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">sycE</span><span class="gene-locus">CTL0040</span></div><div class="gene-product">Type III secretion chaperone</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="gene-row"><img class="gene-thumb" src="https://placehold.co/30x30/dcfce7/16a34a?text=α" /><div><div><span class="gene-name">copB</span><span class="gene-locus">CTL0058</span></div><div class="gene-product">Type III secretion outer membrane protein B</div></div><span style="color:#ddd;margin-left:auto;font-size:12px;">›</span></div>
+        <div class="pg-row">
+          <div class="pg-btn">← Prev</div>
+          <div class="pg-count">1–50 of 895</div>
+          <div class="pg-btn">Next →</div>
+        </div>
+      </div>
+
+      <!-- Detail: gene content -->
+      <div class="detail-panel" style="overflow-y:auto;">
+        <div class="detail-header">
+          <img class="detail-af-thumb" src="https://placehold.co/56x56/dcfce7/16a34a?text=AF" />
+          <div style="flex:1;">
+            <div class="detail-gene-name">tarp</div>
+            <div class="detail-locus">CTL0008</div>
+            <div class="detail-product">Translocated actin-recruiting phosphoprotein</div>
+          </div>
+          <div class="detail-strain-badge">CT-L2</div>
+        </div>
+
+        <!-- Properties -->
+        <div class="detail-section">
+          <div class="section-label">Gene properties</div>
+          <div class="prop-row"><div class="prop-label">Length</div><div class="prop-value">2,847 bp</div></div>
+          <div class="prop-row"><div class="prop-label">Mass</div><div class="prop-value">108.4 kDa</div></div>
+          <div class="prop-row"><div class="prop-label">Function</div><div class="prop-value">Actin nucleation, host cell invasion</div></div>
+          <div class="prop-row"><div class="prop-label">Location</div><div class="prop-value">Outer membrane / secreted</div></div>
+        </div>
+
+        <!-- Orthologs -->
+        <div class="detail-section">
+          <div class="section-label">Orthologs</div>
+          <div class="ortholog-row">
+            <div class="orth-bar" style="background:#4b2e83;"></div>
+            <div><span class="orth-name" style="color:#4b2e83;">tarp</span><span class="orth-locus">CTD0008</span></div>
+            <span style="color:#ddd;margin-left:auto;font-size:12px;">›</span>
+          </div>
+          <div class="ortholog-row">
+            <div class="orth-bar" style="background:#2563eb;"></div>
+            <div><span class="orth-name" style="color:#2563eb;">tarp</span><span class="orth-locus">TC0415</span></div>
+            <span style="color:#ddd;margin-left:auto;font-size:12px;">›</span>
+          </div>
+        </div>
+
+        <!-- Expression -->
+        <div class="detail-section">
+          <div class="section-label">Expression (microarray)</div>
+          <div class="expr-bars">
+            <div class="expr-bar-wrap"><div class="expr-bar" style="height:28px;"></div><div class="expr-label">T0</div></div>
+            <div class="expr-bar-wrap"><div class="expr-bar" style="height:36px;"></div><div class="expr-label">T1</div></div>
+            <div class="expr-bar-wrap"><div class="expr-bar" style="height:44px;"></div><div class="expr-label">T2</div></div>
+            <div class="expr-bar-wrap"><div class="expr-bar" style="height:40px;"></div><div class="expr-label">T3</div></div>
+            <div class="expr-bar-wrap"><div class="expr-bar" style="height:32px;"></div><div class="expr-label">T4</div></div>
+            <div class="expr-bar-wrap"><div class="expr-bar" style="height:18px;"></div><div class="expr-label">T5</div></div>
+          </div>
+        </div>
+
+        <!-- Structure -->
+        <div class="detail-section">
+          <div class="section-label">AlphaFold Structure</div>
+          <div style="display:flex;gap:12px;align-items:center;">
+            <img src="https://placehold.co/72x72/dcfce7/16a34a?text=AF3" style="border-radius:8px;border:1px solid #e5e7eb;" />
+            <div>
+              <div style="font-size:10.5px;color:#555;margin-bottom:4px;">AlphaFold v3 prediction</div>
+              <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Structural homology: Arp2/3 activator</div>
+              <div style="font-size:10px;color:#1a6b4a;cursor:pointer;">▶ Load 3D viewer</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- External DBs -->
+        <div class="detail-section">
+          <div class="section-label">External databases</div>
+          <div class="prop-row"><div class="prop-label">UniProt</div><div class="prop-value"><span class="prop-link">Q3KLG2 ↗</span></div></div>
+          <div class="prop-row"><div class="prop-label">AlphaFold</div><div class="prop-value"><span class="prop-link">AF-Q3KLG2 ↗</span></div></div>
+          <div class="prop-row"><div class="prop-label">NCBI</div><div class="prop-value"><span class="prop-link">CTL0008 ↗</span></div></div>
+        </div>
+
+        <div style="height:24px;"></div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

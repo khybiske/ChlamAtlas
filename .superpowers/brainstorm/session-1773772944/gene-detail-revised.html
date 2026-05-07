@@ -1,0 +1,190 @@
+<h2>Gene detail — revised layout</h2>
+<p class="subtitle">Header + default view + tab structure. Does this feel right?</p>
+
+<div style="max-width:540px;margin:0 auto;font-family:sans-serif;font-size:12px;">
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+
+    <!-- ═══ HEADER (always visible) ═══ -->
+    <div style="padding:14px 16px 12px;border-bottom:1px solid #f1f5f9;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <!-- AlphaFold thumbnail -->
+        <div style="width:48px;height:48px;background:linear-gradient(135deg,#bfdbfe,#818cf8);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">AF3</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+            <span style="font-size:17px;font-weight:800;color:#1d4ed8;">incA</span>
+            <span style="font-size:11px;color:#94a3b8;font-family:monospace;">CTL0496</span>
+            <span style="background:#dcfce7;color:#166534;font-size:9px;padding:1px 7px;border-radius:10px;font-weight:700;">characterized</span>
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:1px;font-style:italic;">C. trachomatis L2/434</div>
+          <!-- FUNCTIONAL ANNOTATION — prominent -->
+          <div style="margin-top:7px;font-size:12px;color:#1e293b;line-height:1.5;background:#f8fafc;border-left:3px solid #1a6b4a;padding:5px 8px;border-radius:0 4px 4px 0;">
+            Inclusion membrane protein; T3SS effector; localizes to the inclusion membrane during infection. Required for Inc-Inc interaction and inclusion expansion.
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+          <button style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:10px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:700;">✏️ Edit</button>
+          <button style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:10px;padding:4px 8px;border-radius:5px;cursor:pointer;text-align:center;">⭐</button>
+        </div>
+      </div>
+
+      <!-- Compact protein stats (just the essentials) -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px;">
+        <div style="background:#f8fafc;border-radius:5px;padding:5px 6px;">
+          <div style="color:#94a3b8;font-size:9px;">Mass</div>
+          <div style="font-weight:700;font-size:12px;color:#1e293b;">38.4 kDa</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:5px 6px;">
+          <div style="color:#94a3b8;font-size:9px;">Length</div>
+          <div style="font-weight:700;font-size:12px;color:#1e293b;">339 aa</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:5px 6px;">
+          <div style="color:#94a3b8;font-size:9px;">Localization</div>
+          <div style="font-weight:700;font-size:12px;color:#1e293b;">Inc. membrane</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DEFAULT VIEW (no tab click needed) ═══ -->
+    <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+
+      <!-- Orthologs row (quick reference) -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:5px;">ORTHOLOGS</div>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <span style="background:#dbeafe;color:#1d4ed8;font-size:10px;padding:3px 9px;border-radius:5px;font-weight:600;cursor:pointer;">🔵 CT-D · CT_260</span>
+          <span style="background:#fef3c7;color:#92400e;font-size:10px;padding:3px 9px;border-radius:5px;font-weight:600;cursor:pointer;">🟠 CM · TC0372</span>
+          <span style="color:#94a3b8;font-size:10px;margin-left:2px;">→ align in Orthologs tab</span>
+        </div>
+      </div>
+
+      <!-- Expression + proteomics side by side -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;">
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:5px;">TRANSCRIPT EXPRESSION (T0–T5)</div>
+          <div style="display:flex;gap:3px;align-items:flex-end;height:46px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="width:20px;background:#bfdbfe;height:7px;border-radius:2px 2px 0 0;"></div>
+              <div style="font-size:7px;color:#94a3b8;">T0</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="width:20px;background:#93c5fd;height:14px;border-radius:2px 2px 0 0;"></div>
+              <div style="font-size:7px;color:#94a3b8;">T1</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="width:20px;background:#60a5fa;height:24px;border-radius:2px 2px 0 0;"></div>
+              <div style="font-size:7px;color:#94a3b8;">T2</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="width:20px;background:#3b82f6;height:34px;border-radius:2px 2px 0 0;"></div>
+              <div style="font-size:7px;color:#94a3b8;">T3</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="width:20px;background:#1d4ed8;height:44px;border-radius:2px 2px 0 0;"></div>
+              <div style="font-size:7px;color:#94a3b8;">T4</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="width:20px;background:#1e40af;height:30px;border-radius:2px 2px 0 0;"></div>
+              <div style="font-size:7px;color:#94a3b8;">T5</div>
+            </div>
+          </div>
+        </div>
+        <!-- EB/RB proteomics -->
+        <div style="background:#f8fafc;border-radius:6px;padding:8px 10px;min-width:120px;">
+          <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:6px;">PROTEOMICS</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;">EB</span>
+              <span style="background:#fef9c3;color:#854d0e;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;">Low</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;">RB</span>
+              <span style="background:#dcfce7;color:#166534;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;">High</span>
+            </div>
+            <div style="border-top:1px solid #e2e8f0;padding-top:4px;margin-top:1px;">
+              <div style="font-size:9px;color:#94a3b8;">Enriched in</div>
+              <div style="font-size:10px;font-weight:700;color:#7c3aed;">RB ↑</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TABS ═══ -->
+    <div style="display:flex;background:#fafafa;border-bottom:1px solid #e2e8f0;overflow-x:auto;">
+      <div style="padding:8px 14px;font-size:11px;font-weight:700;color:#1a6b4a;border-bottom:2px solid #1a6b4a;white-space:nowrap;cursor:pointer;">🧊 Structure</div>
+      <div style="padding:8px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">🔗 Orthologs</div>
+      <div style="padding:8px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">🧬 Sequences</div>
+      <div style="padding:8px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">🔬 Mutants <span style="background:#fee2e2;color:#dc2626;border-radius:8px;padding:1px 5px;font-size:9px;">3</span></div>
+      <div style="padding:8px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">📝 Annotations</div>
+    </div>
+
+    <!-- Structure tab content (shown as active) -->
+    <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:8px;">STRUCTURE TAB (active)</div>
+
+      <!-- Source selector -->
+      <div style="display:flex;gap:4px;margin-bottom:8px;">
+        <button style="background:#1a6b4a;color:white;font-size:9px;padding:3px 9px;border-radius:4px;border:none;font-weight:600;">AF v3 (lab) ✓</button>
+        <button style="background:#f1f5f9;color:#64748b;font-size:9px;padding:3px 9px;border-radius:4px;border:none;">AF v2 (DB)</button>
+        <button style="background:#f1f5f9;color:#94a3b8;font-size:9px;padding:3px 9px;border-radius:4px;border:none;cursor:not-allowed;">PDB: none</button>
+      </div>
+
+      <!-- Inline 3D viewer placeholder -->
+      <div style="background:linear-gradient(135deg,#1e3a5f,#312e81);border-radius:8px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;margin-bottom:8px;">
+        <div style="color:rgba(255,255,255,0.5);font-size:10px;">[ Mol* 3D viewer loads here ]</div>
+        <div style="color:rgba(255,255,255,0.3);font-size:9px;">Rotate · Zoom · Reset</div>
+      </div>
+
+      <!-- Structure details + TM info (moved here from header) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:10px;">
+        <div style="background:#f8fafc;border-radius:5px;padding:6px;">
+          <div style="color:#94a3b8;font-size:9px;margin-bottom:2px;">Top homolog</div>
+          <div style="font-weight:600;color:#1e293b;">Outer membrane channel</div>
+          <div style="color:#64748b;font-size:9px;">Score: 0.82 · OmpA family</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:6px;">
+          <div style="color:#94a3b8;font-size:9px;margin-bottom:2px;">TM · Signal peptide</div>
+          <div style="font-weight:600;color:#1e293b;">2 TM domains</div>
+          <div style="color:#64748b;font-size:9px;">Signal peptide: No</div>
+        </div>
+      </div>
+
+      <!-- Downloads + external links for structure -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button style="background:#fff;border:1px solid #e2e8f0;color:#374151;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;">⬇ Download mmCIF</button>
+        <a style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:9px;padding:3px 8px;border-radius:4px;text-decoration:none;">AlphaFold DB ↗</a>
+        <a style="background:#f8fafc;border:1px solid #e2e8f0;color:#94a3b8;font-size:9px;padding:3px 8px;border-radius:4px;text-decoration:none;">PDB ↗</a>
+      </div>
+    </div>
+
+    <!-- Orthologs alignment tab preview -->
+    <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;background:#fafffe;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:6px;">ORTHOLOGS TAB — alignment view</div>
+      <div style="font-size:10px;color:#64748b;margin-bottom:6px;">Select sequences to align:</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px;">
+        <label style="display:flex;align-items:center;gap:3px;font-size:10px;"><input type="checkbox" checked/> CT-L2 incA</label>
+        <label style="display:flex;align-items:center;gap:3px;font-size:10px;"><input type="checkbox" checked/> CT-D CT_260</label>
+        <label style="display:flex;align-items:center;gap:3px;font-size:10px;"><input type="checkbox" checked/> CM TC0372</label>
+        <div style="display:flex;gap:3px;margin-left:auto;">
+          <button style="background:#f1f5f9;border:1px solid #e2e8f0;font-size:9px;padding:2px 7px;border-radius:4px;cursor:pointer;">AA</button>
+          <button style="background:#1a6b4a;color:white;border:none;font-size:9px;padding:2px 7px;border-radius:4px;cursor:pointer;">▶ Align</button>
+        </div>
+      </div>
+      <div style="background:#1e293b;border-radius:5px;padding:7px;font-family:monospace;font-size:8px;color:#94a3b8;line-height:1.7;">
+        <span style="color:#60a5fa;">CT-L2 </span><span style="color:#86efac;">MSDQIAKALL</span><span style="color:#fde68a;">NKSGD</span><span style="color:#86efac;">VFSDST</span>--<span style="color:#86efac;">TQANQ</span><br/>
+        <span style="color:#93c5fd;">CT-D  </span><span style="color:#86efac;">MSDQIAKALL</span><span style="color:#fde68a;">NKSGD</span><span style="color:#86efac;">VFSDST</span><span style="color:#fca5a5;">AA</span><span style="color:#86efac;">TQANQ</span><br/>
+        <span style="color:#fdba74;">CM    </span><span style="color:#86efac;">MSDQI</span><span style="color:#fca5a5;">T</span><span style="color:#86efac;">KALL</span><span style="color:#fde68a;">NKAGD</span><span style="color:#86efac;">VFSDST</span>--<span style="color:#86efac;">TQANQ</span>
+      </div>
+    </div>
+
+    <!-- Footer with minor external links -->
+    <div style="padding:8px 16px;background:#f8fafc;display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:#94a3b8;">External:</span>
+      <a style="font-size:9px;color:#94a3b8;text-decoration:none;">UniProt ↗</a>
+      <a style="font-size:9px;color:#94a3b8;text-decoration:none;">NCBI ↗</a>
+      <a style="font-size:9px;color:#94a3b8;text-decoration:none;">STRING ↗</a>
+    </div>
+
+  </div>
+  <p style="font-size:11px;color:#94a3b8;margin-top:12px;text-align:center;">Confirm or flag any changes in the terminal.</p>
+</div>

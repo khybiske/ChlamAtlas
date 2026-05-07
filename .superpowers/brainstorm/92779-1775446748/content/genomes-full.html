@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genomes — Full Design</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: #f0f2f4; color: #111; padding: 20px 16px 56px; }
+
+    h2 { font-size: 15px; font-weight: 700; color: #222; margin-bottom: 4px; }
+    .sub { font-size: 12px; color: #888; margin-bottom: 24px; line-height: 1.5; }
+    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin: 28px 0 8px; }
+
+    .frame { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 8px; }
+
+    /* Nav */
+    .ca-nav { background: #0f4530; padding: 0 20px; height: 44px; display: flex; align-items: center; justify-content: space-between; }
+    .ca-nav-logo { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 18px; color: white; }
+    .ca-nav-tabs { display: flex; gap: 2px; }
+    .ca-nav-tab { padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.55); }
+    .ca-nav-tab.active { color: white; background: rgba(255,255,255,0.18); }
+    .ca-nav-right { font-size: 11px; color: rgba(255,255,255,0.75); border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 6px; }
+
+    /* Split pane */
+    .split { display: grid; grid-template-columns: 300px 1fr; min-height: 500px; }
+
+    /* List panel */
+    .list-panel { border-right: 1px solid #ececec; display: flex; flex-direction: column; }
+    .strain-tabs { display: flex; border-bottom: 1px solid #efefef; padding: 8px 12px 0; }
+    .stab { font-size: 9.5px; font-weight: 600; color: #9ca3af; padding: 4px 7px 7px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
+    .stab.active { color: #16a34a; border-bottom-color: #16a34a; }
+    .search-bar { padding: 7px 10px; border-bottom: 1px solid #f3f3f3; }
+    .search-input { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 7px; padding: 5px 10px; font-size: 10.5px; color: #9ca3af; width: 100%; }
+
+    /* Filter toolbar */
+    .filter-bar { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-bottom: 1px solid #f0f0f0; background: #fafafa; flex-wrap: wrap; }
+    .sort-btn { font-size: 9.5px; font-weight: 500; color: #555; background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 3px 7px; white-space: nowrap; }
+    .fchip { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 20px; border: 1px solid #e5e7eb; color: #9ca3af; background: white; white-space: nowrap; }
+    .fchip.on { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .more-btn { font-size: 9px; font-weight: 600; color: #9ca3af; background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 2px 7px; margin-left: auto; }
+    .result-ct { font-size: 9px; color: #bbb; font-family: 'DM Mono', monospace; padding: 3px 12px 4px; border-bottom: 1px solid #f5f5f5; }
+
+    /* Gene rows */
+    .gene-scroll { overflow-y: auto; flex: 1; }
+    .gene-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid #f7f7f7; cursor: pointer; transition: background 0.1s; }
+    .gene-row:hover { background: #fafafa; }
+    .gene-row.sel { background: #f0fdf4; border-left: 2px solid #16a34a; padding-left: 10px; }
+    .gthumb { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; object-fit: cover; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #d1d5db; }
+    .gname { font-size: 10.5px; font-weight: 600; color: #16a34a; }
+    .glocus { font-size: 9px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-left: 3px; }
+    .gunnamed { font-size: 10px; font-weight: 500; color: #fca5a5; font-family: 'DM Mono', monospace; }
+    .gprod { font-size: 9.5px; color: #9ca3af; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+    .gstar { font-size: 11px; flex-shrink: 0; }
+    .gstar.y { color: #f59e0b; }
+    .gstar.n { color: #e5e7eb; }
+    .gchev { font-size: 11px; color: #ddd; flex-shrink: 0; margin-left: 2px; }
+
+    /* Detail panel */
+    .detail-panel { display: flex; flex-direction: column; overflow-y: auto; }
+    .detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #d1d5db; gap: 6px; }
+    .detail-empty svg { opacity: 0.3; }
+
+    .detail-hdr { padding: 18px 20px 14px; border-bottom: 1px solid #f3f3f3; display: flex; gap: 12px; align-items: flex-start; }
+    .daf { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; border: 1px solid #e5e7eb; flex-shrink: 0; }
+    .dgene { font-size: 19px; font-weight: 700; color: #111; line-height: 1.15; }
+    .dlocus { font-size: 10px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-top: 2px; }
+    .dprod { font-size: 11.5px; color: #555; margin-top: 4px; line-height: 1.4; }
+    .dbadge { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 20px; padding: 2px 7px; white-space: nowrap; align-self: flex-start; margin-left: auto; }
+    .dfav { font-size: 16px; color: #f59e0b; align-self: flex-start; margin-left: 6px; cursor: pointer; }
+
+    .dsec { padding: 11px 20px; border-bottom: 1px solid #f5f5f5; }
+    .dslabel { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #1a6b4a; margin-bottom: 8px; }
+    .drow { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px solid #fafafa; }
+    .dlabel { font-size: 10px; color: #9ca3af; width: 110px; flex-shrink: 0; }
+    .dval { font-size: 10px; color: #333; }
+    .dlink { font-size: 10px; color: #1a6b4a; }
+
+    .orth-row { display: flex; align-items: center; gap: 7px; padding: 4px 0; border-bottom: 1px solid #fafafa; cursor: pointer; }
+    .orth-bar { width: 3px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+    .orth-name { font-size: 10px; font-weight: 600; }
+    .orth-locus { font-size: 9px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-left: 3px; }
+
+    .expr-wrap { display: flex; align-items: flex-end; gap: 4px; height: 40px; margin-top: 6px; }
+    .ebar-col { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+    .ebar { width: 100%; background: #93c5fd; border-radius: 2px 2px 0 0; }
+    .elabel { font-size: 7.5px; color: #9ca3af; }
+
+    .struct-row { display: flex; gap: 10px; align-items: center; }
+    .sthumb { width: 60px; height: 60px; border-radius: 8px; border: 1px solid #e5e7eb; object-fit: cover; }
+    .load3d { font-size: 9.5px; color: #1a6b4a; cursor: pointer; margin-top: 4px; }
+
+    /* ── Mobile frame ── */
+    .mobile-frame { width: 320px; margin: 0 auto; }
+    .mob-nav { background: #0f4530; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-radius: 10px 10px 0 0; }
+    .mob-logo { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 16px; color: white; }
+    .mob-signin { font-size: 10px; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 5px; }
+    .mob-body { background: white; border-radius: 0 0 10px 10px; overflow: hidden; }
+    .mob-strain-tabs { display: flex; border-bottom: 1px solid #efefef; padding: 7px 10px 0; gap: 2px; }
+    .mob-stab { font-size: 9px; font-weight: 600; color: #9ca3af; padding: 3px 6px 6px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .mob-stab.active { color: #16a34a; border-bottom-color: #16a34a; }
+    .mob-search { padding: 6px 10px; border-bottom: 1px solid #f3f3f3; }
+    .mob-search-input { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 7px; padding: 5px 9px; font-size: 10px; color: #9ca3af; width: 100%; }
+    .mob-filter-bar { display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-bottom: 1px solid #f0f0f0; background: #fafafa; overflow-x: auto; }
+    .mob-fchip { font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 20px; border: 1px solid #e5e7eb; color: #9ca3af; background: white; white-space: nowrap; flex-shrink: 0; }
+    .mob-fchip.on { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .mob-sort { font-size: 8.5px; font-weight: 500; color: #555; background: white; border: 1px solid #e0e0e0; border-radius: 5px; padding: 2px 6px; white-space: nowrap; flex-shrink: 0; }
+    .mob-gene { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-bottom: 1px solid #f7f7f7; }
+    .mob-gthumb { width: 26px; height: 26px; border-radius: 5px; flex-shrink: 0; object-fit: cover; }
+    .mob-gname { font-size: 10px; font-weight: 600; color: #16a34a; }
+    .mob-glocus { font-size: 8.5px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-left: 3px; }
+    .mob-gprod { font-size: 9px; color: #9ca3af; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .mob-gstar { font-size: 10px; flex-shrink: 0; }
+    .mob-bnav { display: flex; background: white; border-top: 1px solid #efefef; height: 48px; }
+    .mob-btab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    .mob-btab.active .mob-btab-icon { background: #dcfce7; border-radius: 8px; padding: 3px 10px; }
+    .mob-btab-icon { font-size: 14px; padding: 3px 10px; }
+    .mob-btab-label { font-size: 8.5px; color: #9ca3af; }
+    .mob-btab.active .mob-btab-label { color: #1a6b4a; }
+  </style>
+</head>
+<body>
+
+  <h2>Genomes tab — Full design</h2>
+  <div class="sub">Desktop split-pane and mobile layouts. This is the pattern that Mutants will mirror.</div>
+
+  <!-- ════════════════════════════
+       DESKTOP — Gene selected
+  ════════════════════════════ -->
+  <div class="section-title">Desktop — gene selected (tarp)</div>
+  <div class="frame">
+    <div class="ca-nav">
+      <div class="ca-nav-logo">ChlamAtlas</div>
+      <div class="ca-nav-tabs">
+        <div class="ca-nav-tab">Home</div>
+        <div class="ca-nav-tab active">Genomes</div>
+        <div class="ca-nav-tab">Mutants</div>
+      </div>
+      <div class="ca-nav-right">Hello, Kevin</div>
+    </div>
+    <div class="split">
+      <!-- List panel -->
+      <div class="list-panel">
+        <div class="strain-tabs">
+          <div class="stab active">CT L2/434</div>
+          <div class="stab">CT D/UW-3</div>
+          <div class="stab">CM</div>
+        </div>
+        <div class="search-bar">
+          <div class="search-input">🔍 Search genes, locus tags, products…</div>
+        </div>
+        <div class="filter-bar">
+          <div class="sort-btn">⇅ Locus tag</div>
+          <div class="fchip on">★ Favorites</div>
+          <div class="fchip">Characterized</div>
+          <div class="fchip">Inc</div>
+          <div class="more-btn">+ More</div>
+        </div>
+        <div class="result-ct">895 genes</div>
+        <div class="gene-scroll">
+          <div class="gene-row sel">
+            <img class="gthumb" src="https://placehold.co/28x28/dcfce7/16a34a?text=α" />
+            <div style="flex:1;min-width:0;"><div><span class="gname">tarp</span><span class="glocus">CTL0008</span></div><div class="gprod">Translocated actin-recruiting phosphoprotein</div></div>
+            <span class="gstar y">★</span><span class="gchev">›</span>
+          </div>
+          <div class="gene-row">
+            <div class="gthumb">⬡</div>
+            <div style="flex:1;min-width:0;"><div><span class="gunnamed">CTL0012</span></div><div class="gprod">Hypothetical protein</div></div>
+            <span class="gstar n">☆</span><span class="gchev">›</span>
+          </div>
+          <div class="gene-row">
+            <img class="gthumb" src="https://placehold.co/28x28/dcfce7/16a34a?text=α" />
+            <div style="flex:1;min-width:0;"><div><span class="gname">incA</span><span class="glocus">CTL0021</span></div><div class="gprod">Inclusion membrane protein A</div></div>
+            <span class="gstar n">☆</span><span class="gchev">›</span>
+          </div>
+          <div class="gene-row">
+            <img class="gthumb" src="https://placehold.co/28x28/dcfce7/16a34a?text=α" />
+            <div style="flex:1;min-width:0;"><div><span class="gname">incB</span><span class="glocus">CTL0022</span></div><div class="gprod">Inclusion membrane protein B</div></div>
+            <span class="gstar y">★</span><span class="gchev">›</span>
+          </div>
+          <div class="gene-row">
+            <div class="gthumb">⬡</div>
+            <div style="flex:1;min-width:0;"><div><span class="gunnamed">CTL0031</span></div><div class="gprod">Hypothetical protein</div></div>
+            <span class="gstar n">☆</span><span class="gchev">›</span>
+          </div>
+          <div class="gene-row">
+            <img class="gthumb" src="https://placehold.co/28x28/dcfce7/16a34a?text=α" />
+            <div style="flex:1;min-width:0;"><div><span class="gname">sycE</span><span class="glocus">CTL0040</span></div><div class="gprod">Type III secretion chaperone</div></div>
+            <span class="gstar n">☆</span><span class="gchev">›</span>
+          </div>
+          <div class="gene-row">
+            <img class="gthumb" src="https://placehold.co/28x28/dcfce7/16a34a?text=α" />
+            <div style="flex:1;min-width:0;"><div><span class="gname">copB</span><span class="glocus">CTL0058</span></div><div class="gprod">Type III secretion outer membrane protein B</div></div>
+            <span class="gstar n">☆</span><span class="gchev">›</span>
+          </div>
+          <div style="padding:8px 12px;font-size:9px;color:#ddd;text-align:center;font-family:'DM Mono',monospace;">↓ scroll</div>
+        </div>
+      </div>
+
+      <!-- Detail panel -->
+      <div class="detail-panel">
+        <div class="detail-hdr">
+          <img class="daf" src="https://placehold.co/52x52/dcfce7/16a34a?text=AF3" />
+          <div style="flex:1;">
+            <div class="dgene">tarp</div>
+            <div class="dlocus">CTL0008</div>
+            <div class="dprod">Translocated actin-recruiting phosphoprotein</div>
+          </div>
+          <div class="dbadge">CT-L2</div>
+          <div class="dfav">★</div>
+        </div>
+
+        <div class="dsec">
+          <div class="dslabel">Gene properties</div>
+          <div class="drow"><div class="dlabel">Length</div><div class="dval">2,847 bp · 108.4 kDa</div></div>
+          <div class="drow"><div class="dlabel">Function</div><div class="dval">Actin nucleation, host cell invasion</div></div>
+          <div class="drow"><div class="dlabel">Location</div><div class="dval">Outer membrane / secreted</div></div>
+          <div class="drow"><div class="dlabel">Inc protein</div><div class="dval">No</div></div>
+        </div>
+
+        <div class="dsec">
+          <div class="dslabel">Orthologs</div>
+          <div class="orth-row"><div class="orth-bar" style="background:#4b2e83;"></div><div><span class="orth-name" style="color:#4b2e83;">tarp</span><span class="orth-locus">CTD0008</span></div><span style="color:#ddd;margin-left:auto;font-size:11px;">›</span></div>
+          <div class="orth-row"><div class="orth-bar" style="background:#2563eb;"></div><div><span class="orth-name" style="color:#2563eb;">tarp</span><span class="orth-locus">TC0415</span></div><span style="color:#ddd;margin-left:auto;font-size:11px;">›</span></div>
+        </div>
+
+        <div class="dsec">
+          <div class="dslabel">Expression (microarray)</div>
+          <div class="expr-wrap">
+            <div class="ebar-col"><div class="ebar" style="height:22px;"></div><div class="elabel">T0</div></div>
+            <div class="ebar-col"><div class="ebar" style="height:30px;"></div><div class="elabel">T1</div></div>
+            <div class="ebar-col"><div class="ebar" style="height:38px;"></div><div class="elabel">T2</div></div>
+            <div class="ebar-col"><div class="ebar" style="height:34px;"></div><div class="elabel">T3</div></div>
+            <div class="ebar-col"><div class="ebar" style="height:26px;"></div><div class="elabel">T4</div></div>
+            <div class="ebar-col"><div class="ebar" style="height:14px;"></div><div class="elabel">T5</div></div>
+          </div>
+        </div>
+
+        <div class="dsec">
+          <div class="dslabel">AlphaFold structure</div>
+          <div class="struct-row">
+            <img class="sthumb" src="https://placehold.co/60x60/dcfce7/16a34a?text=AF3" />
+            <div>
+              <div style="font-size:10px;color:#555;">AlphaFold v3 prediction</div>
+              <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;">Structural homology: Arp2/3 activator</div>
+              <div class="load3d">▶ Load 3D viewer</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dsec">
+          <div class="dslabel">External databases</div>
+          <div class="drow"><div class="dlabel">UniProt</div><div class="dval"><span class="dlink">Q3KLG2 ↗</span></div></div>
+          <div class="drow"><div class="dlabel">AlphaFold DB</div><div class="dval"><span class="dlink">AF-Q3KLG2 ↗</span></div></div>
+          <div class="drow"><div class="dlabel">NCBI</div><div class="dval"><span class="dlink">CTL0008 ↗</span></div></div>
+        </div>
+
+        <div style="height:20px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════
+       MOBILE
+  ════════════════════════════ -->
+  <div class="section-title">Mobile — gene list</div>
+  <div class="mobile-frame">
+    <div class="frame" style="border-radius:10px;">
+      <div class="mob-nav">
+        <div class="mob-logo">ChlamAtlas</div>
+        <div class="mob-signin">Hello, Kevin</div>
+      </div>
+      <div class="mob-body">
+        <div class="mob-strain-tabs">
+          <div class="mob-stab active">CT L2/434</div>
+          <div class="mob-stab">CT D/UW-3</div>
+          <div class="mob-stab">CM</div>
+        </div>
+        <div class="mob-search">
+          <div class="mob-search-input">🔍 Search…</div>
+        </div>
+        <div class="mob-filter-bar">
+          <div class="mob-sort">⇅ Locus tag</div>
+          <div class="mob-fchip on">★ Fav</div>
+          <div class="mob-fchip">Characterized</div>
+          <div class="mob-fchip">Inc</div>
+          <div class="mob-fchip">+ More</div>
+        </div>
+        <div style="font-size:8.5px;color:#bbb;padding:3px 10px 3px;font-family:'DM Mono',monospace;">895 genes</div>
+        <div class="mob-gene">
+          <img class="mob-gthumb" src="https://placehold.co/26x26/dcfce7/16a34a?text=α" />
+          <div style="flex:1;min-width:0;"><div><span class="mob-gname">tarp</span><span class="mob-glocus">CTL0008</span></div><div class="mob-gprod">Translocated actin-recruiting phosphoprotein</div></div>
+          <span class="mob-gstar" style="color:#f59e0b;">★</span>
+          <span style="font-size:11px;color:#ddd;">›</span>
+        </div>
+        <div class="mob-gene">
+          <div class="mob-gthumb" style="width:26px;height:26px;border-radius:5px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:10px;color:#d1d5db;">⬡</div>
+          <div style="flex:1;min-width:0;"><div><span style="font-size:9.5px;font-weight:500;color:#fca5a5;font-family:'DM Mono',monospace;">CTL0012</span></div><div class="mob-gprod">Hypothetical protein</div></div>
+          <span class="mob-gstar" style="color:#e5e7eb;">☆</span>
+          <span style="font-size:11px;color:#ddd;">›</span>
+        </div>
+        <div class="mob-gene">
+          <img class="mob-gthumb" src="https://placehold.co/26x26/dcfce7/16a34a?text=α" />
+          <div style="flex:1;min-width:0;"><div><span class="mob-gname">incA</span><span class="mob-glocus">CTL0021</span></div><div class="mob-gprod">Inclusion membrane protein A</div></div>
+          <span class="mob-gstar" style="color:#e5e7eb;">☆</span>
+          <span style="font-size:11px;color:#ddd;">›</span>
+        </div>
+        <div class="mob-gene">
+          <img class="mob-gthumb" src="https://placehold.co/26x26/dcfce7/16a34a?text=α" />
+          <div style="flex:1;min-width:0;"><div><span class="mob-gname">incB</span><span class="mob-glocus">CTL0022</span></div><div class="mob-gprod">Inclusion membrane protein B</div></div>
+          <span class="mob-gstar" style="color:#f59e0b;">★</span>
+          <span style="font-size:11px;color:#ddd;">›</span>
+        </div>
+        <div class="mob-gene">
+          <img class="mob-gthumb" src="https://placehold.co/26x26/dcfce7/16a34a?text=α" />
+          <div style="flex:1;min-width:0;"><div><span class="mob-gname">sycE</span><span class="mob-glocus">CTL0040</span></div><div class="mob-gprod">Type III secretion chaperone</div></div>
+          <span class="mob-gstar" style="color:#e5e7eb;">☆</span>
+          <span style="font-size:11px;color:#ddd;">›</span>
+        </div>
+        <div style="padding:6px 10px;font-size:8.5px;color:#ddd;text-align:center;">↓ scroll for more</div>
+        <div class="mob-bnav">
+          <div class="mob-btab">
+            <div class="mob-btab-icon">🏠</div>
+            <div class="mob-btab-label">Home</div>
+          </div>
+          <div class="mob-btab active">
+            <div class="mob-btab-icon">🧬</div>
+            <div class="mob-btab-label" style="color:#1a6b4a;">Genomes</div>
+          </div>
+          <div class="mob-btab">
+            <div class="mob-btab-icon">🔬</div>
+            <div class="mob-btab-label">Mutants</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:10px;color:#aaa;text-align:center;margin-top:6px;max-width:320px;margin-left:auto;margin-right:auto;">On mobile, tapping a gene opens a full-page detail view (back button returns to list)</div>
+
+</body>
+</html>

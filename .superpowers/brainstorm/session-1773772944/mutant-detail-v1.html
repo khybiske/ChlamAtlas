@@ -1,0 +1,184 @@
+<h2>Mutant detail panel — v1</h2>
+<p class="subtitle">Full layout proposal. React to any section — especially the gene graphic and tab structure.</p>
+
+<div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;">
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+
+  <!-- ═══ HEADER ═══ -->
+  <div style="padding:14px 16px 12px;border-bottom:1px solid #f1f5f9;">
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+      <div style="flex:1;min-width:0;">
+        <!-- Target gene(s) as headline -->
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+          <span style="font-size:17px;font-weight:800;color:#1e293b;font-family:'SF Mono',monospace;">CTL0496</span>
+          <span style="font-size:17px;font-weight:800;color:#1d4ed8;">incA</span>
+          <span style="background:#fce7f3;color:#9d174d;font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700;">KO</span>
+        </div>
+        <!-- Mutant ID + strain below -->
+        <div style="font-size:11px;color:#64748b;margin-top:3px;">
+          <span style="font-family:'SF Mono',monospace;font-weight:600;color:#374151;">YW082</span>
+          <span style="color:#cbd5e1;margin:0 5px;">·</span>
+          <span style="font-style:italic;">C. trachomatis</span> L2/434
+          <span style="color:#cbd5e1;margin:0 5px;">·</span>
+          <span style="color:#64748b;">Creator: Yibing Wang</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;padding-top:2px;">
+        <button style="background:none;border:none;cursor:pointer;padding:3px;color:#94a3b8;display:flex;" title="Edit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button style="background:none;border:none;cursor:pointer;padding:3px;color:#94a3b8;display:flex;" title="Favorite">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Pipeline pills — with stage labels here (more space than list) -->
+    <div style="margin-top:10px;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Pipeline progress</div>
+      <div style="display:flex;gap:3px;align-items:center;">
+        <div style="text-align:center;">
+          <div style="width:28px;height:10px;background:#22c55e;border-radius:2px;"></div>
+          <div style="font-size:7px;color:#22c55e;margin-top:2px;font-weight:600;">Tf</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:28px;height:10px;background:#22c55e;border-radius:2px;"></div>
+          <div style="font-size:7px;color:#22c55e;margin-top:2px;font-weight:600;">Cl</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:28px;height:10px;background:#22c55e;border-radius:2px;"></div>
+          <div style="font-size:7px;color:#22c55e;margin-top:2px;font-weight:600;">Gt</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:28px;height:10px;background:#f59e0b;border-radius:2px;"></div>
+          <div style="font-size:7px;color:#f59e0b;margin-top:2px;font-weight:600;">IV</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:28px;height:10px;background:#e2e8f0;border-radius:2px;"></div>
+          <div style="font-size:7px;color:#94a3b8;margin-top:2px;">IO</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="width:28px;height:10px;background:#e2e8f0;border-radius:2px;"></div>
+          <div style="font-size:7px;color:#94a3b8;margin-top:2px;">Sq</div>
+        </div>
+        <div style="margin-left:8px;font-size:10px;color:#64748b;font-style:italic;">Currently: in vitro screening</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ GENE GRAPHIC ═══ -->
+  <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;background:#fafcff;">
+    <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Gene locus · deletion graphic</div>
+
+    <!-- Wild type -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <div style="font-size:9px;color:#94a3b8;width:24px;flex-shrink:0;text-align:right;">WT</div>
+      <div style="flex:1;position:relative;height:20px;">
+        <!-- chromosome line -->
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#cbd5e1;transform:translateY(-50%);"></div>
+        <!-- flanking genes (left) -->
+        <div style="position:absolute;left:0;top:3px;width:40px;height:14px;background:#cbd5e1;clip-path:polygon(0 18%,84% 18%,100% 50%,84% 82%,0 82%);"></div>
+        <!-- target gene (CTL0496 incA) — teal, named -->
+        <div style="position:absolute;left:48px;top:1px;width:80px;height:18px;background:#0d9488;clip-path:polygon(0 15%,83% 15%,100% 50%,83% 85%,0 85%);"></div>
+        <div style="position:absolute;left:48px;top:-9px;font-size:8px;font-weight:700;color:#0d6e4e;white-space:nowrap;">CTL0496 incA</div>
+        <!-- flanking gene (right) -->
+        <div style="position:absolute;right:0;top:3px;width:40px;height:14px;background:#cbd5e1;clip-path:polygon(0 18%,84% 18%,100% 50%,84% 82%,0 82%);"></div>
+      </div>
+    </div>
+
+    <!-- Mutant (KO — gene replaced with resistance cassette) -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="font-size:9px;color:#9d174d;width:24px;flex-shrink:0;text-align:right;font-weight:600;">KO</div>
+      <div style="flex:1;position:relative;height:20px;margin-top:8px;">
+        <!-- chromosome line -->
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#cbd5e1;transform:translateY(-50%);"></div>
+        <!-- flanking gene left (same) -->
+        <div style="position:absolute;left:0;top:3px;width:40px;height:14px;background:#cbd5e1;clip-path:polygon(0 18%,84% 18%,100% 50%,84% 82%,0 82%);"></div>
+        <!-- Resistance cassette (replacing incA) — distinct style -->
+        <div style="position:absolute;left:48px;top:1px;width:80px;height:18px;background:#fca5a5;border:1.5px solid #dc2626;border-radius:3px;display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:7px;font-weight:700;color:#dc2626;">bla · mCherry</span>
+        </div>
+        <!-- flanking gene right (same) -->
+        <div style="position:absolute;right:0;top:3px;width:40px;height:14px;background:#cbd5e1;clip-path:polygon(0 18%,84% 18%,100% 50%,84% 82%,0 82%);"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:10px;font-size:9px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:3px;color:#94a3b8;"><span style="width:10px;height:6px;background:#0d9488;border-radius:1px;display:inline-block;"></span>Target gene</span>
+      <span style="display:flex;align-items:center;gap:3px;color:#94a3b8;"><span style="width:10px;height:6px;background:#fca5a5;border:1px solid #dc2626;border-radius:1px;display:inline-block;"></span>Resistance cassette</span>
+      <span style="display:flex;align-items:center;gap:3px;color:#94a3b8;"><span style="width:10px;height:6px;background:#cbd5e1;border-radius:1px;display:inline-block;"></span>Flanking genes</span>
+    </div>
+  </div>
+
+  <!-- ═══ TABS ═══ -->
+  <div style="display:flex;background:#fff;border-bottom:2px solid #f1f5f9;overflow-x:auto;">
+    <div style="padding:9px 14px;font-size:11px;font-weight:700;color:#1a6b4a;border-bottom:2px solid #1a6b4a;white-space:nowrap;cursor:pointer;margin-bottom:-2px;">Overview</div>
+    <div style="padding:9px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">Genotyping</div>
+    <div style="padding:9px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">In vitro</div>
+    <div style="padding:9px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">In vivo</div>
+    <div style="padding:9px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">Pipeline</div>
+    <div style="padding:9px 14px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">Publications</div>
+  </div>
+
+  <!-- ═══ OVERVIEW TAB ═══ -->
+  <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+
+    <!-- Target genes -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Target genes</div>
+      <div style="background:#f8fafc;border-radius:6px;padding:8px 10px;">
+        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+          <div style="width:28px;height:28px;background:linear-gradient(135deg,#bfdbfe,#818cf8);border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;color:white;font-weight:700;">AF3</div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#1e293b;font-family:'SF Mono',monospace;">CTL0496 <span style="color:#1d4ed8;">incA</span></div>
+            <div style="font-size:9px;color:#64748b;">Inclusion membrane protein A · Inc. membrane protein</div>
+          </div>
+          <div style="margin-left:auto;font-size:9px;color:#1d4ed8;">→ view gene</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recombinant info -->
+    <div>
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Recombinant info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;">
+        <div style="background:#f8fafc;border-radius:5px;padding:6px 8px;">
+          <div style="font-size:9px;color:#94a3b8;margin-bottom:1px;">Plasmid</div>
+          <div style="font-weight:600;color:#1e293b;">pYW110</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:6px 8px;">
+          <div style="font-size:9px;color:#94a3b8;margin-bottom:1px;">Resistance marker</div>
+          <div style="font-weight:600;color:#1e293b;">bla (ampR)</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:6px 8px;">
+          <div style="font-size:9px;color:#94a3b8;margin-bottom:1px;">Fluorescent marker</div>
+          <div style="font-weight:600;color:#1e293b;">mCherry</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:6px 8px;">
+          <div style="font-size:9px;color:#94a3b8;margin-bottom:1px;">Stocks available at</div>
+          <div style="font-weight:600;color:#1e293b;">UW (Hybiske), KU (Hefty)</div>
+        </div>
+      </div>
+      <div style="background:#f8fafc;border-radius:5px;padding:6px 8px;margin-top:4px;font-size:11px;">
+        <div style="font-size:9px;color:#94a3b8;margin-bottom:1px;">Notes</div>
+        <div style="color:#374151;">Needs to go into mice ASAP! Strong in vitro growth defect observed.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHIMERA NOTE -->
+  <div style="padding:10px 16px;background:#faf5ff;border-top:1px solid #e9d5ff;">
+    <div style="font-size:9px;color:#7e22ce;font-weight:700;margin-bottom:3px;">For chimera mutants — chromosome locus view replaces gene graphic</div>
+    <div style="font-size:9px;color:#9333ea;line-height:1.5;">The full-width chromosome diagram (like your AppSheet view) shows the recombined region: L2 backbone in blue, CM-derived segment in orange, with gene-by-gene annotations. Genes gained (no L2 ortholog) and lost (no CM ortholog) highlighted distinctly.</div>
+  </div>
+
+  <!-- Footer -->
+  <div style="padding:7px 16px;background:#f8fafc;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span style="font-size:9px;color:#94a3b8;">Publicly available: <strong style="color:#374151;">Yes</strong></span>
+    <span style="color:#e2e8f0;margin:0 4px;">·</span>
+    <span style="font-size:9px;color:#94a3b8;">Last edited: <strong style="color:#374151;">2026-03-10</strong> by Kevin</span>
+  </div>
+
+</div>
+</div>

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Layout Options</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1a6b4a; --green-dark: #0f4530; --green-light: #e8f5ef; --green-faint: #f0faf5;
+    --ink: #111827; --ink-2: #374151; --muted: #6b7280; --muted-light: #9ca3af;
+    --border: #e5e7eb; --border-light: #f3f4f6; --cream: #f8f9fb;
+    --stage-tf: #7c3aed; --stage-cl: #0891b2; --stage-gt: #1a6b4a;
+    --stage-iv: #d97706; --stage-ov: #dc2626; --stage-sq: #475569;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #f1f3f5; color: var(--ink); padding: 28px; }
+  h2 { font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .subtitle { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .option { margin-bottom: 48px; }
+  .option-label {
+    font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 10px;
+  }
+
+  /* shared pill */
+  .pill {
+    display: inline-block; width: 20px; height: 9px; border-radius: 2px; flex-shrink: 0;
+  }
+  .p-done   { background: #22c55e; }
+  .p-active { background: #f59e0b; }
+  .p-skip   { background: #e2e8f0; }
+
+  /* mutation type badges */
+  .badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; }
+  .ko   { background: #fce7f3; color: #9d174d; }
+  .tn   { background: #dbeafe; color: #1e40af; }
+  .chim { background: #ede9fe; color: #5b21b6; }
+  .kd   { background: #fef3c7; color: #92400e; }
+
+  /* stage dot chip */
+  .stage-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+  }
+  .stage-chip .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ═══════════════════════════════════════════════════════════
+     OPTION A — Stage-grouped accordion list
+  ═══════════════════════════════════════════════════════════ */
+  .option-a { max-width: 680px; }
+
+  .stage-group { background: white; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .stage-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .stage-header:hover { background: var(--border-light); }
+  .stage-indicator { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .stage-name { font-size: 13px; font-weight: 600; color: var(--ink); flex: 1; }
+  .stage-count {
+    font-size: 11px; font-weight: 600; color: white;
+    background: var(--muted); border-radius: 10px;
+    padding: 1px 8px; min-width: 24px; text-align: center;
+  }
+  .stage-count.active-count { background: var(--green); }
+  .stage-expand { color: var(--muted-light); font-size: 11px; }
+
+  .stage-rows { border-top: 1px solid var(--border-light); }
+  .mutant-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border-light);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .mutant-row:last-child { border-bottom: none; }
+  .mutant-row:hover { background: var(--green-faint); }
+  .mutant-id { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; color: var(--ink); width: 56px; flex-shrink: 0; }
+  .mutant-gene { font-size: 12px; flex: 1; min-width: 0; }
+  .mutant-gene .locus { font-family: 'DM Mono', monospace; color: var(--ink-2); font-size: 11px; }
+  .mutant-gene .gname { color: #1d4ed8; font-weight: 600; }
+  .mutant-pills { display: flex; gap: 3px; flex-shrink: 0; }
+  .mutant-lab { font-size: 10px; color: var(--muted-light); width: 40px; text-align: right; flex-shrink: 0; }
+
+  /* ═══════════════════════════════════════════════════════════
+     OPTION B — Kanban columns
+  ═══════════════════════════════════════════════════════════ */
+  .kanban-wrap { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .kanban-col {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    width: 180px; flex-shrink: 0; overflow: hidden;
+  }
+  .kanban-col-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .kanban-col-name { font-size: 11px; font-weight: 700; color: var(--ink); }
+  .kanban-col-count { font-size: 10px; font-weight: 600; color: var(--muted); background: var(--border-light); padding: 1px 6px; border-radius: 8px; }
+  .kanban-top-bar { height: 3px; }
+  .kanban-card {
+    padding: 9px 12px; border-bottom: 1px solid var(--border-light);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .kanban-card:last-child { border-bottom: none; }
+  .kanban-card:hover { background: var(--green-faint); }
+  .kanban-card-id { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted-light); margin-bottom: 3px; }
+  .kanban-card-gene { font-size: 12px; }
+  .kanban-card-gene .locus { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink-2); }
+  .kanban-card-gene .gname { color: #1d4ed8; font-weight: 600; }
+  .kanban-card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
+  .kanban-lab { font-size: 9px; font-weight: 600; color: var(--muted-light); }
+
+  /* ═══════════════════════════════════════════════════════════
+     OPTION C — Full table with stage summary header
+  ═══════════════════════════════════════════════════════════ */
+  .option-c { max-width: 840px; }
+
+  .pipeline-summary {
+    display: flex; gap: 0; background: white;
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; margin-bottom: 14px;
+  }
+  .summary-stage {
+    flex: 1; padding: 12px 14px;
+    border-right: 1px solid var(--border-light);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .summary-stage:last-child { border-right: none; }
+  .summary-stage:hover { background: var(--green-faint); }
+  .summary-stage.current { background: var(--green-faint); border-bottom: 2px solid var(--green); }
+  .ss-bar { height: 4px; border-radius: 2px; margin-bottom: 7px; }
+  .ss-n { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; color: var(--ink); line-height: 1; margin-bottom: 2px; }
+  .ss-label { font-size: 10px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .table-toolbar {
+    display: flex; align-items: center; gap: 10px;
+    background: white; border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    padding: 10px 14px;
+  }
+  .toolbar-search {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--border-light); border-radius: 6px; padding: 5px 10px;
+    font-size: 12px; color: var(--muted); flex: 1; max-width: 220px;
+  }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 500; color: var(--ink-2);
+    background: var(--border-light); border: 1px solid var(--border);
+    border-radius: 5px; padding: 4px 10px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .filter-chip:hover { background: var(--green-faint); border-color: var(--green); color: var(--green); }
+  .filter-chip.active { background: var(--green-faint); border-color: var(--green); color: var(--green); }
+
+  .pipeline-table { width: 100%; border-collapse: collapse; background: white; font-size: 12px; border: 1px solid var(--border); border-radius: 0 0 10px 10px; overflow: hidden; }
+  .pipeline-table thead { background: var(--border-light); }
+  .pipeline-table th { padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; }
+  .pipeline-table th:hover { color: var(--green); }
+  .pipeline-table td { padding: 9px 12px; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+  .pipeline-table tr:last-child td { border-bottom: none; }
+  .pipeline-table tr:hover td { background: var(--green-faint); cursor: pointer; }
+  .td-id { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .td-gene { white-space: nowrap; }
+  .td-gene .locus { font-family: 'DM Mono', monospace; color: var(--ink-2); font-size: 11px; }
+  .td-gene .gname { color: #1d4ed8; font-weight: 600; }
+  .td-pills { display: flex; gap: 3px; }
+  .td-stage .stage-chip { font-size: 10px; }
+  .td-lab { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .td-date { font-size: 11px; color: var(--muted-light); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<h2>Pipeline tab — 3 layout options</h2>
+<p class="subtitle">All show the same data. Which approach fits how you think about the pipeline?</p>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     OPTION A — Stage-grouped accordion
+═══════════════════════════════════════════════════════════════ -->
+<div class="option">
+  <div class="option-label">Option A &nbsp;—&nbsp; Stage-grouped list</div>
+  <div class="option-a">
+
+    <!-- Transformation -->
+    <div class="stage-group">
+      <div class="stage-header">
+        <div class="stage-indicator" style="background:#7c3aed;"></div>
+        <div class="stage-name">Transformation</div>
+        <span class="stage-count">3</span>
+        <span class="stage-expand">▾</span>
+      </div>
+      <div class="stage-rows">
+        <div class="mutant-row">
+          <span class="mutant-id">KH042</span>
+          <div class="mutant-gene"><span class="locus">CTL0240</span> <span class="gname">tarp</span></div>
+          <span class="badge ko">KO</span>
+          <div class="mutant-pills">
+            <span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </div>
+          <span class="mutant-lab">UW</span>
+        </div>
+        <div class="mutant-row">
+          <span class="mutant-id">KH043</span>
+          <div class="mutant-gene"><span class="locus">CTL0091</span> <span class="gname">—</span></div>
+          <span class="badge tn">Tn</span>
+          <div class="mutant-pills">
+            <span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </div>
+          <span class="mutant-lab">UW</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plaque Cloning -->
+    <div class="stage-group">
+      <div class="stage-header">
+        <div class="stage-indicator" style="background:#0891b2;"></div>
+        <div class="stage-name">Plaque Cloning</div>
+        <span class="stage-count">5</span>
+        <span class="stage-expand">▾</span>
+      </div>
+      <div class="stage-rows">
+        <div class="mutant-row">
+          <span class="mutant-id">YW091</span>
+          <div class="mutant-gene"><span class="locus">CTL0582</span> <span class="gname">copN</span></div>
+          <span class="badge ko">KO</span>
+          <div class="mutant-pills">
+            <span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </div>
+          <span class="mutant-lab">UW</span>
+        </div>
+        <div class="mutant-row">
+          <span class="mutant-id">KH040</span>
+          <div class="mutant-gene"><span class="locus">CTL0313</span> <span class="gname">—</span></div>
+          <span class="badge chim">Chim</span>
+          <div class="mutant-pills">
+            <span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </div>
+          <span class="mutant-lab">UW</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- In vitro screening — active stage shown expanded, highlighted -->
+    <div class="stage-group" style="border-color:#d97706;box-shadow:0 0 0 1px #d97706;">
+      <div class="stage-header" style="background:#fffbeb;">
+        <div class="stage-indicator" style="background:#d97706;"></div>
+        <div class="stage-name">In Vitro Screening</div>
+        <span class="stage-count active-count">8</span>
+        <span class="stage-expand" style="color:#d97706;">▾ active</span>
+      </div>
+      <div class="stage-rows">
+        <div class="mutant-row">
+          <span class="mutant-id">YW082</span>
+          <div class="mutant-gene"><span class="locus">CTL0496</span> <span class="gname">incA</span></div>
+          <span class="badge ko">KO</span>
+          <div class="mutant-pills">
+            <span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </div>
+          <span class="mutant-lab">KU</span>
+        </div>
+        <div class="mutant-row">
+          <span class="mutant-id">KH001</span>
+          <div class="mutant-gene"><span class="locus">CTL0397</span> <span class="gname">scc4</span></div>
+          <span class="badge ko">KO</span>
+          <div class="mutant-pills">
+            <span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </div>
+          <span class="mutant-lab">KU</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- In vivo -->
+    <div class="stage-group">
+      <div class="stage-header">
+        <div class="stage-indicator" style="background:#dc2626;"></div>
+        <div class="stage-name">In Vivo Screening</div>
+        <span class="stage-count">4</span>
+        <span class="stage-expand">▾</span>
+      </div>
+    </div>
+
+    <!-- Sequencing -->
+    <div class="stage-group">
+      <div class="stage-header">
+        <div class="stage-indicator" style="background:#475569;"></div>
+        <div class="stage-name">Whole-Genome Sequencing</div>
+        <span class="stage-count">12</span>
+        <span class="stage-expand">▾</span>
+      </div>
+    </div>
+
+    <div style="font-size:10px;color:#94a3b8;margin-top:8px;line-height:1.6;">
+      Pills: <span style="display:inline-block;width:14px;height:6px;background:#22c55e;border-radius:1px;vertical-align:middle;"></span> done &nbsp;
+      <span style="display:inline-block;width:14px;height:6px;background:#f59e0b;border-radius:1px;vertical-align:middle;"></span> in progress &nbsp;
+      <span style="display:inline-block;width:14px;height:6px;background:#e2e8f0;border-radius:1px;vertical-align:middle;"></span> not started &nbsp;·&nbsp; Tf · Cl · Gt · IV · OV · Sq
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     OPTION B — Kanban board
+═══════════════════════════════════════════════════════════════ -->
+<div class="option">
+  <div class="option-label">Option B &nbsp;—&nbsp; Kanban board (stage as column)</div>
+  <div class="kanban-wrap">
+
+    <div class="kanban-col">
+      <div class="kanban-top-bar" style="background:#7c3aed;"></div>
+      <div class="kanban-col-header">
+        <span class="kanban-col-name">Transform</span>
+        <span class="kanban-col-count">3</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">KH042</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0240</span> <span class="gname">tarp</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">UW</span></div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">KH043</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0091</span></div>
+        <div class="kanban-card-meta"><span class="badge tn">Tn</span><span class="kanban-lab">UW</span></div>
+      </div>
+    </div>
+
+    <div class="kanban-col">
+      <div class="kanban-top-bar" style="background:#0891b2;"></div>
+      <div class="kanban-col-header">
+        <span class="kanban-col-name">Clone</span>
+        <span class="kanban-col-count">5</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">YW091</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0582</span> <span class="gname">copN</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">UW</span></div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">KH040</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0313</span></div>
+        <div class="kanban-card-meta"><span class="badge chim">Chim</span><span class="kanban-lab">UW</span></div>
+      </div>
+    </div>
+
+    <div class="kanban-col">
+      <div class="kanban-top-bar" style="background:#1a6b4a;"></div>
+      <div class="kanban-col-header">
+        <span class="kanban-col-name">Genotype</span>
+        <span class="kanban-col-count">6</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">YW088</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0261</span> <span class="gname">ftsZ</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">UW</span></div>
+      </div>
+    </div>
+
+    <div class="kanban-col" style="border-color:#d97706;box-shadow:0 0 0 1px #d97706;">
+      <div class="kanban-top-bar" style="background:#d97706;"></div>
+      <div class="kanban-col-header" style="background:#fffbeb;">
+        <span class="kanban-col-name">In Vitro</span>
+        <span class="kanban-col-count" style="background:#fef3c7;color:#92400e;">8</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">YW082</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0496</span> <span class="gname">incA</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">KU</span></div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">KH001</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0397</span> <span class="gname">scc4</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">KU</span></div>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">KH035</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0511</span> <span class="gname">incG</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">KU</span></div>
+      </div>
+    </div>
+
+    <div class="kanban-col">
+      <div class="kanban-top-bar" style="background:#dc2626;"></div>
+      <div class="kanban-col-header">
+        <span class="kanban-col-name">In Vivo</span>
+        <span class="kanban-col-count">4</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">YW064</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0180</span> <span class="gname">incD</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">KU</span></div>
+      </div>
+    </div>
+
+    <div class="kanban-col">
+      <div class="kanban-top-bar" style="background:#475569;"></div>
+      <div class="kanban-col-header">
+        <span class="kanban-col-name">Sequencing</span>
+        <span class="kanban-col-count">12</span>
+      </div>
+      <div class="kanban-card">
+        <div class="kanban-card-id">KH021</div>
+        <div class="kanban-card-gene"><span class="locus">CTL0106</span> <span class="gname">incF</span></div>
+        <div class="kanban-card-meta"><span class="badge ko">KO</span><span class="kanban-lab">OSU</span></div>
+      </div>
+    </div>
+
+  </div>
+  <div style="font-size:10px;color:#94a3b8;margin-top:8px;">Cards can be filtered by lab (UW / KU / OSU) · Current active stage is highlighted amber</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     OPTION C — Stage summary header + filterable table
+═══════════════════════════════════════════════════════════════ -->
+<div class="option">
+  <div class="option-label">Option C &nbsp;—&nbsp; Summary header + filterable table (recommended)</div>
+  <div class="option-c">
+
+    <!-- Stage summary bar — click to filter -->
+    <div class="pipeline-summary">
+      <div class="summary-stage">
+        <div class="ss-bar" style="background:#7c3aed;"></div>
+        <div class="ss-n">3</div>
+        <div class="ss-label">Transform</div>
+      </div>
+      <div class="summary-stage">
+        <div class="ss-bar" style="background:#0891b2;"></div>
+        <div class="ss-n">5</div>
+        <div class="ss-label">Clone</div>
+      </div>
+      <div class="summary-stage">
+        <div class="ss-bar" style="background:#1a6b4a;"></div>
+        <div class="ss-n">6</div>
+        <div class="ss-label">Genotype</div>
+      </div>
+      <div class="summary-stage current">
+        <div class="ss-bar" style="background:#d97706;"></div>
+        <div class="ss-n" style="color:#d97706;">8</div>
+        <div class="ss-label" style="color:#d97706;">In Vitro</div>
+      </div>
+      <div class="summary-stage">
+        <div class="ss-bar" style="background:#dc2626;"></div>
+        <div class="ss-n">4</div>
+        <div class="ss-label">In Vivo</div>
+      </div>
+      <div class="summary-stage">
+        <div class="ss-bar" style="background:#475569;"></div>
+        <div class="ss-n">12</div>
+        <div class="ss-label">Sequencing</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="table-toolbar">
+      <div class="toolbar-search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Filter by gene, mutant ID…
+      </div>
+      <span class="filter-chip active">
+        In Vitro
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </span>
+      <span class="filter-chip">Lab: KU</span>
+      <span class="filter-chip">Type: KO</span>
+      <div style="margin-left:auto;font-size:11px;color:#94a3b8;">8 of 38 mutants</div>
+    </div>
+
+    <!-- Table -->
+    <table class="pipeline-table">
+      <thead>
+        <tr>
+          <th>Mutant ↕</th>
+          <th>Target gene ↕</th>
+          <th>Type</th>
+          <th>Progress</th>
+          <th>Stage ↕</th>
+          <th>Lab</th>
+          <th>Last update ↕</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-id">YW082</td>
+          <td class="td-gene"><span class="locus">CTL0496</span> <span class="gname">incA</span></td>
+          <td><span class="badge ko">KO</span></td>
+          <td class="td-pills">
+            <span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </td>
+          <td class="td-stage"><span class="stage-chip" style="background:#fffbeb;color:#d97706;"><span class="dot" style="background:#d97706;"></span>In Vitro</span></td>
+          <td class="td-lab">KU</td>
+          <td class="td-date">Mar 14</td>
+        </tr>
+        <tr>
+          <td class="td-id">KH001</td>
+          <td class="td-gene"><span class="locus">CTL0397</span> <span class="gname">scc4</span></td>
+          <td><span class="badge ko">KO</span></td>
+          <td class="td-pills">
+            <span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </td>
+          <td class="td-stage"><span class="stage-chip" style="background:#fffbeb;color:#d97706;"><span class="dot" style="background:#d97706;"></span>In Vitro</span></td>
+          <td class="td-lab">KU</td>
+          <td class="td-date">Mar 12</td>
+        </tr>
+        <tr>
+          <td class="td-id">KH035</td>
+          <td class="td-gene"><span class="locus">CTL0511</span> <span class="gname">incG</span></td>
+          <td><span class="badge ko">KO</span></td>
+          <td class="td-pills">
+            <span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </td>
+          <td class="td-stage"><span class="stage-chip" style="background:#fffbeb;color:#d97706;"><span class="dot" style="background:#d97706;"></span>In Vitro</span></td>
+          <td class="td-lab">KU</td>
+          <td class="td-date">Mar 10</td>
+        </tr>
+        <tr>
+          <td class="td-id">YW077</td>
+          <td class="td-gene"><span class="locus">CTL0388</span> <span class="gname">incI</span></td>
+          <td><span class="badge ko">KO</span></td>
+          <td class="td-pills">
+            <span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-active"></span><span class="pill p-skip"></span><span class="pill p-skip"></span>
+          </td>
+          <td class="td-stage"><span class="stage-chip" style="background:#fffbeb;color:#d97706;"><span class="dot" style="background:#d97706;"></span>In Vitro</span></td>
+          <td class="td-lab">UW</td>
+          <td class="td-date">Mar 8</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-size:10px;color:#94a3b8;margin-top:8px;line-height:1.7;">
+      · Click any stage in the summary bar to filter the table to that stage<br>
+      · Column headers are sortable<br>
+      · Clicking a row opens the mutant detail panel (same as from Mutants tab)<br>
+      · Filter chips are combinable (stage + lab + type)
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

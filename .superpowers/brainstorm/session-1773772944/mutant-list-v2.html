@@ -1,0 +1,112 @@
+<h2>Mutant list rows — v2</h2>
+<p class="subtitle">Gene-first, locus+name format, rectangular pipeline pills, no phenotype badges.</p>
+
+<div style="max-width:420px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;">
+
+  <p style="font-size:10px;color:#94a3b8;margin-bottom:10px;text-align:center;">Pipeline pills: <span style="background:#22c55e;color:white;font-size:8px;padding:1px 5px;border-radius:2px;">Tf</span> Transform &nbsp; <span style="background:#22c55e;color:white;font-size:8px;padding:1px 5px;border-radius:2px;">Cl</span> Clone &nbsp; <span style="background:#22c55e;color:white;font-size:8px;padding:1px 5px;border-radius:2px;">Gt</span> Genotype &nbsp; <span style="background:#f59e0b;color:white;font-size:8px;padding:1px 5px;border-radius:2px;">IV</span> In vitro &nbsp; <span style="background:#e2e8f0;color:#94a3b8;font-size:8px;padding:1px 5px;border-radius:2px;">IO</span> In vivo &nbsp; <span style="background:#e2e8f0;color:#94a3b8;font-size:8px;padding:1px 5px;border-radius:2px;">Sq</span> Sequenced</p>
+
+  <!-- KO, single named gene -->
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:#1e293b;font-family:'SF Mono',monospace;letter-spacing:-0.01em;">CTL0496</span>
+        <span style="font-size:13px;font-weight:700;color:#1d4ed8;">incA</span>
+        <span style="background:#fce7f3;color:#9d174d;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:700;">KO</span>
+      </div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:2px;">YW082 · CT-L2</div>
+    </div>
+    <!-- Rectangular pipeline pills -->
+    <div style="display:flex;gap:2px;flex-shrink:0;">
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;" title="Transformed">Tf</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;" title="Cloned">Cl</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;" title="Genotyped">Gt</div>
+      <div style="background:#f59e0b;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;" title="In vitro — in progress">IV</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;" title="In vivo — not started">IO</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;" title="Sequencing — not started">Sq</div>
+    </div>
+  </div>
+
+  <!-- KO, multi-gene -->
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:#1e293b;font-family:'SF Mono',monospace;">CTL0397</span>
+        <span style="font-size:13px;font-weight:700;color:#1d4ed8;">scc4</span>
+        <span style="font-size:11px;color:#94a3b8;">+ 3 genes</span>
+        <span style="background:#fce7f3;color:#9d174d;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:700;">KO</span>
+      </div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:2px;">KH001 · CT-L2</div>
+    </div>
+    <div style="display:flex;gap:2px;flex-shrink:0;">
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Tf</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Cl</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Gt</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IV</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IO</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Sq</div>
+    </div>
+  </div>
+
+  <!-- Transposon, unnamed gene -->
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:#1e293b;font-family:'SF Mono',monospace;">CTL0530</span>
+        <span style="background:#e0f2fe;color:#0369a1;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:700;">Tn</span>
+      </div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:2px;">YW030 · CT-L2</div>
+    </div>
+    <div style="display:flex;gap:2px;flex-shrink:0;">
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Tf</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Cl</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Gt</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IV</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IO</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Sq</div>
+    </div>
+  </div>
+
+  <!-- Chimera -->
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:#1e293b;font-family:'SF Mono',monospace;">CTL0845–0859</span>
+        <span style="background:#f3e8ff;color:#7e22ce;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:700;">Chimera</span>
+      </div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:2px;">RC6389 · L2 background · 13 genes</div>
+    </div>
+    <div style="display:flex;gap:2px;flex-shrink:0;">
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Tf</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Cl</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Gt</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IV</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IO</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Sq</div>
+    </div>
+  </div>
+
+  <!-- CRISPRi, named gene -->
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:#1e293b;font-family:'SF Mono',monospace;">CTL0261</span>
+        <span style="font-size:13px;font-weight:700;color:#1d4ed8;">ftsZ</span>
+        <span style="background:#fef3c7;color:#92400e;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:700;">CRISPRi</span>
+      </div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:2px;">YW115 · CT-L2</div>
+    </div>
+    <div style="display:flex;gap:2px;flex-shrink:0;">
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Tf</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Cl</div>
+      <div style="background:#22c55e;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Gt</div>
+      <div style="background:#f59e0b;color:white;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IV</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">IO</div>
+      <div style="background:#e2e8f0;color:#94a3b8;font-size:7px;font-weight:700;padding:2px 4px;border-radius:2px;">Sq</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;background:#f8fafc;border-radius:6px;padding:10px 12px;font-size:10px;color:#64748b;line-height:1.6;">
+    <strong>Pipeline pill colors:</strong> Green = complete · Amber = in progress · Gray = not started<br>
+    <strong>Unpublished mutants</strong> (is_published = false) would show a subtle lock icon or muted row styling — only visible to authenticated users anyway via RLS.
+  </div>
+</div>

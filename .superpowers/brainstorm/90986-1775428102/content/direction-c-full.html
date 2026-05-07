@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChlamAtlas — Direction C Full Preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,700;1,400&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: #f0f2f4; color: #111; }
+
+    /* ── Preview label bar ── */
+    .preview-bar {
+      background: #1e1e1e;
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .preview-bar strong { color: white; }
+    .preview-badge { background: #1a6b4a; color: white; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em; }
+
+    /* ── Nav ── */
+    .ca-nav {
+      background: #0f4530;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .ca-nav-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: 22px;
+      color: white;
+      letter-spacing: -0.01em;
+      flex-shrink: 0;
+    }
+    .ca-nav-logo span {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 6px;
+      margin-right: 8px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+    .ca-nav-tabs {
+      display: flex;
+      gap: 2px;
+      flex: 1;
+      justify-content: center;
+    }
+    .ca-nav-tab {
+      padding: 6px 16px;
+      border-radius: 7px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.62);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ca-nav-tab:hover { color: white; background: rgba(255,255,255,0.1); }
+    .ca-nav-tab.active { color: white; background: rgba(255,255,255,0.18); }
+    .ca-nav-right {
+      flex-shrink: 0;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      font-weight: 500;
+    }
+    .ca-nav-signin {
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 5px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ca-nav-signin:hover { background: rgba(255,255,255,0.1); color: white; }
+    .ca-nav-greeting { color: rgba(255,255,255,0.8); font-size: 13px; }
+
+    /* ── Masthead ── */
+    .ca-masthead {
+      background: #0f4530;
+      padding: 52px 0 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ca-masthead::before {
+      content: '';
+      position: absolute;
+      right: -80px; top: -80px;
+      width: 460px; height: 460px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.025);
+    }
+    .ca-masthead::after {
+      content: '';
+      position: absolute;
+      left: -40px; bottom: -60px;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.02);
+    }
+    .ca-masthead-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 40px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 48px;
+      align-items: end;
+      position: relative;
+      z-index: 1;
+    }
+    .ca-mast-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: 68px;
+      color: white;
+      line-height: 1;
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+    .ca-mast-desc {
+      font-size: 15px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.65;
+      max-width: 480px;
+    }
+    .ca-mast-desc em { color: rgba(255,255,255,0.85); font-style: italic; }
+    .ca-mast-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: flex-end;
+    }
+    .ca-mast-stat { text-align: right; }
+    .ca-mast-stat-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 30px;
+      font-weight: 500;
+      color: white;
+      display: block;
+      line-height: 1;
+    }
+    .ca-mast-stat-lbl {
+      font-size: 10px;
+      color: rgba(255,255,255,0.42);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      display: block;
+      margin-top: 3px;
+    }
+
+    /* ── Entry blocks ── */
+    .ca-entries {
+      background: white;
+      border-bottom: 1px solid #ececec;
+    }
+    .ca-entries-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .ca-entry {
+      padding: 28px 32px 26px;
+      border-right: 1px solid #ececec;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .ca-entry:last-child { border-right: none; }
+    .ca-entry:hover { background: #f9fafb; }
+    .ca-entry.disabled { opacity: 0.35; cursor: default; }
+    .ca-entry.disabled:hover { background: white; }
+    .ca-entry-icon { font-size: 26px; margin-bottom: 10px; display: block; }
+    .ca-entry-verb {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: #1a6b4a;
+      margin-bottom: 5px;
+    }
+    .ca-entry-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #111;
+      margin-bottom: 5px;
+    }
+    .ca-entry-meta {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: #bbb;
+    }
+
+    /* ── Lower section ── */
+    .ca-lower {
+      background: white;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 36px 40px 48px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+    }
+    .ca-section-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #1a6b4a;
+      margin-bottom: 14px;
+    }
+
+    /* Organisms */
+    .ca-org {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f3f3;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .ca-org:last-child { border-bottom: none; }
+    .ca-org-bar {
+      width: 4px;
+      height: 40px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .ca-org-info { flex: 1; }
+    .ca-org-sp {
+      font-size: 14px;
+      font-style: italic;
+      color: #222;
+      font-weight: 500;
+    }
+    .ca-org-sub {
+      font-size: 11.5px;
+      color: #bbb;
+      margin-top: 1px;
+    }
+    .ca-org-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: #ccc;
+    }
+    .ca-org-arr {
+      color: #ddd;
+      font-size: 18px;
+    }
+
+    /* Updates */
+    .ca-update {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f3f3f3;
+    }
+    .ca-update:last-child { border-bottom: none; }
+    .ca-update-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .ca-update-text {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.45;
+      flex: 1;
+    }
+    .ca-update-date {
+      font-size: 11px;
+      color: #ccc;
+      white-space: nowrap;
+      padding-left: 10px;
+      margin-top: 1px;
+    }
+
+    /* ── Wrapper for white sections ── */
+    .ca-white-wrap { background: white; }
+  </style>
+</head>
+<body>
+
+  <!-- Preview label -->
+  <div class="preview-bar">
+    <span class="preview-badge">C</span>
+    <strong>Bold Editorial</strong>
+    <span>— Full-page preview. This is a static mockup; interactions are decorative.</span>
+  </div>
+
+  <!-- Nav -->
+  <nav class="ca-nav">
+    <div class="ca-nav-logo">
+      <span></span>ChlamAtlas
+    </div>
+    <div class="ca-nav-tabs">
+      <div class="ca-nav-tab active">Home</div>
+      <div class="ca-nav-tab">Genomes</div>
+      <div class="ca-nav-tab">Mutants</div>
+      <!-- Pipeline hidden for public users -->
+    </div>
+    <div class="ca-nav-right">
+      <!-- Toggle this comment to preview both states -->
+      <div class="ca-nav-signin">Sign in</div>
+      <!-- <div class="ca-nav-greeting">Hello, Kevin</div> -->
+    </div>
+  </nav>
+
+  <!-- Masthead -->
+  <div class="ca-masthead">
+    <div class="ca-masthead-inner">
+      <div>
+        <h1 class="ca-mast-title">ChlamAtlas</h1>
+        <p class="ca-mast-desc">
+          The integrated research database for <em>Chlamydia</em> —
+          genomics, mutant phenotypes, structural biology, and
+          multi-lab pipeline tracking across three model strains.
+        </p>
+      </div>
+      <div class="ca-mast-stats">
+        <div class="ca-mast-stat">
+          <span class="ca-mast-stat-num">1,847</span>
+          <span class="ca-mast-stat-lbl">Genes</span>
+        </div>
+        <div class="ca-mast-stat">
+          <span class="ca-mast-stat-num">500+</span>
+          <span class="ca-mast-stat-lbl">Mutants</span>
+        </div>
+        <div class="ca-mast-stat">
+          <span class="ca-mast-stat-num">3</span>
+          <span class="ca-mast-stat-lbl">Model strains</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entry blocks -->
+  <div class="ca-white-wrap">
+    <div class="ca-entries">
+      <div class="ca-entries-inner">
+        <a class="ca-entry">
+          <span class="ca-entry-icon">🧬</span>
+          <div class="ca-entry-verb">Browse</div>
+          <div class="ca-entry-title">Genomes</div>
+          <div class="ca-entry-meta">1,847 genes · 3 strains</div>
+        </a>
+        <a class="ca-entry">
+          <span class="ca-entry-icon">🔬</span>
+          <div class="ca-entry-verb">Explore</div>
+          <div class="ca-entry-title">Mutants</div>
+          <div class="ca-entry-meta">500+ characterized</div>
+        </a>
+        <a class="ca-entry">
+          <span class="ca-entry-icon">⚗️</span>
+          <div class="ca-entry-verb">Track</div>
+          <div class="ca-entry-title">Pipeline</div>
+          <div class="ca-entry-meta">Multi-lab progress</div>
+        </a>
+        <a class="ca-entry disabled">
+          <span class="ca-entry-icon">🔍</span>
+          <div class="ca-entry-verb">Coming soon</div>
+          <div class="ca-entry-title">Search</div>
+          <div class="ca-entry-meta">Universal search</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Lower: Organisms + Updates -->
+    <div class="ca-lower">
+      <div>
+        <div class="ca-section-label">Model Organisms</div>
+        <div class="ca-org">
+          <div class="ca-org-bar" style="background:#7c3aed;"></div>
+          <div class="ca-org-info">
+            <div class="ca-org-sp">C. trachomatis L2/434</div>
+            <div class="ca-org-sub">CT-L2 · Primary experimental strain</div>
+          </div>
+          <div class="ca-org-count">895 genes</div>
+          <div class="ca-org-arr">›</div>
+        </div>
+        <div class="ca-org">
+          <div class="ca-org-bar" style="background:#1d4ed8;"></div>
+          <div class="ca-org-info">
+            <div class="ca-org-sp">C. trachomatis D/UW-3</div>
+            <div class="ca-org-sub">CT-D · Reference sequenced strain</div>
+          </div>
+          <div class="ca-org-count">894 genes</div>
+          <div class="ca-org-arr">›</div>
+        </div>
+        <div class="ca-org">
+          <div class="ca-org-bar" style="background:#c2410c;"></div>
+          <div class="ca-org-info">
+            <div class="ca-org-sp">C. muridarum Nigg</div>
+            <div class="ca-org-sub">CM · Mouse model strain</div>
+          </div>
+          <div class="ca-org-count">924 genes</div>
+          <div class="ca-org-arr">›</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ca-section-label">Recent Updates</div>
+        <div class="ca-update">
+          <div class="ca-update-dot" style="background:#7c3aed;"></div>
+          <div class="ca-update-text">CT-L2 AlphaFold structures updated to v3 predictions</div>
+          <div class="ca-update-date">Mar 15</div>
+        </div>
+        <div class="ca-update">
+          <div class="ca-update-dot" style="background:#1a6b4a;"></div>
+          <div class="ca-update-text">12 new mutants added to the CT-L2 collection</div>
+          <div class="ca-update-date">Mar 10</div>
+        </div>
+        <div class="ca-update">
+          <div class="ca-update-dot" style="background:#c2410c;"></div>
+          <div class="ca-update-text">C. muridarum genome annotations revised</div>
+          <div class="ca-update-date">Mar 8</div>
+        </div>
+        <div class="ca-update">
+          <div class="ca-update-dot" style="background:#1d4ed8;"></div>
+          <div class="ca-update-text">CT-D ortholog mappings updated across all strains</div>
+          <div class="ca-update-date">Feb 28</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

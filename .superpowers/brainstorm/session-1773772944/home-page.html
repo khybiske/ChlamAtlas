@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChlamAtlas — Home</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+
+  /* Header */
+  .header { background: #1a6b4a; padding: 10px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+  .header-logo { color: white; font-weight: 800; font-size: 16px; letter-spacing: -0.02em; flex-shrink: 0; }
+  .header-nav { display: flex; gap: 2px; }
+  .header-nav a { color: rgba(255,255,255,0.65); font-size: 12px; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-decoration: none; transition: background 0.15s; }
+  .header-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+  .header-nav a.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
+  .header-search { flex: 1; max-width: 360px; background: rgba(255,255,255,0.15); border-radius: 6px; padding: 6px 12px; display: flex; align-items: center; gap: 7px; cursor: text; }
+  .header-search span { font-size: 12px; color: rgba(255,255,255,0.45); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .header-heart { background: none; border: none; cursor: pointer; padding: 4px; color: rgba(255,255,255,0.7); display: flex; }
+  .header-user { display: flex; align-items: center; gap: 6px; }
+  .inst-logo { width: 22px; height: 22px; background: #4b2e83; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; color: #b7a57a; font-style: italic; flex-shrink: 0; }
+  .header-user span { font-size: 11px; color: rgba(255,255,255,0.8); }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #0f4c2e 0%, #1a6b4a 50%, #1e7a54 100%); padding: 56px 24px 48px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+  .hero-eyebrow { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+  .hero-title { font-size: 38px; font-weight: 800; color: white; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 14px; }
+  .hero-title em { font-style: italic; font-weight: 400; color: rgba(255,255,255,0.75); }
+  .hero-sub { font-size: 15px; color: rgba(255,255,255,0.65); max-width: 520px; margin: 0 auto 28px; line-height: 1.6; }
+  .hero-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary { background: white; color: #1a6b4a; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 7px; border: none; cursor: pointer; transition: transform 0.1s; }
+  .btn-primary:hover { transform: translateY(-1px); }
+  .btn-ghost { background: rgba(255,255,255,0.12); color: white; font-size: 13px; font-weight: 600; padding: 10px 22px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
+
+  /* Stats bar */
+  .stats-bar { background: white; border-bottom: 1px solid #f1f5f9; padding: 0 24px; display: flex; justify-content: center; }
+  .stats-inner { display: flex; gap: 0; max-width: 700px; width: 100%; }
+  .stat { flex: 1; padding: 18px 16px; text-align: center; border-right: 1px solid #f1f5f9; }
+  .stat:last-child { border-right: none; }
+  .stat-num { font-size: 26px; font-weight: 800; color: #1a6b4a; letter-spacing: -0.02em; line-height: 1; }
+  .stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; font-weight: 600; }
+
+  /* Main content */
+  .main { max-width: 900px; margin: 0 auto; padding: 36px 24px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* Cards */
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; transition: box-shadow 0.15s; cursor: pointer; }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .card-accent { height: 4px; }
+  .card-body { padding: 16px; }
+  .card-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .card-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+  .card-desc { font-size: 11px; color: #64748b; line-height: 1.5; }
+  .card-meta { font-size: 10px; color: #94a3b8; margin-top: 8px; font-weight: 600; }
+
+  /* Strains section */
+  .strains { grid-column: 1 / -1; }
+  .strains-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .strain-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: box-shadow 0.15s; }
+  .strain-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.07); }
+  .strain-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .strain-info { flex: 1; min-width: 0; }
+  .strain-name { font-size: 12px; font-weight: 700; color: #1e293b; }
+  .strain-sci { font-size: 10px; color: #64748b; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strain-count { font-size: 10px; color: #94a3b8; font-weight: 600; margin-top: 2px; }
+
+  /* Section label -->*/
+  .section-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+
+  /* Recent / updates -->*/
+  .updates { grid-column: span 2; }
+  .update-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .update-item { background: white; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px; }
+  .update-dot { width: 8px; height: 8px; border-radius: 50%; background: #1a6b4a; flex-shrink: 0; margin-top: 4px; }
+  .update-text { font-size: 11px; color: #374151; line-height: 1.5; flex: 1; }
+  .update-date { font-size: 10px; color: #94a3b8; white-space: nowrap; margin-top: 1px; }
+
+  /* Quick links -->*/
+  .quick-links { grid-column: span 1; }
+  .quick-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .quick-item { background: white; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; font-weight: 600; color: #374151; transition: background 0.12s; }
+  .quick-item:hover { background: #f0fdf4; color: #1a6b4a; }
+  .quick-item svg { flex-shrink: 0; }
+
+  /* Cite banner -->*/
+  .cite { grid-column: 1 / -1; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; }
+  .cite-icon { flex-shrink: 0; width: 36px; height: 36px; background: #1d4ed8; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .cite-text { flex: 1; }
+  .cite-title { font-size: 12px; font-weight: 700; color: #1e3a8a; margin-bottom: 2px; }
+  .cite-sub { font-size: 11px; color: #3b82f6; }
+  .cite-btn { background: #1d4ed8; color: white; font-size: 11px; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">ChlamAtlas</div>
+  <nav class="header-nav">
+    <a class="active">Home</a>
+    <a>Genomes</a>
+    <a>Mutants</a>
+  </nav>
+  <div class="header-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Search genes, mutants…</span>
+  </div>
+  <div class="header-right">
+    <button class="header-heart">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </button>
+    <div class="header-user">
+      <div class="inst-logo">W</div>
+      <span>Kevin</span>
+    </div>
+  </div>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-eyebrow">Hybiske Lab · University of Washington</div>
+  <div class="hero-title">The <em>Chlamydia</em><br>research database</div>
+  <div class="hero-sub">Integrated genomic, proteomic, structural, and mutant data for <em>Chlamydia</em> model organisms — built for the research community.</div>
+  <div class="hero-actions">
+    <button class="btn-primary">Browse Genomes</button>
+    <button class="btn-ghost">Explore Mutants</button>
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat">
+      <div class="stat-num">2,687</div>
+      <div class="stat-label">Genes</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">421</div>
+      <div class="stat-label">Mutants</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Strains</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">2,687</div>
+      <div class="stat-label">AF Structures</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Labs</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="main">
+
+  <!-- Strains -->
+  <div class="strains">
+    <div class="section-label">Browse by strain</div>
+    <div class="strains-grid">
+      <div class="strain-card">
+        <div class="strain-dot" style="background:#7c3aed;"></div>
+        <div class="strain-info">
+          <div class="strain-name">CT-L2</div>
+          <div class="strain-sci">C. trachomatis L2/434</div>
+          <div class="strain-count">921 genes · primary strain</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="strain-card">
+        <div class="strain-dot" style="background:#2563eb;"></div>
+        <div class="strain-info">
+          <div class="strain-name">CT-D</div>
+          <div class="strain-sci">C. trachomatis D/UW-3</div>
+          <div class="strain-count">921 genes</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="strain-card">
+        <div class="strain-dot" style="background:#ea580c;"></div>
+        <div class="strain-info">
+          <div class="strain-name">CM</div>
+          <div class="strain-sci">C. muridarum Nigg</div>
+          <div class="strain-count">845 genes</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Updates -->
+  <div class="updates">
+    <div class="section-label">Recent updates</div>
+    <div class="update-list">
+      <div class="update-item">
+        <div class="update-dot"></div>
+        <div class="update-text"><strong>42 new mutants added</strong> to the CT-L2 collection — including 17 Lucky 17 chimeras with full phenotype data.</div>
+        <div class="update-date">Mar 2026</div>
+      </div>
+      <div class="update-item">
+        <div class="update-dot" style="background:#7c3aed;"></div>
+        <div class="update-text"><strong>AlphaFold v3 models</strong> linked for all 921 CT-L2 proteins. Interactive 3D viewer available on all gene pages.</div>
+        <div class="update-date">Feb 2026</div>
+      </div>
+      <div class="update-item">
+        <div class="update-dot" style="background:#ea580c;"></div>
+        <div class="update-text"><strong>C. muridarum</strong> orthologs and expression data integrated. Cross-strain comparison now available.</div>
+        <div class="update-date">Jan 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick links -->
+  <div class="quick-links">
+    <div class="section-label">Quick links</div>
+    <div class="quick-list">
+      <div class="quick-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search all genes
+      </div>
+      <div class="quick-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg>
+        Priority mutants
+      </div>
+      <div class="quick-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Active pipeline
+      </div>
+      <div class="quick-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Publications
+      </div>
+      <div class="quick-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        About ChlamAtlas
+      </div>
+    </div>
+  </div>
+
+  <!-- Citation banner -->
+  <div class="cite">
+    <div class="cite-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </div>
+    <div class="cite-text">
+      <div class="cite-title">If you use ChlamAtlas in your research, please cite us</div>
+      <div class="cite-sub">Hybiske et al. ChlamAtlas: an integrated genomic and mutant resource for Chlamydia research. (manuscript in preparation)</div>
+    </div>
+    <button class="cite-btn">Copy citation</button>
+  </div>
+
+</div>
+
+</body>
+</html>

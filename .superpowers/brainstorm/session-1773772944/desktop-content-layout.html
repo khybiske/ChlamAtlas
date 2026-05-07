@@ -1,0 +1,191 @@
+<h2>Desktop: How does a data tab (Genomes/Mutants) look?</h2>
+<p class="subtitle">You're on the Genomes tab. You've selected C. trachomatis L2. How is the list + detail organized?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="sidebar-list-detail" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:10px;font-family:sans-serif;font-size:11px;">
+      <!-- Top nav bar -->
+      <div style="background:#1a6b4a;color:white;padding:5px 10px;display:flex;align-items:center;gap:10px;border-radius:4px 4px 0 0;font-size:10px;">
+        <span style="font-weight:700;">🦠 ChlamAtlas</span>
+        <span style="background:rgba(255,255,255,0.2);padding:2px 20px;border-radius:10px;flex:0 0 auto;">🔍 Search genes, mutants…</span>
+        <span style="margin-left:auto;opacity:0.7;">Home</span>
+        <span style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:3px;font-weight:600;">Genomes</span>
+        <span style="opacity:0.7;">Mutants</span>
+        <span style="opacity:0.7;">⭐ Favs</span>
+      </div>
+      <!-- Three columns -->
+      <div style="display:flex;min-height:120px;background:#fff;border-radius:0 0 4px 4px;border:1px solid #e2e8f0;border-top:none;">
+        <!-- Strain sidebar -->
+        <div style="width:70px;background:#f8fafc;border-right:1px solid #e2e8f0;padding:6px 4px;display:flex;flex-direction:column;gap:3px;">
+          <div style="font-size:9px;font-weight:700;color:#94a3b8;padding:0 4px;margin-bottom:2px;">STRAIN</div>
+          <div style="background:#e0f2fe;border-radius:3px;padding:3px 5px;font-size:9px;font-weight:600;color:#0369a1;">🟣 CT-L2</div>
+          <div style="padding:3px 5px;font-size:9px;color:#64748b;">🔵 CT-D</div>
+          <div style="padding:3px 5px;font-size:9px;color:#64748b;">🟠 CM</div>
+          <div style="margin-top:6px;font-size:9px;font-weight:700;color:#94a3b8;padding:0 4px;">FILTER</div>
+          <div style="background:#f0fdf4;border-radius:3px;padding:3px 5px;font-size:8px;color:#166534;">Named only</div>
+          <div style="background:#f0fdf4;border-radius:3px;padding:3px 5px;font-size:8px;color:#166534;">Has structure</div>
+        </div>
+        <!-- Gene list -->
+        <div style="width:130px;border-right:1px solid #e2e8f0;padding:5px;">
+          <input style="width:100%;padding:3px 5px;font-size:9px;border:1px solid #e2e8f0;border-radius:3px;margin-bottom:4px;" placeholder="Search genes…" />
+          <div style="background:#dbeafe;border-radius:3px;padding:4px 5px;margin-bottom:2px;display:flex;align-items:center;gap:4px;">
+            <div style="width:18px;height:18px;background:#bfdbfe;border-radius:2px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;font-weight:700;color:#1d4ed8;">incA</div><div style="font-size:8px;color:#64748b;">CTL0496</div></div>
+          </div>
+          <div style="border-radius:3px;padding:4px 5px;margin-bottom:2px;display:flex;align-items:center;gap:4px;">
+            <div style="width:18px;height:18px;background:#f1f5f9;border-radius:2px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;color:#374151;">CTL0497</div><div style="font-size:8px;color:#94a3b8;">Uncharacterized</div></div>
+          </div>
+          <div style="border-radius:3px;padding:4px 5px;display:flex;align-items:center;gap:4px;">
+            <div style="width:18px;height:18px;background:#f1f5f9;border-radius:2px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;color:#374151;">CTL0498</div><div style="font-size:8px;color:#94a3b8;">Uncharacterized</div></div>
+          </div>
+        </div>
+        <!-- Detail panel -->
+        <div style="flex:1;padding:8px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <div style="width:28px;height:28px;background:#bfdbfe;border-radius:4px;flex-shrink:0;"></div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#1d4ed8;">incA <span style="color:#64748b;font-weight:400;font-size:10px;">CTL0496</span></div>
+              <div style="font-size:9px;color:#64748b;">Inclusion membrane protein A</div>
+            </div>
+            <span style="margin-left:auto;font-size:12px;">⭐</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
+            <div style="background:#f8fafc;border-radius:3px;padding:4px;"><span style="color:#94a3b8;">Mass</span><br/><span style="font-weight:600;">38.4 kDa</span></div>
+            <div style="background:#f8fafc;border-radius:3px;padding:4px;"><span style="color:#94a3b8;">Length</span><br/><span style="font-weight:600;">339 aa</span></div>
+          </div>
+          <div style="margin-top:5px;font-size:9px;color:#64748b;font-weight:600;">EXPRESSION T0–T5</div>
+          <div style="display:flex;gap:2px;align-items:flex-end;height:20px;margin-top:2px;">
+            <div style="width:12px;background:#93c5fd;height:4px;border-radius:1px;"></div>
+            <div style="width:12px;background:#93c5fd;height:8px;border-radius:1px;"></div>
+            <div style="width:12px;background:#3b82f6;height:14px;border-radius:1px;"></div>
+            <div style="width:12px;background:#3b82f6;height:18px;border-radius:1px;"></div>
+            <div style="width:12px;background:#1d4ed8;height:20px;border-radius:1px;"></div>
+            <div style="width:12px;background:#1d4ed8;height:16px;border-radius:1px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Three-panel: Strain sidebar + Gene list + Detail</h3>
+      <p>Narrow left sidebar for strain/filter selection. Middle column is the scrollable gene list with AlphaFold thumbnails. Right panel is the full gene detail — all on one screen, nothing hidden. Most efficient for power users.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="list-then-detail" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:10px;font-family:sans-serif;font-size:11px;">
+      <!-- Top nav bar -->
+      <div style="background:#1a6b4a;color:white;padding:5px 10px;display:flex;align-items:center;gap:10px;border-radius:4px 4px 0 0;font-size:10px;">
+        <span style="font-weight:700;">🦠 ChlamAtlas</span>
+        <span style="background:rgba(255,255,255,0.2);padding:2px 20px;border-radius:10px;flex:0 0 auto;">🔍 Search genes, mutants…</span>
+        <span style="margin-left:auto;opacity:0.7;">Home</span>
+        <span style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:3px;font-weight:600;">Genomes</span>
+        <span style="opacity:0.7;">Mutants</span>
+        <span style="opacity:0.7;">⭐ Favs</span>
+      </div>
+      <!-- Strain picker row -->
+      <div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:5px 10px;display:flex;gap:6px;font-size:9px;align-items:center;">
+        <span style="color:#94a3b8;font-size:9px;">Strain:</span>
+        <span style="background:#dbeafe;color:#1d4ed8;font-weight:600;padding:2px 6px;border-radius:10px;">🟣 CT-L2</span>
+        <span style="color:#64748b;padding:2px 6px;">🔵 CT-D</span>
+        <span style="color:#64748b;padding:2px 6px;">🟠 CM</span>
+        <span style="margin-left:auto;color:#64748b;">Filter ▾</span>
+      </div>
+      <!-- Two panels -->
+      <div style="display:flex;min-height:110px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 4px 4px;">
+        <!-- List -->
+        <div style="width:180px;border-right:1px solid #e2e8f0;padding:5px;">
+          <input style="width:100%;padding:3px 5px;font-size:9px;border:1px solid #e2e8f0;border-radius:3px;margin-bottom:4px;" placeholder="Search…" />
+          <div style="background:#dbeafe;border-radius:3px;padding:4px 6px;margin-bottom:2px;display:flex;align-items:center;gap:5px;">
+            <div style="width:22px;height:22px;background:#bfdbfe;border-radius:3px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;font-weight:700;color:#1d4ed8;">incA · CTL0496</div><div style="font-size:8px;color:#64748b;">Inclusion membrane protein A</div></div>
+          </div>
+          <div style="padding:4px 6px;margin-bottom:2px;display:flex;align-items:center;gap:5px;">
+            <div style="width:22px;height:22px;background:#f1f5f9;border-radius:3px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;color:#374151;">CTL0497</div><div style="font-size:8px;color:#94a3b8;">Uncharacterized</div></div>
+          </div>
+          <div style="padding:4px 6px;display:flex;align-items:center;gap:5px;">
+            <div style="width:22px;height:22px;background:#f1f5f9;border-radius:3px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;color:#374151;">CTL0498</div><div style="font-size:8px;color:#94a3b8;">Uncharacterized</div></div>
+          </div>
+        </div>
+        <!-- Detail -->
+        <div style="flex:1;padding:8px;background:#fff;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <div style="width:36px;height:36px;background:#bfdbfe;border-radius:6px;flex-shrink:0;"></div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#1d4ed8;">incA <span style="color:#64748b;font-weight:400;font-size:10px;">CTL0496 · CT-L2</span></div>
+              <div style="font-size:9px;color:#64748b;">Inclusion membrane protein A</div>
+            </div>
+            <span style="margin-left:auto;font-size:13px;">⭐</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;font-size:9px;margin-bottom:5px;">
+            <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;"><span style="color:#94a3b8;">Mass</span><br/><b>38.4 kDa</b></div>
+            <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;"><span style="color:#94a3b8;">Length</span><br/><b>339 aa</b></div>
+            <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;"><span style="color:#94a3b8;">Loc.</span><br/><b>Inc. membrane</b></div>
+            <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;"><span style="color:#94a3b8;">Orthologs</span><br/><b>CT-D, CM</b></div>
+          </div>
+          <div style="font-size:9px;color:#64748b;font-weight:600;margin-bottom:2px;">EXPRESSION T0–T5</div>
+          <div style="display:flex;gap:2px;align-items:flex-end;height:24px;">
+            <div style="width:14px;background:#93c5fd;height:4px;border-radius:1px;"></div>
+            <div style="width:14px;background:#93c5fd;height:9px;border-radius:1px;"></div>
+            <div style="width:14px;background:#3b82f6;height:15px;border-radius:1px;"></div>
+            <div style="width:14px;background:#3b82f6;height:20px;border-radius:1px;"></div>
+            <div style="width:14px;background:#1d4ed8;height:24px;border-radius:1px;"></div>
+            <div style="width:14px;background:#1d4ed8;height:18px;border-radius:1px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Strain pills + Two-panel: List + Detail</h3>
+      <p>Strain selector is a pill row across the top (compact, always visible). Below: gene list on the left, detail panel on the right. Cleaner than three panels — the strain selector doesn't need a whole column.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="full-detail-page" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:10px;font-family:sans-serif;font-size:11px;">
+      <div style="background:#1a6b4a;color:white;padding:5px 10px;display:flex;align-items:center;gap:10px;border-radius:4px 4px 0 0;font-size:10px;">
+        <span style="font-weight:700;">🦠 ChlamAtlas</span>
+        <span style="background:rgba(255,255,255,0.2);padding:2px 20px;border-radius:10px;flex:0 0 auto;">🔍 Search genes, mutants…</span>
+        <span style="margin-left:auto;opacity:0.7;">Home</span>
+        <span style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:3px;font-weight:600;">Genomes</span>
+        <span style="opacity:0.7;">Mutants</span>
+        <span style="opacity:0.7;">⭐ Favs</span>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 4px 4px;padding:8px;min-height:120px;">
+        <!-- Full-width list -->
+        <div style="display:flex;gap:6px;margin-bottom:6px;font-size:9px;align-items:center;">
+          <span style="color:#94a3b8;">Strain:</span>
+          <span style="background:#dbeafe;color:#1d4ed8;font-weight:600;padding:2px 8px;border-radius:10px;">🟣 CT-L2</span>
+          <span style="color:#64748b;padding:2px 8px;">🔵 CT-D</span>
+          <input style="margin-left:auto;padding:3px 8px;font-size:9px;border:1px solid #e2e8f0;border-radius:3px;width:120px;" placeholder="Search genes…" />
+        </div>
+        <!-- Card-style list -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+          <div style="background:#dbeafe;border-radius:4px;padding:5px;display:flex;align-items:center;gap:4px;">
+            <div style="width:26px;height:26px;background:#bfdbfe;border-radius:3px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;font-weight:700;color:#1d4ed8;">incA</div><div style="font-size:8px;color:#64748b;">CTL0496</div></div>
+          </div>
+          <div style="background:#f8fafc;border-radius:4px;padding:5px;display:flex;align-items:center;gap:4px;">
+            <div style="width:26px;height:26px;background:#f1f5f9;border-radius:3px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;color:#374151;">CTL0497</div><div style="font-size:8px;color:#94a3b8;">Uncharacterized</div></div>
+          </div>
+          <div style="background:#f8fafc;border-radius:4px;padding:5px;display:flex;align-items:center;gap:4px;">
+            <div style="width:26px;height:26px;background:#f1f5f9;border-radius:3px;flex-shrink:0;"></div>
+            <div><div style="font-size:9px;color:#374151;">CTL0498</div><div style="font-size:8px;color:#94a3b8;">Uncharacterized</div></div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-size:9px;color:#94a3b8;">Click a gene → opens full detail page (replaces list)</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Full-width list → Full-page detail</h3>
+      <p>Gene list takes the full content width (can use cards or rows). Clicking a gene navigates to a full-page detail view — no side-by-side split. More room for each gene card and for the detail page. Simpler, but no list visible while reading detail.</p>
+    </div>
+  </div>
+
+</div>
+<p class="subtitle" style="margin-top:12px;text-align:center;">Click to select, or describe what you want in the terminal.</p>

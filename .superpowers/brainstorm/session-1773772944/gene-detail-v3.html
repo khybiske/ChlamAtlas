@@ -1,0 +1,198 @@
+<h2>Gene detail — v3</h2>
+<p class="subtitle">Incorporating all feedback. Check header, default view order, and button styling.</p>
+
+<div style="max-width:540px;margin:0 auto;font-family:sans-serif;font-size:12px;">
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+
+    <!-- ═══ HEADER ═══ -->
+    <div style="padding:14px 16px 12px;border-bottom:1px solid #f1f5f9;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <!-- Structure thumbnail -->
+        <div style="width:52px;height:52px;flex-shrink:0;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;cursor:pointer;" title="Click → Structure tab">
+          <img src="https://alphafold.ebi.ac.uk/files/AF-Q9JNV3-F1-model_v4.png"
+               onerror="this.style.display='none';this.parentElement.style.background='linear-gradient(135deg,#bfdbfe,#818cf8)';this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;\'>AF3</div>'"
+               style="width:100%;height:100%;object-fit:cover;" />
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#bfdbfe,#818cf8);display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">AF3</div>
+        </div>
+
+        <div style="flex:1;min-width:0;">
+          <!-- Gene name + locus + category badge -->
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+            <span style="font-size:18px;font-weight:800;color:#1d4ed8;">incA</span>
+            <span style="font-size:11px;color:#94a3b8;font-family:monospace;">CTL0496</span>
+            <span style="background:#e0f2fe;color:#0369a1;font-size:9px;padding:2px 8px;border-radius:10px;font-weight:700;">Inc. membrane protein</span>
+          </div>
+          <!-- Product name -->
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-top:3px;">Inclusion membrane protein A</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:1px;font-style:italic;">C. trachomatis L2/434</div>
+        </div>
+
+        <!-- Minimal action buttons -->
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:2px;">
+          <button title="Edit gene record" style="background:none;border:none;cursor:pointer;font-size:15px;color:#64748b;padding:2px;" title="Edit">✏️</button>
+          <button title="Add to favorites" style="background:none;border:none;cursor:pointer;font-size:17px;padding:2px;color:#94a3b8;" title="Favorite">♡</button>
+        </div>
+      </div>
+
+      <!-- Protein stats -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px;">
+        <div style="background:#f8fafc;border-radius:5px;padding:5px 6px;">
+          <div style="color:#94a3b8;font-size:9px;">Mass</div>
+          <div style="font-weight:700;font-size:12px;color:#1e293b;">38.4 kDa</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:5px 6px;">
+          <div style="color:#94a3b8;font-size:9px;">Length</div>
+          <div style="font-weight:700;font-size:12px;color:#1e293b;">339 aa</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:5px 6px;">
+          <div style="color:#94a3b8;font-size:9px;">Localization</div>
+          <div style="font-weight:700;font-size:12px;color:#1e293b;">Inc. membrane</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DEFAULT VIEW ═══ -->
+    <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+
+      <!-- Narrative function description -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:5px;">FUNCTION</div>
+        <div style="font-size:11px;color:#374151;line-height:1.6;">
+          IncA is a type III secreted effector that inserts into the inclusion membrane early in infection. It contains a bilobed hydrophobic domain characteristic of Inc proteins and mediates homotypic fusion of inclusions. Essential for inclusion expansion and intracellular survival. Interacts with host SNARE proteins.
+        </div>
+      </div>
+
+      <!-- Orthologs -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:5px;">ORTHOLOGS</div>
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+          <span style="background:#dbeafe;color:#1d4ed8;font-size:10px;padding:3px 9px;border-radius:5px;font-weight:600;cursor:pointer;">🔵 CT-D · CT_260</span>
+          <span style="background:#fef3c7;color:#92400e;font-size:10px;padding:3px 9px;border-radius:5px;font-weight:600;cursor:pointer;">🟠 CM · TC0372</span>
+          <span style="color:#94a3b8;font-size:10px;">→ align in Orthologs tab</span>
+        </div>
+      </div>
+
+      <!-- Expression + EB/RB proteomics -->
+      <div>
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:6px;">EXPRESSION &amp; PROTEOMICS</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;">
+          <div>
+            <div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">Transcript (T0–T5, microarray)</div>
+            <div style="display:flex;gap:3px;align-items:flex-end;height:44px;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:20px;background:#bfdbfe;height:6px;border-radius:2px 2px 0 0;"></div>
+                <div style="font-size:7px;color:#94a3b8;">T0</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:20px;background:#93c5fd;height:13px;border-radius:2px 2px 0 0;"></div>
+                <div style="font-size:7px;color:#94a3b8;">T1</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:20px;background:#60a5fa;height:22px;border-radius:2px 2px 0 0;"></div>
+                <div style="font-size:7px;color:#94a3b8;">T2</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:20px;background:#3b82f6;height:32px;border-radius:2px 2px 0 0;"></div>
+                <div style="font-size:7px;color:#94a3b8;">T3</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:20px;background:#1d4ed8;height:42px;border-radius:2px 2px 0 0;"></div>
+                <div style="font-size:7px;color:#94a3b8;">T4</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:20px;background:#1e40af;height:28px;border-radius:2px 2px 0 0;"></div>
+                <div style="font-size:7px;color:#94a3b8;">T5</div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#f8fafc;border-radius:6px;padding:8px 10px;min-width:115px;">
+            <div style="font-size:9px;font-weight:700;color:#94a3b8;margin-bottom:5px;">EB / RB</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;">EB</span>
+              <span style="background:#fef9c3;color:#854d0e;font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;">Low</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;">RB</span>
+              <span style="background:#dcfce7;color:#166534;font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;">High</span>
+            </div>
+            <div style="border-top:1px solid #e2e8f0;padding-top:4px;">
+              <div style="font-size:8px;color:#94a3b8;">Enriched in</div>
+              <div style="font-size:11px;font-weight:700;color:#7c3aed;">RB ↑</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TABS ═══ -->
+    <div style="display:flex;background:#fafafa;border-bottom:1px solid #e2e8f0;overflow-x:auto;">
+      <div style="padding:8px 13px;font-size:11px;font-weight:700;color:#1a6b4a;border-bottom:2px solid #1a6b4a;white-space:nowrap;cursor:pointer;">🧊 Structure</div>
+      <div style="padding:8px 13px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">🔗 Orthologs</div>
+      <div style="padding:8px 13px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">🧬 Sequences</div>
+      <div style="padding:8px 13px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">🔬 Mutants <span style="background:#fee2e2;color:#dc2626;border-radius:8px;padding:1px 5px;font-size:9px;">3</span></div>
+      <div style="padding:8px 13px;font-size:11px;color:#64748b;white-space:nowrap;cursor:pointer;">📝 Annotations</div>
+    </div>
+
+    <!-- Structure tab (active) -->
+    <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+      <div style="display:flex;gap:4px;margin-bottom:8px;">
+        <button style="background:#1a6b4a;color:white;font-size:9px;padding:3px 9px;border-radius:4px;border:none;font-weight:600;">AF v3 (lab) ✓</button>
+        <button style="background:#f1f5f9;color:#64748b;font-size:9px;padding:3px 9px;border-radius:4px;border:none;">AF v2 (DB)</button>
+        <button style="background:#f1f5f9;color:#94a3b8;font-size:9px;padding:3px 9px;border-radius:4px;border:none;cursor:not-allowed;">PDB: none</button>
+      </div>
+      <!-- Mol* viewer -->
+      <div style="background:linear-gradient(135deg,#1e3a5f,#312e81);border-radius:8px;height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;margin-bottom:10px;">
+        <div style="color:rgba(255,255,255,0.5);font-size:10px;">[ Mol* 3D viewer ]</div>
+        <div style="color:rgba(255,255,255,0.3);font-size:9px;">Rotate · Zoom · Reset</div>
+      </div>
+      <!-- Structure details grid — now includes oligomeric state -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:10px;">
+        <div style="background:#f8fafc;border-radius:5px;padding:6px;">
+          <div style="color:#94a3b8;font-size:9px;margin-bottom:2px;">Top homolog</div>
+          <div style="font-weight:600;color:#1e293b;">Outer membrane channel</div>
+          <div style="color:#64748b;font-size:9px;">Score: 0.82 · OmpA family</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:6px;">
+          <div style="color:#94a3b8;font-size:9px;margin-bottom:2px;">TM · Signal peptide</div>
+          <div style="font-weight:600;color:#1e293b;">2 TM domains</div>
+          <div style="color:#64748b;font-size:9px;">Signal peptide: No</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:5px;padding:6px;grid-column:1/-1;">
+          <div style="color:#94a3b8;font-size:9px;margin-bottom:2px;">Oligomeric state</div>
+          <div style="font-weight:600;color:#1e293b;">Homodimer</div>
+          <div style="color:#64748b;font-size:9px;">Evidence: co-IP (Hackstadt 2001); confirmed by AF3 multimer model</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button style="background:#fff;border:1px solid #e2e8f0;color:#374151;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;">⬇ Download mmCIF</button>
+        <a style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:9px;padding:3px 8px;border-radius:4px;text-decoration:none;">AlphaFold DB ↗</a>
+        <a style="background:#f8fafc;border:1px solid #e2e8f0;color:#94a3b8;font-size:9px;padding:3px 8px;border-radius:4px;text-decoration:none;">PDB ↗</a>
+      </div>
+    </div>
+
+    <!-- Sequences tab preview -->
+    <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;background:#fafffe;">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.05em;margin-bottom:6px;">SEQUENCES TAB (preview)</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px;align-items:center;">
+        <button style="background:#1a6b4a;color:white;font-size:9px;padding:3px 9px;border-radius:4px;border:none;">Amino acid</button>
+        <button style="background:#f1f5f9;color:#64748b;font-size:9px;padding:3px 9px;border-radius:4px;border:none;">DNA (CDS)</button>
+        <div style="margin-left:auto;display:flex;gap:3px;">
+          <button style="background:#fff;border:1px solid #e2e8f0;color:#374151;font-size:9px;padding:3px 7px;border-radius:4px;cursor:pointer;">⬇ FASTA</button>
+          <button style="background:#fff;border:1px solid #e2e8f0;color:#374151;font-size:9px;padding:3px 7px;border-radius:4px;cursor:pointer;">📋 Copy</button>
+          <button style="background:#7c3aed;color:white;border:none;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;font-weight:600;">BLAST ↗</button>
+        </div>
+      </div>
+      <div style="background:#1e293b;border-radius:5px;padding:8px;font-family:monospace;font-size:9px;color:#93c5fd;white-space:pre-wrap;word-break:break-all;line-height:1.6;">MSDQIAKALLNKSGDVFSDST TQANQHQAAQSHQQAAQHQAA APQHQAAAPH…</div>
+    </div>
+
+    <!-- Footer external links -->
+    <div style="padding:7px 16px;background:#f8fafc;display:flex;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:#94a3b8;">External:</span>
+      <a style="font-size:9px;color:#94a3b8;text-decoration:none;">UniProt ↗</a>
+      <a style="font-size:9px;color:#94a3b8;text-decoration:none;">NCBI ↗</a>
+      <a style="font-size:9px;color:#94a3b8;text-decoration:none;">STRING ↗</a>
+    </div>
+
+  </div>
+  <p style="font-size:11px;color:#94a3b8;margin-top:12px;text-align:center;">Confirm this design or flag changes. Ready to move to Mutants tab when you are.</p>
+</div>

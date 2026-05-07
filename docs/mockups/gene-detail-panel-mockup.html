@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gene Detail Panel — Layout Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #f3f4f6; }
+
+  /* ── Mockup chrome ──────────────────────────────────── */
+  .mockup-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #1e293b; color: #cbd5e1; font-size: 11px;
+    display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 38px;
+  }
+  .mockup-bar span { color: #94a3b8; }
+  .variant-btn {
+    padding: 4px 12px; border-radius: 4px; border: 1px solid #475569;
+    background: none; color: #cbd5e1; font-size: 11px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .variant-btn.active { background: #16a34a; border-color: #16a34a; color: white; }
+
+  /* ── Simulated app chrome ───────────────────────────── */
+  .app-shell { margin-top: 38px; display: flex; flex-direction: column; height: calc(100vh - 38px); }
+  .app-nav {
+    height: 56px; background: #0f4530; display: flex; align-items: center;
+    padding: 0 20px; flex-shrink: 0;
+  }
+  .app-nav .wordmark { font-family: 'Cormorant Garamond', serif; color: white; font-size: 22px; }
+  .app-content { display: grid; grid-template-columns: 300px 1fr; flex: 1; overflow: hidden; }
+
+  /* ── List panel stub ────────────────────────────────── */
+  .list-stub {
+    border-right: 1px solid #ececec; background: white;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .list-stub-tabs {
+    display: flex; border-bottom: 1px solid #efefef; padding: 10px 14px 0; flex-shrink: 0;
+  }
+  .list-stub-tab {
+    font-size: 11.5px; font-weight: 600; padding: 5px 11px 8px;
+    border: none; border-bottom: 2px solid transparent; background: none;
+    cursor: pointer; white-space: nowrap;
+  }
+  .list-stub-tab.active { color: #16a34a; border-bottom-color: #16a34a; }
+  .list-stub-tab:not(.active) { color: #9ca3af; }
+  .list-stub-search {
+    padding: 7px 10px; border-bottom: 1px solid #f3f3f3;
+  }
+  .list-stub-search input {
+    width: 100%; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 7px;
+    padding: 5px 10px; font-size: 10.5px; outline: none; font-family: inherit;
+  }
+  .gene-row-stub {
+    display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid #f7f7f7;
+    gap: 8px; cursor: pointer; position: relative;
+  }
+  .gene-row-stub.selected { background: #f0fdf4; }
+  .gene-row-stub:hover:not(.selected) { background: #fafafa; }
+  .gene-row-stub .cat-bar { width: 3px; align-self: stretch; border-radius: 1px; flex-shrink: 0; }
+  .gene-row-stub .thumb {
+    width: 28px; height: 28px; border-radius: 6px; background: #f3f4f6;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #d1d5db;
+  }
+  .gene-row-stub .thumb img { width: 100%; height: 100%; border-radius: 6px; object-fit: cover; }
+  .gene-row-stub .gene-text { flex: 1; min-width: 0; }
+  .gene-row-stub .gene-name-row { display: flex; align-items: baseline; gap: 5px; }
+  .gene-row-stub .gname { font-size: 10.5px; font-weight: 600; color: #111; }
+  .gene-row-stub .gtag { font-size: 9px; color: #9ca3af; font-family: 'DM Mono', monospace; }
+  .gene-row-stub .gproduct {
+    font-size: 9.5px; color: #9ca3af; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+  }
+  .gene-row-stub .star { font-size: 11px; color: #e5e7eb; }
+  .gene-row-stub.selected .star { color: #f59e0b; }
+  .gene-row-stub .chev { font-size: 12px; color: #ddd; }
+
+  /* ── Detail panel wrapper ───────────────────────────── */
+  .detail-panel { overflow-y: auto; background: white; display: none; flex-direction: column; }
+  .detail-panel.active { display: flex; }
+
+  /* ── Shared detail header ───────────────────────────── */
+  .detail-header {
+    padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+    display: flex; gap: 14px; align-items: flex-start; flex-shrink: 0;
+  }
+  .detail-thumb {
+    width: 52px; height: 52px; border-radius: 10px; border: 1px solid #e5e7eb;
+    background: #f3f4f6; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: #d1d5db; flex-shrink: 0; cursor: pointer;
+    overflow: hidden;
+  }
+  .detail-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .detail-meta { flex: 1; min-width: 0; }
+  .detail-meta .gene-name { font-size: 19px; font-weight: 700; color: #111; }
+  .detail-meta .locus { font-size: 10px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-top: 1px; }
+  .detail-meta .product { font-size: 11.5px; color: #555; margin-top: 3px; line-height: 1.4; }
+  .detail-badges { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .strain-badge {
+    font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 6px; border-radius: 4px; background: #f0fdf4; color: #16a34a;
+  }
+  .detail-header-actions { display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; }
+  .fav-btn { font-size: 18px; color: #f59e0b; background: none; border: none; cursor: pointer; padding: 0; }
+
+  /* ── Section (shared) ───────────────────────────────── */
+  .section { border-bottom: 1px solid #f5f5f5; }
+  .section-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 20px; cursor: pointer; user-select: none;
+  }
+  .section-header:hover { background: #fafafa; }
+  .section-chevron { font-size: 10px; color: #9ca3af; width: 14px; }
+  .section-title {
+    font-size: 8px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #1a6b4a;
+  }
+  .section-body { padding: 10px 20px 16px; }
+  .section-placeholder {
+    font-size: 11px; color: #bbb; font-style: italic; text-align: center;
+    padding: 12px 0;
+  }
+
+  /* ── Properties ─────────────────────────────────────── */
+  .props-grid {
+    display: flex; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 10px;
+  }
+  .prop { display: flex; flex-direction: column; gap: 1px; }
+  .prop-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+  .prop-value { font-size: 11.5px; color: #333; font-weight: 500; }
+  .prop-value.mono { font-family: 'DM Mono', monospace; font-size: 10.5px; }
+
+  /* ── Flag pills ──────────────────────────────────────── */
+  .flags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .flag-pill {
+    font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+    background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
+  }
+
+  /* ── Genome map ──────────────────────────────────────── */
+  .genome-map-wrap {
+    margin: 10px 0; background: #fafafa; border-radius: 8px;
+    border: 1px solid #f0f0f0; padding: 12px 14px;
+  }
+  .genome-map-label {
+    font-size: 8px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px;
+  }
+  .genome-map-svg { width: 100%; overflow: visible; }
+  .gene-arrow { cursor: pointer; transition: opacity 0.15s; }
+  .gene-arrow:hover { opacity: 0.75; }
+  .gene-arrow.selected-gene { filter: drop-shadow(0 0 3px rgba(22,163,74,0.5)); }
+
+  /* ── Orthologs ───────────────────────────────────────── */
+  .ortholog-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid #f7f7f7; cursor: pointer;
+  }
+  .ortholog-row:last-child { border-bottom: none; }
+  .ortholog-row:hover { background: #fafafa; margin: 0 -20px; padding: 6px 20px; }
+  .orth-bar { width: 3px; height: 28px; border-radius: 1px; flex-shrink: 0; }
+  .orth-strain { font-size: 8.5px; font-weight: 700; color: #9ca3af; width: 42px; flex-shrink: 0; }
+  .orth-tag { font-size: 10px; font-family: 'DM Mono', monospace; color: #333; font-weight: 500; }
+  .orth-name { font-size: 10px; color: #9ca3af; flex: 1; }
+  .orth-chev { font-size: 12px; color: #ddd; }
+
+  /* ── External links ─────────────────────────────────── */
+  .ext-links { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .ext-link {
+    font-size: 10px; font-weight: 500; color: #16a34a; text-decoration: none;
+    padding: 3px 8px; border: 1px solid #bbf7d0; border-radius: 5px; background: #f0fdf4;
+  }
+  .ext-link:hover { background: #dcfce7; }
+
+  /* ── Structure toggle ────────────────────────────────── */
+  .structure-toggle { display: flex; gap: 0; margin-bottom: 12px; border: 1px solid #e5e7eb; border-radius: 7px; overflow: hidden; width: fit-content; }
+  .struct-btn {
+    padding: 5px 12px; font-size: 10.5px; font-weight: 600; border: none;
+    cursor: pointer; font-family: inherit; background: white; color: #9ca3af;
+  }
+  .struct-btn.active { background: #f0fdf4; color: #16a34a; }
+  .struct-btn:not(:last-child) { border-right: 1px solid #e5e7eb; }
+  .structure-thumb-area {
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .structure-thumb {
+    width: 120px; height: 120px; border-radius: 10px; border: 1px solid #e5e7eb;
+    background: #f3f4f6; display: flex; align-items: center; justify-content: center;
+    font-size: 36px; color: #d1d5db; flex-shrink: 0; cursor: pointer;
+    position: relative; overflow: hidden;
+  }
+  .structure-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .load-3d-btn {
+    position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; font-weight: 600; background: rgba(15,69,48,0.85); color: white;
+    border: none; border-radius: 4px; padding: 3px 7px; cursor: pointer; white-space: nowrap;
+    font-family: inherit;
+  }
+  .structure-info { flex: 1; }
+  .structure-info .homolog { font-size: 11px; color: #333; font-weight: 600; margin-bottom: 4px; }
+  .structure-info .homolog-sub { font-size: 10px; color: #9ca3af; margin-bottom: 8px; line-height: 1.5; }
+  .structure-info .inferred { font-size: 10.5px; color: #555; background: #f0fdf4; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #16a34a; }
+
+  /* ── Transcriptomics ─────────────────────────────────── */
+  .expr-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 14px;
+  }
+  .expr-badge .badge-label { font-size: 8px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; }
+  .expr-badge .badge-value { font-size: 16px; font-weight: 700; color: #16a34a; font-family: 'DM Mono', monospace; }
+  .expr-note { font-size: 10px; color: #9ca3af; margin-top: 6px; font-style: italic; }
+
+  /* Bar chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 100px; padding-bottom: 20px; position: relative; }
+  .bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+  .bar { background: #4ade80; border-radius: 3px 3px 0 0; width: 100%; position: relative; cursor: pointer; }
+  .bar:hover { background: #16a34a; }
+  .bar-label { font-size: 8.5px; color: #9ca3af; font-family: 'DM Mono', monospace; }
+  .chart-axis { position: absolute; bottom: 20px; left: 0; right: 0; height: 1px; background: #e5e7eb; }
+
+  /* ── Proteomics ──────────────────────────────────────── */
+  .prot-values { display: flex; gap: 20px; }
+  .prot-val { display: flex; flex-direction: column; gap: 4px; }
+  .prot-form { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+  .prot-num { font-size: 22px; font-weight: 700; color: #333; font-family: 'DM Mono', monospace; line-height: 1; }
+  .prot-num .unit { font-size: 11px; color: #9ca3af; font-weight: 400; }
+  .prot-bar-bg { height: 5px; background: #f3f4f6; border-radius: 3px; width: 80px; margin-top: 2px; }
+  .prot-bar-fill { height: 5px; background: #4ade80; border-radius: 3px; }
+
+  /* ── Coming soon ─────────────────────────────────────── */
+  .coming-soon {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; padding: 18px 0; color: #d1d5db;
+  }
+  .coming-soon .cs-icon { font-size: 24px; }
+  .coming-soon .cs-label { font-size: 11px; font-weight: 600; color: #9ca3af; }
+  .coming-soon .cs-sub { font-size: 10px; color: #bbb; text-align: center; max-width: 200px; }
+
+  /* ── Variant B card grid ─────────────────────────────── */
+  .card-grid { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: white; border: 1px solid #e5e7eb; border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 8px 14px; border-bottom: 1px solid #f5f5f5; background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title {
+    font-size: 8px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #1a6b4a;
+  }
+  .card-body { padding: 12px 14px; }
+  .card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card-row.full { grid-template-columns: 1fr; }
+  .card-soon {
+    background: #fafafa; border: 1px dashed #e5e7eb; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px; min-height: 80px;
+  }
+  .card-soon .cs-label { font-size: 9px; font-weight: 600; color: #bbb; margin-top: 4px; }
+
+  /* ── Compact protein grid ────────────────────────────── */
+  .protein-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .protein-grid .prop { border-bottom: 1px solid #f5f5f5; padding-bottom: 6px; }
+
+</style>
+</head>
+<body>
+
+<!-- ── Mockup switcher bar ──────────────────────────────────────── -->
+<div class="mockup-bar">
+  <span>ChlamAtlas · Gene Detail Panel Mockup</span>
+  <button class="variant-btn active" onclick="switchVariant('A')">A · Vertical sections</button>
+  <button class="variant-btn" onclick="switchVariant('B')">B · Card grid</button>
+  <span style="margin-left:auto; font-size:10px;">Click genes in the list stub to see behavior · Click structure thumb to preview Mol*</span>
+</div>
+
+<!-- ── App shell ────────────────────────────────────────────────── -->
+<div class="app-shell">
+  <nav class="app-nav">
+    <span class="wordmark">ChlamAtlas</span>
+  </nav>
+  <div class="app-content">
+
+    <!-- ── List stub ─────────────────────────────────────────────── -->
+    <div class="list-stub">
+      <div class="list-stub-tabs">
+        <button class="list-stub-tab active">CT L2/434</button>
+        <button class="list-stub-tab">CT D/UW-3</button>
+        <button class="list-stub-tab">CM</button>
+      </div>
+      <div class="list-stub-search"><input placeholder="Search genes, locus tags…" /></div>
+      <div style="font-size:10.5px;font-weight:600;padding:4px 12px 5px;background:#fafafa;border-bottom:1px solid #f0f0f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:11px;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:3px 8px;cursor:pointer;">⇅ Locus tag</span>
+        <span style="font-size:10.5px;padding:3px 8px;border-radius:20px;border:1px solid #e5e7eb;color:#9ca3af;cursor:pointer;background:white;">★ Fav</span>
+        <span style="font-size:10.5px;padding:3px 8px;border-radius:20px;border:1px solid #e5e7eb;color:#9ca3af;cursor:pointer;background:white;">Characterized</span>
+      </div>
+      <div style="font-size:9px;color:#bbb;font-family:'DM Mono',monospace;padding:3px 12px;border-bottom:1px solid #f5f5f5;">878 genes</div>
+      <div style="overflow-y:auto;flex:1;">
+        <!-- gene rows -->
+        <div class="gene-row-stub selected" onclick="selectGene(this)">
+          <div class="cat-bar" style="background:#838FC7;"></div>
+          <div class="thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-name-row"><span class="gname">hemB</span><span class="gtag">CTL0001</span></div>
+            <div class="gproduct">Delta-aminolevulinic acid dehydratase</div>
+          </div>
+          <span class="star">★</span><span class="chev">›</span>
+        </div>
+        <div class="gene-row-stub" onclick="selectGene(this)">
+          <div class="cat-bar" style="background:#EC1C24;"></div>
+          <div class="thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-name-row"><span class="gname">nqrA</span><span class="gtag">CTL0002</span></div>
+            <div class="gproduct">Na(+)-translocating NADH-quinone reductase subunit A</div>
+          </div>
+          <span class="star">☆</span><span class="chev">›</span>
+        </div>
+        <div class="gene-row-stub" onclick="selectGene(this)">
+          <div class="cat-bar" style="background:#AAAAAA;"></div>
+          <div class="thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-name-row"><span class="gtag" style="font-size:10px;font-weight:500;">CTL0003</span></div>
+            <div class="gproduct">Uncharacterized protein</div>
+          </div>
+          <span class="star">☆</span><span class="chev">›</span>
+        </div>
+        <div class="gene-row-stub" onclick="selectGene(this)">
+          <div class="cat-bar" style="background:#FCB814;"></div>
+          <div class="thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-name-row"><span class="gname">greA</span><span class="gtag">CTL0004</span></div>
+            <div class="gproduct">Transcription elongation factor GreA</div>
+          </div>
+          <span class="star">☆</span><span class="chev">›</span>
+        </div>
+        <div style="padding:20px;text-align:center;color:#e5e7eb;font-size:11px;">· · ·</div>
+      </div>
+    </div><!-- /list-stub -->
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VARIANT A — Vertical collapsible sections                   -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="detail-panel active" id="variant-A">
+
+      <!-- Header -->
+      <div class="detail-header">
+        <div class="detail-thumb" title="Click to load Mol* viewer">⬡</div>
+        <div class="detail-meta">
+          <div class="gene-name">hemB</div>
+          <div class="locus">CTL0001</div>
+          <div class="product">Delta-aminolevulinic acid dehydratase</div>
+          <div class="detail-badges">
+            <span class="strain-badge">CT-L2</span>
+            <span style="font-size:9px;color:#9ca3af;padding:2px 6px;background:#f9fafb;border-radius:4px;border:1px solid #e5e7eb;">Cofactor metabolism</span>
+          </div>
+        </div>
+        <div class="detail-header-actions">
+          <button class="fav-btn">★</button>
+        </div>
+      </div>
+
+      <!-- 1. Gene Info -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▾</span>
+          <span class="section-title">Gene Info</span>
+        </div>
+        <div class="section-body">
+          <div class="props-grid">
+            <div class="prop"><span class="prop-label">Length</span><span class="prop-value mono">338 bp</span></div>
+            <div class="prop"><span class="prop-label">Strand</span><span class="prop-value">+</span></div>
+            <div class="prop"><span class="prop-label">Locus</span><span class="prop-value mono">CTL0001</span></div>
+          </div>
+          <div class="flags">
+            <span class="flag-pill">Characterized</span>
+          </div>
+
+          <!-- Genome map -->
+          <div class="genome-map-wrap">
+            <div class="genome-map-label">Local genome context</div>
+            <svg id="map-A" class="genome-map-svg" height="90"></svg>
+          </div>
+
+          <!-- Orthologs -->
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:6px;">Orthologs</div>
+          <div class="ortholog-row">
+            <div class="orth-bar" style="background:#2563eb;"></div>
+            <span class="orth-strain">CT-D</span>
+            <span class="orth-tag">CT633</span>
+            <span class="orth-name">hemB — Delta-aminolevulinic acid dehydratase</span>
+            <span class="orth-chev">›</span>
+          </div>
+          <div class="ortholog-row">
+            <div class="orth-bar" style="background:#9333ea;"></div>
+            <span class="orth-strain">CM</span>
+            <span class="orth-tag">TC0001</span>
+            <span class="orth-name">hemB — Delta-aminolevulinic acid dehydratase</span>
+            <span class="orth-chev">›</span>
+          </div>
+          <div class="ext-links">
+            <a class="ext-link" href="#" onclick="return false;">UniProt ↗</a>
+            <a class="ext-link" href="#" onclick="return false;">NCBI ↗</a>
+            <a class="ext-link" href="#" onclick="return false;">AlphaFold DB ↗</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Protein Info -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▾</span>
+          <span class="section-title">Protein Info</span>
+        </div>
+        <div class="section-body">
+          <div class="props-grid">
+            <div class="prop"><span class="prop-label">Mass</span><span class="prop-value">37.7 kDa</span></div>
+            <div class="prop"><span class="prop-label">Length</span><span class="prop-value">—</span></div>
+            <div class="prop"><span class="prop-label">Family</span><span class="prop-value">ALAD family</span></div>
+            <div class="prop"><span class="prop-label">Oligomeric state</span><span class="prop-value">Homooctamer</span></div>
+            <div class="prop"><span class="prop-label">Signal peptide</span><span class="prop-value">No</span></div>
+            <div class="prop"><span class="prop-label">TM domains</span><span class="prop-value">0</span></div>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:5px;">Function</div>
+            <div style="font-size:11px;color:#444;line-height:1.6;">Catalyzes the condensation of 5-aminolevulinate (ALA) to porphobilinogen, the first step in the biosynthesis of heme and other porphyrins. Requires zinc and magnesium ions for activity.</div>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:5px;">Subcellular location</div>
+            <div style="font-size:11px;color:#444;">Cytoplasm</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Structure -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▾</span>
+          <span class="section-title">Structure</span>
+        </div>
+        <div class="section-body">
+          <div class="structure-toggle">
+            <button class="struct-btn active">AlphaFold v2</button>
+            <button class="struct-btn">AlphaFold v3</button>
+            <button class="struct-btn">PDB</button>
+          </div>
+          <div class="structure-thumb-area">
+            <div class="structure-thumb" onclick="this.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:#16a34a;font-weight:600;\'>Mol* loading…</div>'">
+              ⬡
+              <button class="load-3d-btn">Load 3D viewer</button>
+            </div>
+            <div class="structure-info">
+              <div class="homolog">1AW5 · Porphobilinogen synthase</div>
+              <div class="homolog-sub">Pseudomonas aeruginosa · TM-score 0.91 · Foldseek</div>
+              <div class="inferred">Inferred: porphobilinogen biosynthesis; metal ion binding (Zn²⁺, Mg²⁺)</div>
+              <div style="font-size:10px;color:#9ca3af;margin-top:8px;">Forms homooctamer — consistent with bacterial ALAD family.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Transcriptomics -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▾</span>
+          <span class="section-title">Transcriptomics</span>
+        </div>
+        <div class="section-body">
+          <div class="expr-badge">
+            <div>
+              <div class="badge-label">CT-L2 microarray pattern</div>
+              <div class="badge-value">CONSTITUTIVE</div>
+            </div>
+          </div>
+          <div class="expr-note">Quantitative timepoint data not available for CT-L2.</div>
+          <div style="margin-top:14px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:8px;">CT-D ortholog (CT633) — microarray</div>
+          <div class="bar-chart">
+            <div class="chart-axis"></div>
+            <div class="bar-wrap"><div class="bar" style="height:28px;" title="1h: 134"></div><div class="bar-label">1h</div></div>
+            <div class="bar-wrap"><div class="bar" style="height:52px;" title="3h: 251"></div><div class="bar-label">3h</div></div>
+            <div class="bar-wrap"><div class="bar" style="height:65px;" title="8h: 315"></div><div class="bar-label">8h</div></div>
+            <div class="bar-wrap"><div class="bar" style="height:72px;" title="16h: 348"></div><div class="bar-label">16h</div></div>
+            <div class="bar-wrap"><div class="bar" style="height:68px;" title="24h: 329"></div><div class="bar-label">24h</div></div>
+            <div class="bar-wrap"><div class="bar" style="height:55px;" title="40h: 266"></div><div class="bar-label">40h</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Proteomics -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▾</span>
+          <span class="section-title">Proteomics</span>
+        </div>
+        <div class="section-body">
+          <div class="prot-values">
+            <div class="prot-val">
+              <div class="prot-form">Elementary body (EB)</div>
+              <div class="prot-num">8 <span class="unit">counts</span></div>
+              <div class="prot-bar-bg"><div class="prot-bar-fill" style="width:12%;"></div></div>
+            </div>
+            <div class="prot-val">
+              <div class="prot-form">Reticulate body (RB)</div>
+              <div class="prot-num" style="color:#9ca3af;">ND</div>
+              <div style="font-size:9.5px;color:#bbb;margin-top:3px;">Not detected</div>
+            </div>
+          </div>
+          <div style="font-size:9.5px;color:#bbb;margin-top:10px;">Raw spectral counts from mass spectrometry. CT-L2 data only.</div>
+        </div>
+      </div>
+
+      <!-- 6. Localization (placeholder) -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▸</span>
+          <span class="section-title">Localization</span>
+          <span style="font-size:8px;background:#f3f4f6;color:#9ca3af;padding:1px 6px;border-radius:10px;margin-left:auto;">Soon</span>
+        </div>
+        <div class="section-body" style="display:none;">
+          <div class="coming-soon">
+            <span class="cs-icon">🔬</span>
+            <span class="cs-label">Coming soon</span>
+            <span class="cs-sub">Subcellular localization schematic showing protein position within the Chlamydia cell.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Protein Interactions (placeholder) -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-chevron">▸</span>
+          <span class="section-title">Protein Interactions</span>
+          <span style="font-size:8px;background:#f3f4f6;color:#9ca3af;padding:1px 6px;border-radius:10px;margin-left:auto;">Soon</span>
+        </div>
+        <div class="section-body" style="display:none;">
+          <div class="coming-soon">
+            <span class="cs-icon">🔗</span>
+            <span class="cs-label">Coming soon</span>
+            <span class="cs-sub">Curated lab data — known protein-protein interactions. Not STRING predictions.</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /variant-A -->
+
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- VARIANT B — Card grid layout                                -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="detail-panel" id="variant-B">
+
+      <!-- Header (same) -->
+      <div class="detail-header">
+        <div class="detail-thumb" title="Click to load Mol* viewer">⬡</div>
+        <div class="detail-meta">
+          <div class="gene-name">hemB</div>
+          <div class="locus">CTL0001</div>
+          <div class="product">Delta-aminolevulinic acid dehydratase</div>
+          <div class="detail-badges">
+            <span class="strain-badge">CT-L2</span>
+            <span style="font-size:9px;color:#9ca3af;padding:2px 6px;background:#f9fafb;border-radius:4px;border:1px solid #e5e7eb;">Cofactor metabolism</span>
+          </div>
+        </div>
+        <div class="detail-header-actions">
+          <button class="fav-btn">★</button>
+        </div>
+      </div>
+
+      <!-- Card grid body -->
+      <div class="card-grid">
+
+        <!-- Gene Info — full width -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Gene Info</span></div>
+          <div class="card-body">
+            <div class="props-grid" style="margin-bottom:8px;">
+              <div class="prop"><span class="prop-label">Length</span><span class="prop-value mono">338 bp</span></div>
+              <div class="prop"><span class="prop-label">Strand</span><span class="prop-value">+</span></div>
+              <div class="prop"><span class="prop-label">Locus</span><span class="prop-value mono">CTL0001</span></div>
+            </div>
+            <div class="flags" style="margin-bottom:10px;"><span class="flag-pill">Characterized</span></div>
+
+            <!-- Genome map -->
+            <div class="genome-map-wrap" style="margin:0 0 10px;">
+              <div class="genome-map-label">Local genome context</div>
+              <svg id="map-B" class="genome-map-svg" height="90"></svg>
+            </div>
+
+            <!-- Orthologs + links in a 2-col sub-grid -->
+            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;">
+              <div>
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:6px;">Orthologs</div>
+                <div class="ortholog-row">
+                  <div class="orth-bar" style="background:#2563eb;"></div>
+                  <span class="orth-strain">CT-D</span>
+                  <span class="orth-tag">CT633</span>
+                  <span class="orth-name">hemB</span>
+                  <span class="orth-chev">›</span>
+                </div>
+                <div class="ortholog-row">
+                  <div class="orth-bar" style="background:#9333ea;"></div>
+                  <span class="orth-strain">CM</span>
+                  <span class="orth-tag">TC0001</span>
+                  <span class="orth-name">hemB</span>
+                  <span class="orth-chev">›</span>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:6px;">External</div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <a class="ext-link" href="#" onclick="return false;">UniProt ↗</a>
+                  <a class="ext-link" href="#" onclick="return false;">NCBI ↗</a>
+                  <a class="ext-link" href="#" onclick="return false;">AlphaFold DB ↗</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: Protein Info + Structure side by side -->
+        <div class="card-row">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Protein Info</span></div>
+            <div class="card-body">
+              <div class="protein-grid">
+                <div class="prop"><span class="prop-label">Mass</span><span class="prop-value">37.7 kDa</span></div>
+                <div class="prop"><span class="prop-label">Family</span><span class="prop-value">ALAD family</span></div>
+                <div class="prop"><span class="prop-label">Oligomeric state</span><span class="prop-value">Homooctamer</span></div>
+                <div class="prop"><span class="prop-label">TM domains</span><span class="prop-value">0</span></div>
+              </div>
+              <div style="margin-top:8px;font-size:10.5px;color:#444;line-height:1.6;">
+                Catalyzes condensation of 5-ALA to porphobilinogen. First step in heme biosynthesis. Requires Zn²⁺ and Mg²⁺.
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Structure</span>
+              <div class="structure-toggle" style="margin:0;">
+                <button class="struct-btn active" style="padding:3px 8px;font-size:9.5px;">AF v2</button>
+                <button class="struct-btn" style="padding:3px 8px;font-size:9.5px;">AF v3</button>
+                <button class="struct-btn" style="padding:3px 8px;font-size:9.5px;">PDB</button>
+              </div>
+            </div>
+            <div class="card-body" style="display:flex;gap:10px;align-items:flex-start;">
+              <div class="structure-thumb" style="width:90px;height:90px;font-size:28px;" onclick="this.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:10px;color:#16a34a;font-weight:600;\'>Mol* loading…</div>'">
+                ⬡
+                <button class="load-3d-btn">Load 3D</button>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:10px;font-weight:600;color:#333;margin-bottom:3px;">1AW5 · Porphobilinogen synthase</div>
+                <div style="font-size:9.5px;color:#9ca3af;margin-bottom:6px;line-height:1.5;">TM-score 0.91 · Foldseek</div>
+                <div style="font-size:9.5px;color:#555;background:#f0fdf4;border-radius:5px;padding:5px 8px;border-left:2px solid #16a34a;">Inferred: heme biosynthesis; Zn²⁺ binding</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: Transcriptomics + Proteomics side by side -->
+        <div class="card-row">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Transcriptomics</span></div>
+            <div class="card-body">
+              <div class="expr-badge" style="margin-bottom:8px;">
+                <div>
+                  <div class="badge-label">CT-L2 pattern</div>
+                  <div class="badge-value">CONSTITUTIVE</div>
+                </div>
+              </div>
+              <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:6px;">CT-D ortholog</div>
+              <div class="bar-chart" style="height:70px;">
+                <div class="chart-axis" style="bottom:20px;"></div>
+                <div class="bar-wrap"><div class="bar" style="height:18px;background:#4ade80;"></div><div class="bar-label">1h</div></div>
+                <div class="bar-wrap"><div class="bar" style="height:34px;background:#4ade80;"></div><div class="bar-label">3h</div></div>
+                <div class="bar-wrap"><div class="bar" style="height:44px;background:#4ade80;"></div><div class="bar-label">8h</div></div>
+                <div class="bar-wrap"><div class="bar" style="height:48px;background:#4ade80;"></div><div class="bar-label">16h</div></div>
+                <div class="bar-wrap"><div class="bar" style="height:45px;background:#4ade80;"></div><div class="bar-label">24h</div></div>
+                <div class="bar-wrap"><div class="bar" style="height:36px;background:#4ade80;"></div><div class="bar-label">40h</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Proteomics</span></div>
+            <div class="card-body">
+              <div class="prot-values" style="flex-direction:column;gap:14px;">
+                <div class="prot-val">
+                  <div class="prot-form">Elementary body (EB)</div>
+                  <div class="prot-num">8 <span class="unit">counts</span></div>
+                  <div class="prot-bar-bg" style="width:100%;"><div class="prot-bar-fill" style="width:12%;"></div></div>
+                </div>
+                <div class="prot-val">
+                  <div class="prot-form">Reticulate body (RB)</div>
+                  <div class="prot-num" style="color:#9ca3af;">ND</div>
+                  <div style="font-size:9.5px;color:#bbb;margin-top:2px;">Not detected</div>
+                </div>
+              </div>
+              <div style="font-size:9px;color:#bbb;margin-top:12px;">Raw spectral counts · CT-L2 only</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: Localization + Interactions (placeholders) -->
+        <div class="card-row">
+          <div class="card-soon">
+            <span style="font-size:20px;">🔬</span>
+            <span class="cs-label">Localization — coming soon</span>
+          </div>
+          <div class="card-soon">
+            <span style="font-size:20px;">🔗</span>
+            <span class="cs-label">Protein interactions — coming soon</span>
+          </div>
+        </div>
+
+      </div><!-- /card-grid -->
+    </div><!-- /variant-B -->
+
+  </div><!-- /app-content -->
+</div><!-- /app-shell -->
+
+<script>
+// ── Variant switcher ──────────────────────────────────────────────
+function switchVariant(v) {
+  document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('variant-' + v).classList.add('active');
+  document.querySelectorAll('.variant-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && v === 'A') || (i === 1 && v === 'B'));
+  });
+}
+
+// ── Gene row selection stub ───────────────────────────────────────
+function selectGene(row) {
+  document.querySelectorAll('.gene-row-stub').forEach(r => r.classList.remove('selected'));
+  row.classList.add('selected');
+}
+
+// ── Section collapse ──────────────────────────────────────────────
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const chev = header.querySelector('.section-chevron');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  chev.textContent = hidden ? '▾' : '▸';
+}
+
+// ── Genome map (shared data, drawn into both SVGs) ────────────────
+const CATEGORY_COLORS = {
+  'Cofactor metabolism': '#838FC7',
+  'Energy metabolism':   '#EC1C24',
+  'Unknown':             '#AAAAAA',
+  'Transcription':       '#FCB814',
+  'Translation':         '#BED630',
+  'Type III secretion':  '#8A5D3B',
+};
+
+// Fake but realistic neighboring genes around CTL0001
+// { id, label, start, end, strand, category, selected }
+const GENES = [
+  { id: 'CTL0877', label: 'CTL0877', start: 0,    end: 445,  strand: '+', category: 'Translation' },
+  { id: 'CTL0878', label: 'CTL0878', start: 460,  end: 680,  strand: '-', category: 'Unknown' },
+  { id: 'CTL0001', label: 'hemB',    start: 720,  end: 1058, strand: '+', category: 'Cofactor metabolism', selected: true },
+  { id: 'CTL0002', label: 'nqrA',   start: 1090, end: 1555, strand: '+', category: 'Energy metabolism' },
+  { id: 'CTL0003', label: 'CTL0003',start: 1570, end: 1714, strand: '+', category: 'Unknown' },
+  { id: 'CTL0004', label: 'greA',   start: 1730, end: 2445, strand: '+', category: 'Transcription' },
+];
+
+function drawGenomeMap(svgId) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const W = svg.parentElement.clientWidth - 28; // account for padding
+  svg.setAttribute('width', W);
+
+  const minBp = GENES[0].start;
+  const maxBp = GENES[GENES.length - 1].end;
+  const scale = (bp) => ((bp - minBp) / (maxBp - minBp)) * W;
+
+  const ROW_Y   = 10;
+  const H_NORM  = 32;
+  const H_SEL   = 42;
+  const AH      = 14;  // arrowhead size
+  const LABEL_Y = ROW_Y + H_SEL + 10;
+
+  let html = '';
+  GENES.forEach(g => {
+    const x1 = scale(g.start);
+    const x2 = scale(g.end);
+    const w  = x2 - x1;
+    const h  = g.selected ? H_SEL : H_NORM;
+    const y  = g.selected ? ROW_Y - 5 : ROW_Y + (H_SEL - H_NORM) / 2;
+    const ah = Math.min(AH, w * 0.5);
+    const color = CATEGORY_COLORS[g.category] ?? '#AAAAAA';
+    const stroke = g.selected ? '#16a34a' : 'none';
+    const sw = g.selected ? 1.5 : 0;
+
+    let pts;
+    if (g.strand === '+') {
+      pts = `${x1},${y+h} ${x1},${y} ${x2-ah},${y} ${x2},${y+h/2} ${x2-ah},${y+h}`;
+    } else {
+      pts = `${x1+ah},${y} ${x2},${y} ${x2},${y+h} ${x1+ah},${y+h} ${x1},${y+h/2}`;
+    }
+
+    const cls = g.selected ? 'gene-arrow selected-gene' : 'gene-arrow';
+    html += `<polygon class="${cls}" points="${pts}" fill="${color}" stroke="${stroke}" stroke-width="${sw}" title="${g.id}" />`;
+
+    // Label below
+    const cx = (x1 + x2) / 2;
+    const labelColor = g.selected ? '#16a34a' : '#9ca3af';
+    const fw = g.selected ? '700' : '400';
+    html += `<text x="${cx}" y="${LABEL_Y}" text-anchor="middle" fill="${labelColor}" font-size="8" font-family="DM Mono, monospace" font-weight="${fw}">${g.label}</text>`;
+  });
+
+  // Backbone line
+  html = `<line x1="0" y1="${ROW_Y + H_SEL/2 + 2}" x2="${W}" y2="${ROW_Y + H_SEL/2 + 2}" stroke="#e5e7eb" stroke-width="1" />` + html;
+
+  svg.innerHTML = html;
+
+  // Make gene arrows clickable (stub behavior)
+  svg.querySelectorAll('.gene-arrow').forEach(poly => {
+    poly.addEventListener('click', () => {
+      const id = poly.getAttribute('title');
+      if (id !== 'CTL0001') alert(`Navigate to gene: ${id}\n(In production, this loads that gene's detail panel)`);
+    });
+  });
+}
+
+// Draw after fonts load
+window.addEventListener('load', () => {
+  drawGenomeMap('map-A');
+  drawGenomeMap('map-B');
+});
+window.addEventListener('resize', () => {
+  drawGenomeMap('map-A');
+  drawGenomeMap('map-B');
+});
+</script>
+</body>
+</html>

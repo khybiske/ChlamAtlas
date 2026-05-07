@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gene Detail Panel — v2 Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: #f3f4f6; }
+
+/* ── Mockup bar ── */
+.mockup-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: #1e293b; color: #cbd5e1; font-size: 11px;
+  display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 36px;
+}
+.mockup-bar strong { color: white; }
+.mockup-bar span { color: #64748b; }
+
+/* ── App shell ── */
+.app-shell { margin-top: 36px; display: flex; flex-direction: column; height: calc(100vh - 36px); }
+.app-nav {
+  height: 52px; background: #0f4530; display: flex; align-items: center;
+  padding: 0 20px; flex-shrink: 0;
+}
+.app-nav .wordmark { font-family: 'Cormorant Garamond', serif; color: white; font-size: 21px; }
+.app-content { display: grid; grid-template-columns: 290px 1fr; flex: 1; overflow: hidden; }
+
+/* ── List panel stub ── */
+.list-stub { border-right: 1px solid #e8e8e8; background: white; overflow-y: auto; }
+.list-header { padding: 10px 12px 0; border-bottom: 1px solid #f0f0f0; }
+.list-header-tabs { display: flex; gap: 2px; margin-bottom: 0; }
+.list-tab {
+  font-size: 10.5px; font-weight: 600; padding: 5px 10px 8px;
+  border: none; border-bottom: 2px solid transparent; background: none;
+  cursor: pointer; color: #9ca3af;
+}
+.list-tab.active { color: #16a34a; border-bottom-color: #16a34a; }
+.list-search { padding: 7px 10px; }
+.list-search input {
+  width: 100%; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 5px 9px; font-size: 10px; outline: none; font-family: inherit; color: #333;
+}
+.gene-row {
+  display: flex; align-items: center; gap: 0; cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+}
+.gene-row:hover { background: #fafafa; }
+.gene-row.active { background: #f0fdf4; }
+.cat-stripe { width: 3px; align-self: stretch; flex-shrink: 0; }
+.gene-row-inner { display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 8px; flex: 1; min-width: 0; }
+.gene-thumb {
+  width: 26px; height: 26px; border-radius: 5px; background: #f3f4f6;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #d1d5db; flex-shrink: 0;
+}
+.gene-text { flex: 1; min-width: 0; }
+.gene-display-name { font-size: 10.5px; font-weight: 600; color: #111; }
+.gene-display-name.named { color: #a37742; }
+.gene-display-name .locus-sub { font-size: 9px; color: #9ca3af; font-family: 'DM Mono', monospace; font-weight: 400; margin-left: 4px; }
+.gene-product { font-size: 9px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.gene-star { font-size: 10px; color: #e5e7eb; flex-shrink: 0; }
+
+/* ── Detail panel ── */
+.detail-panel { overflow-y: auto; background: white; }
+
+/* ── Hero card ──
+   When a gene has a name: show name large + locus tag small below it
+   When unnamed: show locus tag at full title size (same visual weight, mono font)
+   No stat bar — stats live in Protein Info section
+*/
+.hero-card {
+  padding: 16px 20px 14px;
+  border-bottom: 3px solid var(--cat-color, #e5e7eb);
+  position: relative;
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.hero-thumb {
+  width: 44px; height: 44px; border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.8);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: #d1d5db;
+  flex-shrink: 0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.hero-title { flex: 1; min-width: 0; }
+/* Named gene: large name + small mono locus below */
+.hero-gene-name { font-size: 24px; font-weight: 700; color: #111; line-height: 1.1; }
+.hero-locus-sub { font-size: 9.5px; font-family: 'DM Mono', monospace; color: #888; margin-top: 2px; }
+/* Unnamed gene: locus tag IS the title, shown at same visual weight */
+.hero-locus-only {
+  font-size: 22px; font-weight: 700; font-family: 'DM Mono', monospace;
+  color: #333; line-height: 1.1;
+}
+.hero-product { font-size: 11px; color: #555; margin-top: 4px; line-height: 1.45; }
+.hero-actions { display: flex; gap: 6px; align-items: flex-start; padding-top: 2px; }
+.fav-btn { font-size: 16px; background: none; border: none; cursor: pointer; color: #f59e0b; padding: 0; }
+.hero-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+.badge {
+  font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 7px; border-radius: 10px;
+}
+.badge-strain { background: rgba(255,255,255,0.7); color: #16a34a; border: 1px solid rgba(22,163,74,0.3); }
+.badge-cat { background: var(--cat-bg, #f5f5f5); color: var(--cat-text, #666); border: 1px solid var(--cat-border, #e5e5e5); }
+.badge-char { background: rgba(255,255,255,0.7); color: #059669; border: 1px solid rgba(5,150,105,0.3); }
+
+/* ── Section header (no emojis — accent bar + all-caps label) ── */
+.row-2col { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #f0f0f0; }
+.row-2col > :first-child { border-right: 1px solid #f0f0f0; }
+.section { }
+.section-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px 7px;
+}
+.section-accent { width: 2px; height: 12px; background: #1a6b4a; border-radius: 1px; flex-shrink: 0; }
+.section-title {
+  font-size: 7.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: #1a6b4a;
+}
+.section-body { padding: 2px 16px 14px; }
+
+/* ── Props ── */
+.props-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.prop { display: flex; flex-direction: column; gap: 1px; }
+.prop-lbl { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+.prop-val { font-size: 11.5px; color: #222; font-weight: 500; }
+.prop-val.mono { font-family: 'DM Mono', monospace; font-size: 10.5px; }
+
+/* ── Flag pills ── */
+.flags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.flag {
+  font-size: 8.5px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+  background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
+}
+
+/* ── Ext links ── */
+.ext-links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.ext-link {
+  font-size: 9.5px; font-weight: 500; color: #16a34a; text-decoration: none;
+  padding: 2px 7px; border: 1px solid #bbf7d0; border-radius: 5px; background: #f0fdf4;
+}
+.ext-link:hover { background: #dcfce7; }
+
+/* ── Ortholog rows ── */
+.orth-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 0; border-bottom: 1px solid #f7f7f7; cursor: pointer;
+}
+.orth-row:last-child { border-bottom: none; }
+.orth-row:hover { background: #fafafa; margin: 0 -16px; padding: 6px 16px; }
+.orth-bar { width: 3px; height: 24px; border-radius: 1px; flex-shrink: 0; }
+.orth-strain { font-size: 8px; font-weight: 700; color: #9ca3af; width: 36px; flex-shrink: 0; }
+.orth-tag { font-size: 9.5px; font-family: 'DM Mono', monospace; color: #222; font-weight: 500; }
+.orth-name { font-size: 9.5px; color: #9ca3af; flex: 1; margin-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.orth-arrow { font-size: 11px; color: #ddd; flex-shrink: 0; }
+
+/* ── Gene map — compact two-row (+ above backbone, − below) ── */
+.gene-map-section { border-bottom: 1px solid #f0f0f0; padding: 9px 16px 10px; }
+.gene-map-svg-wrap {
+  background: #fafafa; border: 1px solid #efefef; border-radius: 6px;
+  padding: 8px 10px 6px;
+}
+/* SVG gene arrows: cursor pointer, subtle hover */
+.ga { cursor: pointer; transition: opacity 0.12s; }
+.ga:hover { opacity: 0.72; }
+/* current gene gets a glow effect via filter */
+
+/* ── Protein info ── */
+.protein-description {
+  font-size: 10.5px; color: #555; line-height: 1.65; font-style: italic;
+  margin-bottom: 10px; padding: 7px 10px;
+  background: #fafafa; border-radius: 6px; border-left: 3px solid #e5e7eb;
+}
+
+/* ── Three-column row ── */
+.row-3col {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  border-bottom: 1px solid #f0f0f0;
+}
+.row-3col > * { border-right: 1px solid #f0f0f0; }
+.row-3col > *:last-child { border-right: none; }
+
+/* ── Bar chart ── */
+.strain-toggle { display: flex; gap: 4px; margin-bottom: 8px; }
+.tog-btn {
+  font-size: 8px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+  border: 1px solid #e5e7eb; background: white; color: #9ca3af; cursor: pointer;
+}
+.tog-btn.active { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; padding-bottom: 17px; position: relative; }
+.bar-wrap { display: flex; flex-direction: column; align-items: center; flex: 1; }
+.bar { background: #4ade80; border-radius: 2px 2px 0 0; width: 100%; cursor: pointer; }
+.bar:hover { background: #16a34a; }
+.bar-lbl { font-size: 7.5px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-top: 3px; }
+.chart-baseline { position: absolute; bottom: 17px; left: 0; right: 0; height: 1px; background: #e5e7eb; }
+.expr-note { font-size: 8px; color: #9ca3af; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+.expr-dot { width: 5px; height: 5px; border-radius: 50%; background: #16a34a; flex-shrink: 0; }
+
+/* ── EB/RB Proteomics ── */
+.prot-row { margin-bottom: 9px; }
+.prot-row:last-child { margin-bottom: 0; }
+.prot-bar-wrap { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.prot-bg { height: 5px; background: #f3f4f6; border-radius: 3px; flex: 1; }
+.prot-fill { height: 5px; border-radius: 3px; background: #4ade80; }
+.prot-num { font-size: 9px; font-family: 'DM Mono', monospace; color: #555; white-space: nowrap; }
+
+/* ── Coming soon placeholder ── */
+.placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; padding: 18px 8px 14px; text-align: center; color: #bbb;
+}
+.placeholder .ph-icon { font-size: 20px; }
+.placeholder .ph-lbl { font-size: 9px; font-weight: 600; color: #aaa; }
+.placeholder .ph-sub { font-size: 8.5px; color: #ccc; max-width: 120px; line-height: 1.4; }
+
+/* ── Structure section ── */
+.structure-section { padding: 10px 16px 18px; border-bottom: 1px solid #f0f0f0; }
+
+/* Source tabs: Crystal Structure / AlphaFold v3 / AlphaFold v2 */
+.struct-tabs { display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 12px; }
+.struct-tab {
+  padding: 6px 14px; font-size: 10px; font-weight: 600; border: none; background: none;
+  color: #9ca3af; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-family: inherit; white-space: nowrap;
+}
+.struct-tab.active { color: #1a6b4a; border-bottom-color: #1a6b4a; }
+.struct-tab.unavailable { color: #d1d5db; cursor: not-allowed; }
+.struct-tab.unavailable::after { content: ' —'; font-size: 8px; }
+
+/* Viewer + info side-by-side layout */
+.struct-body { display: flex; gap: 16px; align-items: flex-start; }
+.molstar-mock {
+  width: 280px; height: 280px; flex-shrink: 0;
+  background: #0a1628; border-radius: 8px;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.molstar-toolbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: rgba(255,255,255,0.05); padding: 5px 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.mol-btn {
+  width: 20px; height: 20px; border-radius: 3px;
+  background: rgba(255,255,255,0.1); display: flex; align-items: center;
+  justify-content: center; font-size: 9px; color: rgba(255,255,255,0.55);
+  cursor: pointer; user-select: none;
+}
+.mol-btn.active { background: rgba(34,197,94,0.25); color: #4ade80; }
+.mol-spacer { flex: 1; }
+.mol-lbl { font-size: 8px; color: rgba(255,255,255,0.3); font-family: 'DM Mono', monospace; }
+.mol-watermark {
+  position: absolute; bottom: 7px; right: 9px;
+  font-size: 8px; color: rgba(255,255,255,0.2); font-family: 'DM Mono', monospace;
+}
+
+/* Info panel (right of viewer) */
+.struct-info { flex: 1; min-width: 0; }
+.struct-score-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.struct-score {
+  font-size: 28px; font-weight: 700; color: #16a34a; font-family: 'DM Mono', monospace;
+  line-height: 1;
+}
+.struct-score-sub { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
+.struct-homolog { font-size: 10.5px; color: #222; font-weight: 600; margin-bottom: 3px; }
+.struct-homolog-meta { font-size: 9.5px; color: #9ca3af; line-height: 1.5; margin-bottom: 10px; }
+.inferred-fn {
+  font-size: 10px; color: #444; background: #f0fdf4; border-radius: 6px;
+  padding: 7px 10px; border-left: 3px solid #16a34a; line-height: 1.55; margin-bottom: 10px;
+}
+.inferred-fn strong { color: #1a6b4a; }
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>ChlamAtlas</strong>
+  <span>Gene Detail Panel — v2 (revised)</span>
+  <span style="margin-left:auto;color:#94a3b8;">Changes: no stat bar in hero, compact gene map, no emojis, structure tabs + side layout</span>
+</div>
+
+<div class="app-shell">
+
+  <nav class="app-nav">
+    <span class="wordmark">ChlamAtlas</span>
+  </nav>
+
+  <div class="app-content">
+
+    <!-- ── List stub ── -->
+    <div class="list-stub">
+      <div class="list-header">
+        <div class="list-header-tabs">
+          <button class="list-tab active">CT L2/434</button>
+          <button class="list-tab">CT D/UW-3</button>
+          <button class="list-tab">CM</button>
+        </div>
+      </div>
+      <div class="list-search">
+        <input type="text" placeholder="Search genes…" value="inc">
+      </div>
+      <div class="gene-row">
+        <div class="cat-stripe" style="background:#E4B47E;"></div>
+        <div class="gene-row-inner">
+          <div class="gene-thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-display-name named">incB <span class="locus-sub">CTL0476</span></div>
+            <div class="gene-product">Inclusion membrane protein B</div>
+          </div>
+        </div>
+      </div>
+      <!-- Unnamed gene example in list — locus tag is the name -->
+      <div class="gene-row">
+        <div class="cat-stripe" style="background:#AAAAAA;"></div>
+        <div class="gene-row-inner">
+          <div class="gene-thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-display-name" style="font-family:'DM Mono',monospace;font-size:10px;">CTL0477</div>
+            <div class="gene-product">Hypothetical protein</div>
+          </div>
+        </div>
+      </div>
+      <div class="gene-row">
+        <div class="cat-stripe" style="background:#E4B47E;"></div>
+        <div class="gene-row-inner">
+          <div class="gene-thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-display-name named">incC <span class="locus-sub">CTL0478</span></div>
+            <div class="gene-product">Inclusion membrane protein C</div>
+          </div>
+        </div>
+      </div>
+      <div class="gene-row active">
+        <div class="cat-stripe" style="background:#E4B47E;"></div>
+        <div class="gene-row-inner">
+          <div class="gene-thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-display-name named">incA <span class="locus-sub">CTL0481</span></div>
+            <div class="gene-product">Inclusion membrane protein A</div>
+          </div>
+          <span class="gene-star" style="color:#f59e0b;">★</span>
+        </div>
+      </div>
+      <div class="gene-row">
+        <div class="cat-stripe" style="background:#E4B47E;"></div>
+        <div class="gene-row-inner">
+          <div class="gene-thumb">⬡</div>
+          <div class="gene-text">
+            <div class="gene-display-name named">incD <span class="locus-sub">CTL0496</span></div>
+            <div class="gene-product">Inclusion membrane protein D</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:8px 12px 4px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#bbb;">No-name example below</div>
+      <div class="gene-row">
+        <div class="cat-stripe" style="background:#EC1C24;"></div>
+        <div class="gene-row-inner">
+          <div class="gene-thumb">⬡</div>
+          <div class="gene-text">
+            <!-- Unnamed gene: locus tag is the display name, mono -->
+            <div class="gene-display-name" style="font-family:'DM Mono',monospace;font-size:10px;">CTL0094</div>
+            <div class="gene-product">ATP synthase subunit alpha</div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /list-stub -->
+
+    <!-- ── Detail panel: incA CTL0481 ── -->
+    <div class="detail-panel">
+
+      <!-- ── HERO ──
+           Named gene: large name (24px) + mono locus tag below.
+           Unnamed gene: locus tag fills the name slot at same size in mono.
+           No stat bar — all stats live in Protein Info.
+      -->
+      <div class="hero-card" style="
+        --cat-color: #C49B5A;
+        --cat-bg: #fef9ee;
+        --cat-text: #a37742;
+        --cat-border: #f0d898;
+        background: linear-gradient(150deg, #fef6e4 0%, #fffcf4 55%, #ffffff 100%);
+      ">
+        <div class="hero-content">
+          <div class="hero-top">
+            <div class="hero-thumb">⬡</div>
+            <div class="hero-title">
+              <!-- Named gene -->
+              <div class="hero-gene-name">incA</div>
+              <div class="hero-locus-sub">CTL0481</div>
+              <!-- Unnamed gene would render: <div class="hero-locus-only">CTL0481</div> -->
+              <div class="hero-product">Inclusion membrane protein A</div>
+            </div>
+            <div class="hero-actions">
+              <button class="fav-btn" title="Favorite">★</button>
+            </div>
+          </div>
+          <div class="hero-badges">
+            <span class="badge badge-strain">CT-L2</span>
+            <span class="badge badge-cat">Inc Protein</span>
+            <span class="badge badge-char">Characterized</span>
+          </div>
+        </div>
+      </div><!-- /hero -->
+
+      <!-- ── ROW: Gene Info + Orthologs ── -->
+      <div class="row-2col">
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-accent"></div>
+            <span class="section-title">Gene Info</span>
+          </div>
+          <div class="section-body">
+            <div class="props-row">
+              <div class="prop">
+                <span class="prop-lbl">Length</span>
+                <span class="prop-val mono">786 bp</span>
+              </div>
+              <div class="prop">
+                <span class="prop-lbl">Strand</span>
+                <span class="prop-val">+ (sense)</span>
+              </div>
+              <div class="prop">
+                <span class="prop-lbl">Position</span>
+                <span class="prop-val mono">500,412–501,198</span>
+              </div>
+            </div>
+            <div class="flags">
+              <span class="flag">Inc Protein</span>
+              <span class="flag">T3 Secreted</span>
+            </div>
+            <div class="ext-links">
+              <a class="ext-link" href="#">UniProt ↗</a>
+              <a class="ext-link" href="#">NCBI ↗</a>
+              <!-- AlphaFold link moved to Structure section -->
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-accent"></div>
+            <span class="section-title">Orthologs</span>
+          </div>
+          <div class="section-body">
+            <div class="orth-row">
+              <div class="orth-bar" style="background:#4b2e83;"></div>
+              <span class="orth-strain">CT-D</span>
+              <span class="orth-tag">CT0481</span>
+              <span class="orth-name">Inclusion membrane protein A</span>
+              <span class="orth-arrow">›</span>
+            </div>
+            <div class="orth-row">
+              <div class="orth-bar" style="background:#2563eb;"></div>
+              <span class="orth-strain">CM</span>
+              <span class="orth-tag">TC0481</span>
+              <span class="orth-name">Inclusion membrane protein A</span>
+              <span class="orth-arrow">›</span>
+            </div>
+            <div style="margin-top:8px;">
+              <span style="font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · 3/3 strains conserved</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /row-2col -->
+
+      <!-- ── GENOMIC CONTEXT (compact gene map) ── -->
+      <div class="gene-map-section">
+        <div class="section-head" style="padding:0 0 7px;">
+          <div class="section-accent"></div>
+          <span class="section-title">Genomic Context</span>
+          <span style="font-size:8.5px;color:#bbb;margin-left:auto;font-family:'DM Mono',monospace;">CT L2/434 · ~500 kb</span>
+        </div>
+        <div class="gene-map-svg-wrap">
+          <!--
+            Two-row layout: + strand genes top row, − strand genes bottom row.
+            Backbone line at vertical center.
+            Arrow shapes: rightward chevron for +strand, leftward chevron for −strand.
+            All arrows same height (13px); current gene slightly taller (16px) with outline.
+            Labels: gene name above arrow (if named), locus tag below.
+            Compact: viewBox fits in ~56px height; scaled to full container width.
+          -->
+          <svg viewBox="0 8 640 56" xmlns="http://www.w3.org/2000/svg"
+               style="width:100%;height:auto;display:block;overflow:visible;">
+
+            <!-- Backbone -->
+            <line x1="12" y1="36" x2="628" y2="36" stroke="#d9d9d9" stroke-width="1.2"/>
+
+            <!-- Strand labels -->
+            <text x="6" y="31" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">+</text>
+            <text x="6" y="48" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">−</text>
+
+            <!--
+              + strand arrows: top row, y=22 to y=35 (height=13, tip at midpoint y=28.5)
+              − strand arrows: bottom row, y=37 to y=50 (height=13, tip at midpoint y=43.5)
+              Arrow tip = 10px from right (+ strand) or from left (− strand)
+              Gene widths roughly proportional to bp (each gene ~50–80px wide at this scale)
+            -->
+
+            <!-- CTL0477 hypothetical · + strand · w=50 -->
+            <g class="ga" title="CTL0477 · Hypothetical protein">
+              <polygon points="28,22 68,22 78,28.5 68,35 28,35" fill="#BDBDBD" opacity="0.8"/>
+              <text x="53" y="19.5" text-anchor="middle" font-family="DM Mono,monospace" font-size="6" fill="#aaa">CTL0477</text>
+            </g>
+
+            <!-- incC CTL0478 · + strand · w=58 · Inc protein color -->
+            <g class="ga" title="incC · CTL0478 · Inclusion membrane protein C">
+              <polygon points="85,22 133,22 143,28.5 133,35 85,35" fill="#C49B5A" opacity="0.85"/>
+              <text x="114" y="19" text-anchor="middle" font-family="DM Mono,monospace" font-size="6.5" fill="#8a6030" font-weight="600">incC</text>
+              <text x="114" y="41" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">CTL0478</text>
+            </g>
+
+            <!-- CTL0479 hypothetical · − strand · w=42 · leftward arrow -->
+            <g class="ga" title="CTL0479 · Hypothetical protein">
+              <polygon points="206,37 166,37 156,43.5 166,50 206,50" fill="#BDBDBD" opacity="0.75"/>
+              <text x="181" y="57" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#bbb">CTL0479</text>
+            </g>
+
+            <!-- CTL0480 hypothetical · + strand · w=44 -->
+            <g class="ga" title="CTL0480 · Hypothetical protein">
+              <polygon points="218,22 252,22 262,28.5 252,35 218,35" fill="#BDBDBD" opacity="0.75"/>
+              <text x="240" y="19.5" text-anchor="middle" font-family="DM Mono,monospace" font-size="6" fill="#aaa">CTL0480</text>
+            </g>
+
+            <!-- ★ incA CTL0481 — CURRENT GENE · + strand · w=72 · slightly taller + outline -->
+            <g class="ga" style="cursor:default;" title="incA · CTL0481 (current)">
+              <!-- taller: y=19 to y=37 (height=18), tip at y=28 -->
+              <polygon points="275,19 337,19 349,28 337,37 275,37" fill="#C49B5A"/>
+              <polygon points="275,19 337,19 349,28 337,37 275,37"
+                       fill="none" stroke="#8a6030" stroke-width="1.5"/>
+              <text x="312" y="15.5" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="7.5" fill="#5c3d10" font-weight="700">incA</text>
+              <text x="312" y="43" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#a37742" font-weight="600">CTL0481</text>
+            </g>
+
+            <!-- CTL0482 hypothetical · + strand · w=46 -->
+            <g class="ga" title="CTL0482 · Hypothetical protein">
+              <polygon points="360,22 396,22 406,28.5 396,35 360,35" fill="#BDBDBD" opacity="0.75"/>
+              <text x="383" y="19.5" text-anchor="middle" font-family="DM Mono,monospace" font-size="6" fill="#aaa">CTL0482</text>
+            </g>
+
+            <!-- CTL0483 cell processes · − strand · w=54 · leftward -->
+            <g class="ga" title="CTL0483 · Cell division protein">
+              <polygon points="474,37 430,37 420,43.5 430,50 474,50" fill="#0052A3" opacity="0.75"/>
+              <text x="447" y="57" text-anchor="middle" font-family="DM Mono,monospace" font-size="5.5" fill="#555">CTL0483</text>
+            </g>
+
+            <!-- CTL0484 hypothetical · + strand · w=48 -->
+            <g class="ga" title="CTL0484 · Hypothetical protein">
+              <polygon points="486,22 524,22 534,28.5 524,35 486,35" fill="#BDBDBD" opacity="0.7"/>
+              <text x="510" y="19.5" text-anchor="middle" font-family="DM Mono,monospace" font-size="6" fill="#aaa">CTL0484</text>
+            </g>
+
+            <!-- CTL0485 transcription · + strand · w=52 -->
+            <g class="ga" title="CTL0485 · RNA polymerase sigma factor">
+              <polygon points="542,22 584,22 594,28.5 584,35 542,35" fill="#FCB814" opacity="0.8"/>
+              <text x="568" y="19.5" text-anchor="middle" font-family="DM Mono,monospace" font-size="6" fill="#a07010">CTL0485</text>
+            </g>
+
+          </svg>
+        </div>
+      </div><!-- /gene-map -->
+
+      <!-- ── PROTEIN INFO ── -->
+      <div class="section" style="border-bottom:1px solid #f0f0f0;">
+        <div class="section-head">
+          <div class="section-accent"></div>
+          <span class="section-title">Protein</span>
+        </div>
+        <div class="section-body">
+          <!-- Product description — column J in source CSV -->
+          <div class="protein-description">
+            IncA is an inclusion membrane protein required for homotypic fusogenicity of inclusions.
+            It contains two transmembrane domains and a cytoplasmic loop that mediates SNARE-like
+            interactions. Deletion results in a non-fusogenic inclusion phenotype. Essential for
+            establishing multi-lobed inclusions in co-infected cells.
+          </div>
+          <div class="props-row">
+            <div class="prop">
+              <span class="prop-lbl">Mass</span>
+              <span class="prop-val mono">28.9 kDa</span>
+            </div>
+            <div class="prop">
+              <span class="prop-lbl">Length</span>
+              <span class="prop-val mono">262 aa</span>
+            </div>
+            <div class="prop">
+              <span class="prop-lbl">TM Domains</span>
+              <span class="prop-val">2</span>
+            </div>
+            <div class="prop">
+              <span class="prop-lbl">Signal Peptide</span>
+              <span class="prop-val">No</span>
+            </div>
+            <div class="prop">
+              <span class="prop-lbl">Localization</span>
+              <span class="prop-val">Inc membrane</span>
+            </div>
+            <div class="prop">
+              <span class="prop-lbl">Family</span>
+              <span class="prop-val">Inc protein</span>
+            </div>
+          </div>
+          <div class="ext-links">
+            <a class="ext-link" href="#">UniProt ↗</a>
+            <a class="ext-link" href="#">NCBI ↗</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ROW: Transcriptomics + EB/RB Proteomics + Cell Localization ── -->
+      <div class="row-3col">
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-accent"></div>
+            <span class="section-title">Transcriptomics</span>
+          </div>
+          <div class="section-body" style="padding-bottom:12px;">
+            <div class="strain-toggle">
+              <button class="tog-btn active">CT-D microarray</button>
+              <button class="tog-btn">CT-L2</button>
+            </div>
+            <div class="bar-chart">
+              <div class="chart-baseline"></div>
+              <div class="bar-wrap"><div class="bar" style="height:14px;"></div><div class="bar-lbl">1h</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:20px;"></div><div class="bar-lbl">3h</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:26px;"></div><div class="bar-lbl">8h</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:34px;"></div><div class="bar-lbl">14h</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:40px;background:#16a34a;"></div><div class="bar-lbl">24h</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:36px;"></div><div class="bar-lbl">40h</div></div>
+            </div>
+            <div class="expr-note"><span class="expr-dot"></span><span>Peak 24h · Mid-Late</span></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-accent"></div>
+            <span class="section-title">EB / RB Proteomics</span>
+          </div>
+          <div class="section-body">
+            <div class="prot-row">
+              <div class="prop-lbl">EB (elementary body)</div>
+              <div class="prot-bar-wrap">
+                <div class="prot-bg"><div class="prot-fill" style="width:72%;"></div></div>
+                <span class="prot-num">72%ile</span>
+              </div>
+            </div>
+            <div class="prot-row">
+              <div class="prop-lbl">RB (reticulate body)</div>
+              <div class="prot-bar-wrap">
+                <div class="prot-bg"><div class="prot-fill" style="width:89%;background:#22c55e;"></div></div>
+                <span class="prot-num">89%ile</span>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 · Shaw et al. 2020</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-accent"></div>
+            <span class="section-title">Cell Localization</span>
+          </div>
+          <div class="section-body" style="padding-top:0;">
+            <div class="placeholder">
+              <div class="ph-icon">◎</div>
+              <div class="ph-lbl">Coming soon</div>
+              <div class="ph-sub">Interactive cell cross-section with localization overlay</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /row-3col -->
+
+      <!-- ── STRUCTURE ── -->
+      <div class="structure-section">
+
+        <div class="section-head" style="padding:0 0 0;">
+          <div class="section-accent"></div>
+          <span class="section-title">Structure</span>
+        </div>
+
+        <!--
+          Source tabs — three possible sources:
+          · Crystal Structure (from PDB — only if Kevin has entered a PDB ID; otherwise unavailable)
+          · AlphaFold v3    (Kevin's prediction — available if mmCIF provided)
+          · AlphaFold v2    (AFDB — always available as fallback; default when no v3)
+          Tab active state = currently displayed source.
+          "unavailable" styling shown when no data exists for that source.
+        -->
+        <div class="struct-tabs">
+          <button class="struct-tab unavailable">Crystal Structure</button>
+          <button class="struct-tab active">AlphaFold v3</button>
+          <button class="struct-tab">AlphaFold v2</button>
+        </div>
+
+        <!-- Viewer left (square) + info right -->
+        <div class="struct-body">
+
+          <!-- Mol* viewer mock — square, left-aligned -->
+          <div class="molstar-mock">
+            <div class="molstar-toolbar">
+              <div class="mol-btn active" title="Cartoon">≋</div>
+              <div class="mol-btn" title="Surface">◯</div>
+              <div class="mol-btn" title="Ball & Stick">⊕</div>
+              <div class="mol-spacer"></div>
+              <div class="mol-btn" title="Reset">⟲</div>
+              <div class="mol-btn" title="Fullscreen">⛶</div>
+            </div>
+            <!-- Fake protein structure blobs -->
+            <div style="position:relative;width:190px;height:190px;opacity:0.82;">
+              <div style="position:absolute;width:130px;height:26px;background:linear-gradient(90deg,#4ade80,#22d3ee);border-radius:13px;top:28px;left:18px;transform:rotate(-14deg);filter:blur(0.8px);"></div>
+              <div style="position:absolute;width:108px;height:24px;background:linear-gradient(90deg,#22d3ee,#818cf8);border-radius:12px;top:58px;left:44px;transform:rotate(11deg);filter:blur(0.8px);"></div>
+              <div style="position:absolute;width:88px;height:22px;background:linear-gradient(90deg,#818cf8,#f472b6);border-radius:11px;top:86px;left:32px;transform:rotate(-5deg);filter:blur(0.8px);"></div>
+              <div style="position:absolute;width:116px;height:24px;background:linear-gradient(90deg,#4ade80,#facc15);border-radius:12px;top:114px;left:22px;transform:rotate(8deg);filter:blur(0.8px);"></div>
+              <div style="position:absolute;width:14px;height:88px;background:linear-gradient(180deg,#4ade80,#22d3ee);border-radius:7px;top:28px;left:152px;filter:blur(0.4px);"></div>
+              <div style="position:absolute;width:14px;height:76px;background:linear-gradient(180deg,#22d3ee,#818cf8);border-radius:7px;top:52px;left:14px;filter:blur(0.4px);"></div>
+            </div>
+            <div class="mol-watermark">Mol* · interactive in production</div>
+          </div>
+
+          <!-- Structure metadata (right of viewer) -->
+          <div class="struct-info">
+            <div class="struct-score-row">
+              <span class="struct-score">0.82</span>
+              <span class="struct-score-sub">pLDDT · AlphaFold v3</span>
+            </div>
+            <div class="struct-homolog">Predicted channel protein (ABLB)</div>
+            <div class="struct-homolog-meta">
+              RCSB PDB: 4XHE<br>
+              TM-score: 0.61 · Method: structural alignment
+            </div>
+            <div class="inferred-fn">
+              <strong>Inferred function:</strong> Bitopic membrane topology with two
+              transmembrane helices flanking a cytoplasmic SNARE-like domain. Structural
+              homology to syntaxin-family proteins suggests a role in membrane fusion
+              at the inclusion periphery.
+            </div>
+            <div class="ext-links">
+              <a class="ext-link" href="#">AlphaFold DB ↗</a>
+              <a class="ext-link" href="#">RCSB 4XHE ↗</a>
+              <a class="ext-link" href="#">Download mmCIF ↗</a>
+            </div>
+          </div>
+
+        </div><!-- /struct-body -->
+      </div><!-- /structure-section -->
+
+    </div><!-- /detail-panel -->
+  </div><!-- /app-content -->
+</div><!-- /app-shell -->
+
+</body>
+</html>

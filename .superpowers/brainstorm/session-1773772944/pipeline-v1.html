@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChlamAtlas — Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1a6b4a; --green-dark: #0f4530; --green-light: #e8f5ef; --green-faint: #f0faf5;
+    --cream: #f8f9fb; --white: #ffffff;
+    --ink: #111827; --ink-2: #374151; --muted: #6b7280; --muted-light: #9ca3af;
+    --border: #e5e7eb; --border-light: #f3f4f6;
+    --uw-purple: #4b2e83;
+    /* Stage colors */
+    --tf: #7c3aed; --cl: #0891b2; --gt: #1a6b4a;
+    --iv: #d97706; --ov: #dc2626; --sq: #475569;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); }
+
+  /* ══ NAV ══════════════════════════════════════════════════════ */
+  nav {
+    position: sticky; top: 0; z-index: 200;
+    background: var(--green-dark);
+    display: flex; align-items: center;
+    padding: 0 24px; height: 50px;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 9px; margin-right: 28px; flex-shrink: 0; text-decoration: none; }
+  .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+  .nav-brand-name { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 700; color: white; letter-spacing: 0.01em; }
+  .nav-links { display: flex; gap: 1px; flex: 1; }
+  .nav-links a {
+    display: flex; align-items: center; padding: 0 13px; height: 50px;
+    font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65);
+    text-decoration: none; transition: color 0.15s, background 0.15s; white-space: nowrap;
+  }
+  .nav-links a:hover { color: white; background: rgba(255,255,255,0.06); }
+  .nav-links a.active { color: white; border-bottom: 2px solid rgba(255,255,255,0.6); }
+  .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
+  .nav-search-pill {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; padding: 5px 11px; font-size: 12px; color: rgba(255,255,255,0.45);
+    cursor: text; min-width: 180px;
+  }
+  .nav-user {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 8px 4px 5px; border-radius: 6px;
+    background: rgba(255,255,255,0.09); cursor: pointer;
+  }
+  .nav-user-logo { width: 22px; height: 22px; border-radius: 4px; background: var(--uw-purple); display: flex; align-items: center; justify-content: center; }
+  .nav-user-name { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.75); }
+
+  /* ══ PAGE SHELL ═══════════════════════════════════════════════ */
+  .page { max-width: 860px; margin: 0 auto; padding: 28px 28px 60px; }
+
+  .page-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 20px; font-weight: 600; color: var(--ink); }
+  .page-subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .page-header-right { display: flex; align-items: center; gap: 8px; }
+
+  /* ══ SUMMARY STRIP ════════════════════════════════════════════ */
+  .summary-strip {
+    display: flex; background: var(--white);
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; margin-bottom: 18px;
+  }
+  .ss-item {
+    flex: 1; padding: 12px 14px;
+    border-right: 1px solid var(--border-light);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .ss-item:last-child { border-right: none; }
+  .ss-item:hover { background: var(--green-faint); }
+  .ss-item.is-active { background: var(--green-faint); }
+  .ss-bar { height: 3px; border-radius: 2px; margin-bottom: 8px; }
+  .ss-n { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; color: var(--ink); line-height: 1; margin-bottom: 3px; }
+  .ss-label { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+
+  /* ══ TOOLBAR ══════════════════════════════════════════════════ */
+  .toolbar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 500; color: var(--ink-2);
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 5px; padding: 5px 10px; cursor: pointer;
+    transition: all 0.12s;
+  }
+  .filter-chip:hover { border-color: var(--green); color: var(--green); background: var(--green-faint); }
+  .filter-chip.on { background: var(--green-faint); border-color: var(--green); color: var(--green); }
+  .filter-sep { width: 1px; height: 20px; background: var(--border); }
+  .toolbar-count { margin-left: auto; font-size: 11px; color: var(--muted-light); }
+
+  /* ══ ACCORDION ════════════════════════════════════════════════ */
+  .stage-group {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; overflow: hidden;
+    transition: box-shadow 0.15s;
+  }
+  .stage-group.highlighted {
+    border-color: var(--iv);
+    box-shadow: 0 0 0 1px var(--iv);
+  }
+
+  .stage-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; cursor: pointer; user-select: none;
+    transition: background 0.12s;
+  }
+  .stage-header:hover { background: var(--border-light); }
+  .stage-group.highlighted .stage-header { background: #fffbeb; }
+  .stage-group.highlighted .stage-header:hover { background: #fef3c7; }
+
+  .stage-color-bar { width: 4px; height: 28px; border-radius: 2px; flex-shrink: 0; }
+  .stage-info { flex: 1; min-width: 0; }
+  .stage-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .stage-desc { font-size: 11px; color: var(--muted-light); margin-top: 1px; }
+
+  .stage-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .stage-lab-chips { display: flex; gap: 4px; }
+  .lab-chip {
+    font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+    background: var(--border-light); color: var(--muted);
+  }
+  .lab-chip.uw  { background: #ede9fe; color: var(--uw-purple); }
+  .lab-chip.ku  { background: #dbeafe; color: #0051a5; }
+  .lab-chip.osu { background: #ffedd5; color: #dc4405; }
+
+  .stage-count-badge {
+    font-size: 11px; font-weight: 700; color: var(--white);
+    background: var(--muted-light); border-radius: 10px;
+    padding: 2px 9px; min-width: 28px; text-align: center;
+  }
+  .stage-group.highlighted .stage-count-badge { background: var(--iv); }
+
+  .chevron {
+    color: var(--muted-light); transition: transform 0.2s; flex-shrink: 0;
+    display: flex; align-items: center;
+  }
+  .stage-group.open .chevron { transform: rotate(180deg); }
+
+  /* ══ ROWS ═════════════════════════════════════════════════════ */
+  .stage-rows { border-top: 1px solid var(--border-light); }
+  .stage-rows.hidden { display: none; }
+
+  .mutant-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 48px 100px 80px 36px;
+    align-items: center; gap: 10px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border-light);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .mutant-row:last-child { border-bottom: none; }
+  .mutant-row:hover { background: var(--green-faint); }
+
+  .col-id { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; color: var(--ink); }
+  .col-gene { min-width: 0; }
+  .col-gene .locus { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink-2); }
+  .col-gene .gname { font-size: 12px; font-weight: 600; color: #1d4ed8; }
+  .col-gene .no-name { font-size: 11px; color: var(--muted-light); font-style: italic; }
+
+  .col-type { display: flex; }
+  .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .ko   { background: #fce7f3; color: #9d174d; }
+  .tn   { background: #dbeafe; color: #1e40af; }
+  .chim { background: #ede9fe; color: #5b21b6; }
+  .kd   { background: #fef3c7; color: #92400e; }
+  .fi   { background: #dcfce7; color: #166534; }
+
+  .col-pills { display: flex; gap: 3px; align-items: center; }
+  .pill { display: inline-block; width: 14px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  .p-done   { background: #22c55e; }
+  .p-now    { background: #f59e0b; }
+  .p-skip   { background: #e2e8f0; }
+
+  .col-stage {}
+  .stage-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+  .col-lab { font-size: 11px; color: var(--muted); text-align: center; }
+
+  /* column header row */
+  .rows-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 48px 100px 80px 36px;
+    gap: 10px; padding: 6px 16px;
+    background: var(--border-light);
+    border-bottom: 1px solid var(--border);
+  }
+  .col-hdr { font-size: 9px; font-weight: 700; color: var(--muted-light); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* unpublished row */
+  .mutant-row.unpub { opacity: 0.55; }
+  .unpub-icon { color: var(--muted-light); display: flex; }
+
+  /* ══ PILL LEGEND ══════════════════════════════════════════════ */
+  .legend {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; background: var(--border-light);
+    border-top: 1px solid var(--border); font-size: 10px; color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-abbr { font-size: 9px; font-weight: 600; color: var(--muted-light); letter-spacing: 0.03em; }
+  /* ══ ROW ACTION POPUP ════════════════════════════════════════ */
+  .row-popup {
+    position: fixed; z-index: 500;
+    background: white; border: 1px solid var(--border);
+    border-radius: 9px; box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+    width: 230px; overflow: hidden;
+    display: none;
+  }
+  .row-popup.visible { display: block; }
+  .row-popup-header {
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .row-popup-id { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .row-popup-gene { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 1px; }
+  .row-popup-gene .gname { color: #1d4ed8; }
+  .row-popup-action {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; cursor: pointer;
+    transition: background 0.12s; text-decoration: none; color: inherit;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .row-popup-action:last-child { border-bottom: none; }
+  .row-popup-action:hover { background: var(--green-faint); }
+  .row-popup-action:hover .action-icon { color: var(--green); }
+  .action-icon { color: var(--muted-light); flex-shrink: 0; }
+  .action-label { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  .action-sub { font-size: 11px; color: var(--muted-light); margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<!-- ══ NAV ══════════════════════════════════════════════════════ -->
+<nav>
+  <a class="nav-brand" href="#">
+    <img src="/files/icon_512.png" alt="ChlamAtlas">
+    <span class="nav-brand-name">ChlamAtlas</span>
+  </a>
+  <div class="nav-links">
+    <a href="#">Home</a>
+    <a href="#">Genomes</a>
+    <a href="#">Mutants</a>
+    <a href="#" class="active">Pipeline</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-search-pill">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Search genes, mutants…
+      <span style="margin-left:auto;font-size:10px;opacity:0.4;font-family:'DM Mono',monospace;">⌘K</span>
+    </div>
+    <div class="nav-user">
+      <div class="nav-user-logo">
+        <svg width="15" height="12" viewBox="0 0 30 24" fill="white"><polygon points="0,0 5.5,0 9,15 12.5,4 16,4 19.5,15 23,0 28.5,0 22,26 17.5,26 14,16 10.5,26 6,26"/></svg>
+      </div>
+      <span class="nav-user-name">Kevin</span>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ PAGE ══════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Mutant Pipeline</div>
+      <div class="page-subtitle">Multi-lab progress tracking · 38 active mutants</div>
+    </div>
+    <div class="page-header-right">
+      <span class="filter-chip">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        All labs
+      </span>
+      <span class="filter-chip">All strains</span>
+    </div>
+  </div>
+
+  <!-- Stage summary strip -->
+  <div class="summary-strip">
+    <div class="ss-item">
+      <div class="ss-bar" style="background:var(--tf);"></div>
+      <div class="ss-n">3</div><div class="ss-label">Transform</div>
+    </div>
+    <div class="ss-item">
+      <div class="ss-bar" style="background:var(--cl);"></div>
+      <div class="ss-n">5</div><div class="ss-label">Clone</div>
+    </div>
+    <div class="ss-item">
+      <div class="ss-bar" style="background:var(--gt);"></div>
+      <div class="ss-n">6</div><div class="ss-label">Genotype</div>
+    </div>
+    <div class="ss-item is-active">
+      <div class="ss-bar" style="background:var(--iv);"></div>
+      <div class="ss-n" style="color:var(--iv);">8</div><div class="ss-label" style="color:var(--iv);">In Vitro</div>
+    </div>
+    <div class="ss-item">
+      <div class="ss-bar" style="background:var(--ov);"></div>
+      <div class="ss-n">4</div><div class="ss-label">In Vivo</div>
+    </div>
+    <div class="ss-item">
+      <div class="ss-bar" style="background:var(--sq);"></div>
+      <div class="ss-n">12</div><div class="ss-label">Sequence</div>
+    </div>
+  </div>
+
+  <!-- Filter toolbar -->
+  <div class="toolbar">
+    <span class="filter-chip on">
+      UW
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </span>
+    <span class="filter-chip">KU</span>
+    <span class="filter-chip">OSU</span>
+    <div class="filter-sep"></div>
+    <span class="filter-chip">KO</span>
+    <span class="filter-chip">Tn</span>
+    <span class="filter-chip">Chimera</span>
+    <div class="filter-sep"></div>
+    <span class="filter-chip">CT-L2</span>
+    <span class="filter-chip">CM</span>
+    <span class="toolbar-count">showing 38 mutants</span>
+  </div>
+
+  <!-- ── TRANSFORMATION ─────────────────────────────────────── -->
+  <div class="stage-group open" id="grp-tf">
+    <div class="stage-header" onclick="toggle('grp-tf')">
+      <div class="stage-color-bar" style="background:var(--tf);"></div>
+      <div class="stage-info">
+        <div class="stage-name">Transformation</div>
+      </div>
+      <div class="stage-meta">
+        <div class="stage-lab-chips">
+          <span class="lab-chip uw">UW</span>
+        </div>
+        <span class="stage-count-badge">3</span>
+      </div>
+      <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="stage-rows" id="rows-tf">
+      <div class="rows-header">
+        <span class="col-hdr">ID</span><span class="col-hdr">Target gene</span><span class="col-hdr">Type</span>
+        <span class="col-hdr">Progress</span><span class="col-hdr">Stage</span><span class="col-hdr">Lab</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">KH042</span>
+        <div class="col-gene"><span class="locus">CTL0240</span> <span class="gname">tarp</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#f5f3ff;color:var(--tf);"><span class="dot" style="background:var(--tf);"></span>Transform</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">KH043</span>
+        <div class="col-gene"><span class="locus">CTL0091</span></div>
+        <div class="col-type"><span class="badge tn">Tn</span></div>
+        <div class="col-pills"><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#f5f3ff;color:var(--tf);"><span class="dot" style="background:var(--tf);"></span>Transform</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+      <div class="mutant-row unpub">
+        <span class="col-id">KH044</span>
+        <div class="col-gene"><span class="locus">CTL0312</span> <span class="gname">incB</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#f5f3ff;color:var(--tf);"><span class="dot" style="background:var(--tf);"></span>Transform</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PLAQUE CLONING ─────────────────────────────────────── -->
+  <div class="stage-group open" id="grp-cl">
+    <div class="stage-header" onclick="toggle('grp-cl')">
+      <div class="stage-color-bar" style="background:var(--cl);"></div>
+      <div class="stage-info">
+        <div class="stage-name">Plaque Cloning</div>
+      </div>
+      <div class="stage-meta">
+        <div class="stage-lab-chips"><span class="lab-chip uw">UW</span></div>
+        <span class="stage-count-badge">5</span>
+      </div>
+      <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="stage-rows" id="rows-cl">
+      <div class="rows-header">
+        <span class="col-hdr">ID</span><span class="col-hdr">Target gene</span><span class="col-hdr">Type</span>
+        <span class="col-hdr">Progress</span><span class="col-hdr">Stage</span><span class="col-hdr">Lab</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">YW091</span>
+        <div class="col-gene"><span class="locus">CTL0582</span> <span class="gname">copN</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#ecfeff;color:var(--cl);"><span class="dot" style="background:var(--cl);"></span>Clone</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">KH040</span>
+        <div class="col-gene"><span class="locus">CTL0313</span></div>
+        <div class="col-type"><span class="badge chim">Chim</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#ecfeff;color:var(--cl);"><span class="dot" style="background:var(--cl);"></span>Clone</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">KH041</span>
+        <div class="col-gene"><span class="locus">CTL0488</span> <span class="gname">incC</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#ecfeff;color:var(--cl);"><span class="dot" style="background:var(--cl);"></span>Clone</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GENOTYPING ──────────────────────────────────────────── -->
+  <div class="stage-group open" id="grp-gt">
+    <div class="stage-header" onclick="toggle('grp-gt')">
+      <div class="stage-color-bar" style="background:var(--gt);"></div>
+      <div class="stage-info">
+        <div class="stage-name">Genotyping</div>
+      </div>
+      <div class="stage-meta">
+        <div class="stage-lab-chips"><span class="lab-chip uw">UW</span></div>
+        <span class="stage-count-badge">6</span>
+      </div>
+      <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="stage-rows" id="rows-gt"></div>
+  </div>
+
+  <!-- ── IN VITRO SCREENING (highlighted — most active) ─────── -->
+  <div class="stage-group highlighted open" id="grp-iv">
+    <div class="stage-header" onclick="toggle('grp-iv')">
+      <div class="stage-color-bar" style="background:var(--iv);"></div>
+      <div class="stage-info">
+        <div class="stage-name">In Vitro Screening</div>
+      </div>
+      <div class="stage-meta">
+        <div class="stage-lab-chips">
+          <span class="lab-chip ku">KU</span>
+          <span class="lab-chip uw">UW</span>
+        </div>
+        <span class="stage-count-badge">8</span>
+      </div>
+      <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="stage-rows" id="rows-iv">
+      <div class="rows-header">
+        <span class="col-hdr">ID</span><span class="col-hdr">Target gene</span><span class="col-hdr">Type</span>
+        <span class="col-hdr">Progress</span><span class="col-hdr">Stage</span><span class="col-hdr">Lab</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">YW082</span>
+        <div class="col-gene"><span class="locus">CTL0496</span> <span class="gname">incA</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#fffbeb;color:var(--iv);"><span class="dot" style="background:var(--iv);"></span>In Vitro</span></div>
+        <span class="col-lab">KU</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">KH001</span>
+        <div class="col-gene"><span class="locus">CTL0397</span> <span class="gname">scc4</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#fffbeb;color:var(--iv);"><span class="dot" style="background:var(--iv);"></span>In Vitro</span></div>
+        <span class="col-lab">KU</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">KH035</span>
+        <div class="col-gene"><span class="locus">CTL0511</span> <span class="gname">incG</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#fffbeb;color:var(--iv);"><span class="dot" style="background:var(--iv);"></span>In Vitro</span></div>
+        <span class="col-lab">KU</span>
+      </div>
+      <div class="mutant-row">
+        <span class="col-id">YW077</span>
+        <div class="col-gene"><span class="locus">CTL0388</span> <span class="gname">incI</span></div>
+        <div class="col-type"><span class="badge ko">KO</span></div>
+        <div class="col-pills"><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-done"></span><span class="pill p-now"></span><span class="pill p-skip"></span><span class="pill p-skip"></span></div>
+        <div class="col-stage"><span class="stage-chip" style="background:#fffbeb;color:var(--iv);"><span class="dot" style="background:var(--iv);"></span>In Vitro</span></div>
+        <span class="col-lab">UW</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── IN VIVO SCREENING ──────────────────────────────────── -->
+  <div class="stage-group open" id="grp-ov">
+    <div class="stage-header" onclick="toggle('grp-ov')">
+      <div class="stage-color-bar" style="background:var(--ov);"></div>
+      <div class="stage-info">
+        <div class="stage-name">In Vivo Screening</div>
+      </div>
+      <div class="stage-meta">
+        <div class="stage-lab-chips"><span class="lab-chip ku">KU</span></div>
+        <span class="stage-count-badge">4</span>
+      </div>
+      <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="stage-rows hidden" id="rows-ov"></div>
+  </div>
+
+  <!-- ── WHOLE-GENOME SEQUENCING ────────────────────────────── -->
+  <div class="stage-group open" id="grp-sq">
+    <div class="stage-header" onclick="toggle('grp-sq')">
+      <div class="stage-color-bar" style="background:var(--sq);"></div>
+      <div class="stage-info">
+        <div class="stage-name">Whole-Genome Sequencing</div>
+      </div>
+      <div class="stage-meta">
+        <div class="stage-lab-chips"><span class="lab-chip osu">OSU</span></div>
+        <span class="stage-count-badge">12</span>
+      </div>
+      <div class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+    </div>
+    <div class="stage-rows hidden" id="rows-sq"></div>
+  </div>
+
+  <!-- Pill legend -->
+  <div style="margin-top:14px;" class="legend">
+    <div class="legend-item"><span class="pill p-done" style="width:14px;height:7px;"></span> Complete</div>
+    <div class="legend-item"><span class="pill p-now" style="width:14px;height:7px;"></span> In progress</div>
+    <div class="legend-item"><span class="pill p-skip" style="width:14px;height:7px;"></span> Not started</div>
+    <div style="width:1px;height:14px;background:var(--border);"></div>
+    <span class="legend-abbr">Tf</span><span style="font-size:10px;color:var(--muted-light);">Transform</span>
+    <span class="legend-abbr">Cl</span><span style="font-size:10px;color:var(--muted-light);">Clone</span>
+    <span class="legend-abbr">Gt</span><span style="font-size:10px;color:var(--muted-light);">Genotype</span>
+    <span class="legend-abbr">IV</span><span style="font-size:10px;color:var(--muted-light);">In vitro</span>
+    <span class="legend-abbr">OV</span><span style="font-size:10px;color:var(--muted-light);">In vivo</span>
+    <span class="legend-abbr">Sq</span><span style="font-size:10px;color:var(--muted-light);">Sequence</span>
+  </div>
+
+</div><!-- end .page -->
+
+<!-- Row action popup -->
+<div class="row-popup" id="rowPopup">
+  <div class="row-popup-header">
+    <div class="row-popup-id" id="popupId"></div>
+    <div class="row-popup-gene" id="popupGene"></div>
+  </div>
+  <a class="row-popup-action" href="#">
+    <div class="action-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    </div>
+    <div>
+      <div class="action-label">View mutant record</div>
+      <div class="action-sub">Open full detail page</div>
+    </div>
+  </a>
+  <a class="row-popup-action" href="#">
+    <div class="action-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </div>
+    <div>
+      <div class="action-label">Edit pipeline progress</div>
+      <div class="action-sub">Update stage, dates, notes</div>
+    </div>
+  </a>
+</div>
+
+<script>
+  function toggle(id) {
+    const grp = document.getElementById(id);
+    const rows = document.getElementById('rows-' + id.replace('grp-',''));
+    if (!rows) return;
+    grp.classList.toggle('open');
+    rows.classList.toggle('hidden');
+  }
+
+  // Row click → popup
+  const popup = document.getElementById('rowPopup');
+  document.querySelectorAll('.mutant-row').forEach(row => {
+    row.addEventListener('click', e => {
+      e.stopPropagation();
+      const id    = row.querySelector('.col-id').textContent.trim();
+      const locus = row.querySelector('.locus')?.textContent.trim() || '';
+      const gname = row.querySelector('.gname')?.textContent.trim() || '';
+      document.getElementById('popupId').textContent = id;
+      document.getElementById('popupGene').innerHTML =
+        `<span style="font-family:'DM Mono',monospace;font-size:12px;color:#374151;">${locus}</span>` +
+        (gname ? ` <span class="gname">${gname}</span>` : '');
+
+      // Position near the click, keep inside viewport
+      const x = Math.min(e.clientX + 8, window.innerWidth  - 246);
+      const y = Math.min(e.clientY + 8, window.innerHeight - 160);
+      popup.style.left = x + 'px';
+      popup.style.top  = y + 'px';
+      popup.classList.add('visible');
+    });
+  });
+
+  // Dismiss on outside click
+  document.addEventListener('click', () => popup.classList.remove('visible'));
+</script>
+</body>
+</html>

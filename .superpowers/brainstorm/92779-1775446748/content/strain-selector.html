@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genomes — Strain Selector Options</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: #f0f2f4; color: #111; padding: 24px 16px 48px; }
+
+    .page-title { font-size: 13px; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .page-sub { font-size: 13px; color: #888; margin-bottom: 28px; }
+
+    /* ── Option wrapper ── */
+    .option-wrap {
+      margin-bottom: 32px;
+      cursor: pointer;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2.5px solid transparent;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .option-wrap:hover { border-color: #1a6b4a30; }
+    .option-wrap.selected { border-color: #1a6b4a; box-shadow: 0 0 0 3px #1a6b4a18; }
+
+    .option-label {
+      background: #1a6b4a;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .option-name { font-size: 13px; font-weight: 600; }
+    .option-desc { font-size: 11px; opacity: 0.7; font-weight: 400; margin-left: auto; }
+
+    /* ── Shared nav chrome ── */
+    .ca-nav {
+      background: #0f4530;
+      padding: 0 16px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ca-nav-logo { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 18px; color: white; }
+    .ca-nav-signin { font-size: 11px; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 6px; }
+
+    .page-body { background: white; min-height: 320px; }
+
+    /* ══════════════════════════════════════
+       OPTION A — Tabbed
+    ══════════════════════════════════════ */
+    .tabs-row {
+      display: flex;
+      border-bottom: 1px solid #ececec;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px 9px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-align: center;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab-btn.active { color: #0f4530; border-bottom-color: #0f4530; }
+
+    .gene-row-mock {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #f3f3f3;
+    }
+    .gene-thumb-mock { width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0; }
+    .gene-name-mock { font-size: 12px; font-weight: 600; color: #16a34a; }
+    .gene-locus-mock { font-size: 10px; color: #9ca3af; font-family: 'DM Mono', monospace; margin-left: 5px; }
+    .gene-product-mock { font-size: 10.5px; color: #9ca3af; margin-top: 1px; }
+    .search-bar-mock {
+      margin: 10px 12px 8px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    /* ══════════════════════════════════════
+       OPTION B — Strain cards
+    ══════════════════════════════════════ */
+    .strain-cards {
+      padding: 16px 14px;
+    }
+    .strain-cards-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #1a6b4a;
+      margin-bottom: 10px;
+    }
+    .strain-card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .strain-card {
+      border: 1px solid #ececec;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .strain-card-bar { height: 4px; }
+    .strain-card-body { padding: 10px 10px 10px; }
+    .strain-card-name { font-size: 11px; font-weight: 600; color: #111; margin-bottom: 2px; }
+    .strain-card-sub { font-size: 9px; color: #9ca3af; margin-bottom: 6px; line-height: 1.3; }
+    .strain-card-count { font-family: 'DM Mono', monospace; font-size: 10px; color: #bbb; }
+
+    /* ══════════════════════════════════════
+       OPTION C — Inline switcher
+    ══════════════════════════════════════ */
+    .strain-pill-row {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid #f3f3f3;
+    }
+    .strain-pill {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10.5px;
+      font-weight: 600;
+      border: 1px solid #ececec;
+      color: #9ca3af;
+    }
+    .strain-pill.active-l2 { background: #f0fdf4; color: #16a34a; border-color: #16a34a40; }
+
+    /* Selection overlay */
+    .selected-check {
+      display: none;
+      position: absolute;
+      top: 8px; right: 8px;
+      background: #1a6b4a;
+      color: white;
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    .option-wrap.selected .selected-check { display: flex; }
+    .option-wrap { position: relative; }
+  </style>
+</head>
+<body>
+
+  <div class="page-title">Genomes tab — Strain selector</div>
+  <div class="page-sub">Three approaches to choosing a strain before browsing genes. Click to select your preference.</div>
+
+  <!-- ── OPTION A ── -->
+  <div class="option-wrap" onclick="select(this,'a')">
+    <div class="option-label">
+      <span>A</span>
+      <span class="option-name">Tabbed</span>
+      <span class="option-desc">Jump straight to genes — strain is a tab</span>
+    </div>
+    <div class="page-body">
+      <div class="ca-nav">
+        <div class="ca-nav-logo">ChlamAtlas</div>
+        <div class="ca-nav-signin">Sign in</div>
+      </div>
+      <div class="tabs-row">
+        <div class="tab-btn active">CT-L2</div>
+        <div class="tab-btn">CT-D</div>
+        <div class="tab-btn">CM</div>
+      </div>
+      <div class="search-bar-mock">🔍 Search genes, locus tags, products…</div>
+      <div class="gene-row-mock">
+        <img class="gene-thumb-mock" src="https://placehold.co/34x34/e8f5e9/16a34a?text=AF" />
+        <div>
+          <div><span class="gene-name-mock">tarp</span><span class="gene-locus-mock">CTL0008</span></div>
+          <div class="gene-product-mock">Translocated actin-recruiting phosphoprotein</div>
+        </div>
+        <span style="color:#ddd;margin-left:auto;">›</span>
+      </div>
+      <div class="gene-row-mock">
+        <div class="gene-thumb-mock" style="background:#f3f4f6;"></div>
+        <div>
+          <div><span style="font-size:12px;font-weight:500;color:#f87171;font-family:'DM Mono',monospace;">CTL0012</span></div>
+          <div class="gene-product-mock">Hypothetical protein</div>
+        </div>
+        <span style="color:#ddd;margin-left:auto;">›</span>
+      </div>
+      <div class="gene-row-mock">
+        <img class="gene-thumb-mock" src="https://placehold.co/34x34/e8f5e9/16a34a?text=AF" />
+        <div>
+          <div><span class="gene-name-mock">incA</span><span class="gene-locus-mock">CTL0021</span></div>
+          <div class="gene-product-mock">Inclusion membrane protein A</div>
+        </div>
+        <span style="color:#ddd;margin-left:auto;">›</span>
+      </div>
+      <div style="padding: 8px 14px; font-size:10px; color:#ccc; font-family:'DM Mono',monospace;">1–50 of 895 genes</div>
+    </div>
+    <div class="selected-check">✓</div>
+  </div>
+
+  <!-- ── OPTION B ── -->
+  <div class="option-wrap" onclick="select(this,'b')">
+    <div class="option-label">
+      <span>B</span>
+      <span class="option-name">Strain cards</span>
+      <span class="option-desc">Choose a strain first, then browse</span>
+    </div>
+    <div class="page-body">
+      <div class="ca-nav">
+        <div class="ca-nav-logo">ChlamAtlas</div>
+        <div class="ca-nav-signin">Sign in</div>
+      </div>
+      <div class="strain-cards">
+        <div class="strain-cards-title">Select a genome to browse</div>
+        <div class="strain-card-grid">
+          <div class="strain-card">
+            <div class="strain-card-bar" style="background:#16a34a;"></div>
+            <div class="strain-card-body">
+              <div class="strain-card-name">CT-L2</div>
+              <div class="strain-card-sub">C. trachomatis L2/434</div>
+              <div class="strain-card-count">895 genes</div>
+            </div>
+          </div>
+          <div class="strain-card">
+            <div class="strain-card-bar" style="background:#4b2e83;"></div>
+            <div class="strain-card-body">
+              <div class="strain-card-name">CT-D</div>
+              <div class="strain-card-sub">C. trachomatis D/UW-3</div>
+              <div class="strain-card-count">894 genes</div>
+            </div>
+          </div>
+          <div class="strain-card">
+            <div class="strain-card-bar" style="background:#2563eb;"></div>
+            <div class="strain-card-body">
+              <div class="strain-card-name">CM</div>
+              <div class="strain-card-sub">C. muridarum Nigg</div>
+              <div class="strain-card-count">924 genes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #f3f3f3; padding:12px 14px;">
+        <div style="font-size:10px;color:#ccc;text-align:center;">← select a genome above to start browsing →</div>
+      </div>
+    </div>
+    <div class="selected-check">✓</div>
+  </div>
+
+  <!-- ── OPTION C ── -->
+  <div class="option-wrap" onclick="select(this,'c')">
+    <div class="option-label">
+      <span>C</span>
+      <span class="option-name">Inline switcher</span>
+      <span class="option-desc">Gene list always visible, strain toggles at top</span>
+    </div>
+    <div class="page-body">
+      <div class="ca-nav">
+        <div class="ca-nav-logo">ChlamAtlas</div>
+        <div class="ca-nav-signin">Sign in</div>
+      </div>
+      <div class="strain-pill-row">
+        <div class="strain-pill active-l2">CT-L2</div>
+        <div class="strain-pill">CT-D</div>
+        <div class="strain-pill">CM</div>
+      </div>
+      <div class="search-bar-mock">🔍 Search genes, locus tags, products…</div>
+      <div class="gene-row-mock">
+        <img class="gene-thumb-mock" src="https://placehold.co/34x34/e8f5e9/16a34a?text=AF" />
+        <div>
+          <div><span class="gene-name-mock">tarp</span><span class="gene-locus-mock">CTL0008</span></div>
+          <div class="gene-product-mock">Translocated actin-recruiting phosphoprotein</div>
+        </div>
+        <span style="color:#ddd;margin-left:auto;">›</span>
+      </div>
+      <div class="gene-row-mock">
+        <div class="gene-thumb-mock" style="background:#f3f4f6;"></div>
+        <div>
+          <div><span style="font-size:12px;font-weight:500;color:#f87171;font-family:'DM Mono',monospace;">CTL0012</span></div>
+          <div class="gene-product-mock">Hypothetical protein</div>
+        </div>
+        <span style="color:#ddd;margin-left:auto;">›</span>
+      </div>
+      <div class="gene-row-mock">
+        <img class="gene-thumb-mock" src="https://placehold.co/34x34/e8f5e9/16a34a?text=AF" />
+        <div>
+          <div><span class="gene-name-mock">incA</span><span class="gene-locus-mock">CTL0021</span></div>
+          <div class="gene-product-mock">Inclusion membrane protein A</div>
+        </div>
+        <span style="color:#ddd;margin-left:auto;">›</span>
+      </div>
+      <div style="padding: 8px 14px; font-size:10px; color:#ccc; font-family:'DM Mono',monospace;">1–50 of 895 genes</div>
+    </div>
+    <div class="selected-check">✓</div>
+  </div>
+
+  <script>
+    function select(el, choice) {
+      document.querySelectorAll('.option-wrap').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      if (window.recordChoice) recordChoice(choice, el.querySelector('.option-name').textContent);
+    }
+  </script>
+</body>
+</html>

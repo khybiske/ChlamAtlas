@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChlamAtlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green:        #1a6b4a;
+    --green-dark:   #0f4530;
+    --green-mid:    #155f40;
+    --green-light:  #e8f5ef;
+    --green-faint:  #f0faf5;
+    --cream:        #f8f9fb;
+    --white:        #ffffff;
+    --ink:          #111827;
+    --ink-2:        #374151;
+    --muted:        #6b7280;
+    --muted-light:  #9ca3af;
+    --border:       #e5e7eb;
+    --border-light: #f3f4f6;
+    --ct-l2-hue:    #7c3aed;   /* purple */
+    --ct-d-hue:     #1d4ed8;   /* blue */
+    --cm-hue:       #c2410c;   /* orange */
+    --uw-purple:    #4b2e83;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ─────────────────────────────────────────────── */
+  nav {
+    position: sticky; top: 0; z-index: 200;
+    background: var(--green-dark);
+    display: flex; align-items: center;
+    padding: 0 24px;
+    height: 50px;
+    gap: 0;
+  }
+
+  .nav-brand {
+    display: flex; align-items: center; gap: 9px;
+    margin-right: 28px; flex-shrink: 0; text-decoration: none;
+  }
+  .nav-brand img {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .nav-brand-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px; font-weight: 700;
+    color: white; letter-spacing: 0.01em;
+    line-height: 1;
+  }
+
+  .nav-links {
+    display: flex; gap: 1px; flex: 1;
+  }
+  .nav-links a {
+    display: flex; align-items: center;
+    padding: 0 13px; height: 50px;
+    font-size: 13px; font-weight: 500;
+    color: rgba(255,255,255,0.65);
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  .nav-links a:hover { color: white; background: rgba(255,255,255,0.06); }
+  .nav-links a.active {
+    color: white;
+    border-bottom: 2px solid rgba(255,255,255,0.6);
+  }
+  .nav-links .pipeline-locked {
+    color: rgba(255,255,255,0.3);
+    cursor: default;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .nav-links .pipeline-locked svg { opacity: 0.5; }
+
+  .nav-right {
+    display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0;
+  }
+  .nav-search-pill {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 5px 11px;
+    font-size: 12px; color: rgba(255,255,255,0.45);
+    cursor: text; transition: background 0.15s;
+    min-width: 180px;
+  }
+  .nav-search-pill:hover { background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.6); }
+
+  .nav-user {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 8px 4px 5px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.09);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .nav-user:hover { background: rgba(255,255,255,0.14); }
+  .nav-user-logo {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: var(--uw-purple);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .nav-user-name { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.75); }
+
+  /* ── HERO ────────────────────────────────────────────── */
+  .hero {
+    background: var(--green-dark);
+    position: relative;
+    overflow: hidden;
+    padding: 52px 40px 56px;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+  }
+
+  /* Microscopy-inspired pattern */
+  .hero-pattern {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.07;
+  }
+
+  .hero-icon {
+    width: 72px; height: 72px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
+    position: relative; z-index: 1;
+  }
+
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 52px; font-weight: 700;
+    color: white; letter-spacing: 0.01em;
+    line-height: 1;
+    margin-bottom: 10px;
+    position: relative; z-index: 1;
+  }
+  .hero-sub {
+    font-size: 15px; font-weight: 400; color: rgba(255,255,255,0.55);
+    max-width: 420px; line-height: 1.6; margin-bottom: 6px;
+    position: relative; z-index: 1;
+  }
+  .hero-lab {
+    font-size: 12px; color: rgba(255,255,255,0.3); letter-spacing: 0.03em;
+    margin-bottom: 28px;
+    position: relative; z-index: 1;
+  }
+
+  .hero-ctas {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    position: relative; z-index: 1;
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: white; color: var(--green-dark);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 20px; border-radius: 7px;
+    border: none; cursor: pointer; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+  .btn-outline {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: transparent;
+    color: rgba(255,255,255,0.8);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    padding: 9px 20px; border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer; text-decoration: none;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .btn-outline:hover { border-color: rgba(255,255,255,0.45); color: white; background: rgba(255,255,255,0.06); }
+
+  /* ── STATS BAR ───────────────────────────────────────── */
+  .stats-bar {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: stretch;
+    overflow-x: auto;
+  }
+  .stat-item {
+    flex: 1; min-width: 110px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px 12px;
+    border-right: 1px solid var(--border-light);
+    position: relative;
+    transition: background 0.15s;
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-item:hover { background: var(--green-faint); }
+  .stat-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px; font-weight: 500;
+    color: var(--green); line-height: 1;
+    margin-bottom: 3px;
+  }
+  .stat-label {
+    font-size: 11px; font-weight: 500;
+    color: var(--muted); letter-spacing: 0.02em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+
+  /* ── MAIN CONTENT ────────────────────────────────────── */
+  .main-wrap {
+    max-width: 1100px; margin: 0 auto;
+    padding: 36px 28px;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    grid-template-rows: auto auto auto;
+    gap: 28px;
+  }
+
+  /* ── SECTION TITLES ──────────────────────────────────── */
+  .section-title {
+    font-size: 11px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+
+  /* ── ORGANISM PORTALS ────────────────────────────────── */
+  .organisms-section {
+    grid-column: 1 / -1;
+  }
+  .organism-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  }
+  .organism-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+    text-decoration: none; color: inherit;
+    display: flex; flex-direction: column;
+  }
+  .organism-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+  .organism-card:hover .org-arrow { transform: translateX(3px); }
+  .organism-card:hover .org-cta { opacity: 1; }
+
+  .org-accent { height: 4px; }
+  .org-l2 .org-accent { background: var(--ct-l2-hue); }
+  .org-l2:hover { border-color: var(--ct-l2-hue); box-shadow: 0 6px 24px rgba(124,58,237,0.1); }
+  .org-d  .org-accent { background: var(--ct-d-hue); }
+  .org-d:hover  { border-color: var(--ct-d-hue); box-shadow: 0 6px 24px rgba(29,78,216,0.1); }
+  .org-cm .org-accent { background: var(--cm-hue); }
+  .org-cm:hover { border-color: var(--cm-hue); box-shadow: 0 6px 24px rgba(194,65,12,0.1); }
+
+  .org-body { padding: 16px 18px 14px; flex: 1; display: flex; flex-direction: column; }
+  .org-name {
+    font-size: 15px; font-weight: 600; color: var(--ink);
+    margin-bottom: 2px; line-height: 1.3;
+  }
+  .org-name em { font-style: italic; font-weight: 600; }
+  .org-abbr {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--muted-light);
+    margin-bottom: 12px; letter-spacing: 0.04em;
+  }
+  .org-stats-mini {
+    display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .org-stat-mini { display: flex; flex-direction: column; }
+  .org-stat-n {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px; font-weight: 500; color: var(--ink-2); line-height: 1;
+  }
+  .org-stat-lbl { font-size: 10px; color: var(--muted-light); margin-top: 2px; }
+
+  .org-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 18px 12px;
+    margin-top: auto;
+    border-top: 1px solid var(--border-light);
+  }
+  .org-cta {
+    font-size: 12px; font-weight: 600;
+    opacity: 0.5; transition: opacity 0.15s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .org-l2 .org-cta { color: var(--ct-l2-hue); }
+  .org-d  .org-cta { color: var(--ct-d-hue); }
+  .org-cm .org-cta { color: var(--cm-hue); }
+  .org-arrow { transition: transform 0.2s; }
+
+  .org-badge {
+    font-size: 10px; font-weight: 500;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .org-l2 .org-badge { background: #ede9fe; color: var(--ct-l2-hue); }
+  .org-d  .org-badge { background: #dbeafe; color: var(--ct-d-hue); }
+  .org-cm .org-badge { background: #ffedd5; color: var(--cm-hue); }
+
+  /* ── LEFT COLUMN ─────────────────────────────────────── */
+  .left-col { display: flex; flex-direction: column; gap: 24px; }
+
+  /* ── UPDATES ─────────────────────────────────────────── */
+  .updates-card {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden;
+  }
+  .updates-header {
+    padding: 14px 18px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .view-all {
+    font-size: 11px; font-weight: 500; color: var(--green);
+    text-decoration: none; opacity: 0.8;
+  }
+  .view-all:hover { opacity: 1; }
+  .update-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.12s; cursor: pointer;
+  }
+  .update-item:last-child { border-bottom: none; }
+  .update-item:hover { background: var(--border-light); }
+  .update-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    margin-top: 4px; flex-shrink: 0;
+  }
+  .update-content { flex: 1; min-width: 0; }
+  .update-text { font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+  .update-meta { font-size: 11px; color: var(--muted-light); margin-top: 2px; }
+  .update-tag {
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── SIDEBAR ─────────────────────────────────────────── */
+  .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── QUICK ACCESS ─────────────────────────────────────── */
+  .quick-access-card {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden;
+  }
+  .quick-access-header { padding: 14px 16px 10px; }
+  .qa-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px;
+    border-top: 1px solid var(--border-light);
+    cursor: pointer; transition: background 0.12s;
+    text-decoration: none; color: inherit;
+  }
+  .qa-item:hover { background: var(--green-faint); }
+  .qa-icon {
+    width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .qa-label { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  .qa-sub { font-size: 11px; color: var(--muted-light); }
+  .qa-arrow { margin-left: auto; color: var(--muted-light); flex-shrink: 0; }
+
+  /* ── CONTRIBUTING LABS ──────────────────────────────── */
+  .labs-card {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden;
+  }
+  .labs-header { padding: 14px 16px 8px; }
+  .lab-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px;
+    border-top: 1px solid var(--border-light);
+  }
+  .lab-logo {
+    width: 30px; height: 30px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 13px; font-weight: 800;
+    color: white;
+  }
+  .lab-name { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .lab-inst { font-size: 11px; color: var(--muted-light); }
+  .lab-role-pill {
+    margin-left: auto; font-size: 10px; font-weight: 500;
+    padding: 2px 7px; border-radius: 4px;
+    background: var(--border-light); color: var(--muted);
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* ── CITATION (commented out in markup) ─────────────── */
+
+  /* ── FOOTER ──────────────────────────────────────────── */
+  footer {
+    background: white; border-top: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .footer-left { font-size: 11px; color: var(--muted-light); }
+  .footer-right { display: flex; gap: 16px; }
+  .footer-right a { font-size: 11px; color: var(--muted-light); text-decoration: none; }
+  .footer-right a:hover { color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ NAV ═══════ -->
+<nav>
+  <a class="nav-brand" href="#">
+    <img src="/files/icon_512.png" alt="ChlamAtlas icon">
+    <span class="nav-brand-name">ChlamAtlas</span>
+  </a>
+
+  <div class="nav-links">
+    <a href="#" class="active">Home</a>
+    <a href="#">Genomes</a>
+    <a href="#">Mutants</a>
+    <!-- Pipeline only visible when logged in — shown locked for guests -->
+    <span class="pipeline-locked" title="Sign in for lab access">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Pipeline
+    </span>
+  </div>
+
+  <div class="nav-right">
+    <!-- Universal search -->
+    <div class="nav-search-pill">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Search genes, mutants…
+      <span style="margin-left:auto;font-size:10px;opacity:0.4;font-family:'DM Mono',monospace;">⌘K</span>
+    </div>
+
+    <!-- User profile (logged-in state) -->
+    <div class="nav-user">
+      <!-- UW block W logo — rendered as SVG -->
+      <div class="nav-user-logo">
+        <svg width="15" height="12" viewBox="0 0 30 24" fill="white">
+          <polygon points="0,0 5,0 8,14 11,4 14.5,4 18,14 21,0 26,0 20,24 16,24 12.5,14.5 9,24 5,24"/>
+        </svg>
+      </div>
+      <span class="nav-user-name">Kevin</span>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5" style="margin-left:1px"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════ HERO ═══════ -->
+<section class="hero">
+  <!-- Microscopy-inspired SVG background -->
+  <svg class="hero-pattern" viewBox="0 0 800 360" preserveAspectRatio="xMidYMid slice">
+    <!-- Radial grid lines -->
+    <circle cx="400" cy="180" r="60" fill="none" stroke="white" stroke-width="0.8"/>
+    <circle cx="400" cy="180" r="110" fill="none" stroke="white" stroke-width="0.6"/>
+    <circle cx="400" cy="180" r="170" fill="none" stroke="white" stroke-width="0.5"/>
+    <circle cx="400" cy="180" r="240" fill="none" stroke="white" stroke-width="0.4"/>
+    <circle cx="400" cy="180" r="320" fill="none" stroke="white" stroke-width="0.3"/>
+    <!-- Cross hairs -->
+    <line x1="400" y1="0" x2="400" y2="360" stroke="white" stroke-width="0.5" opacity="0.5"/>
+    <line x1="0" y1="180" x2="800" y2="180" stroke="white" stroke-width="0.5" opacity="0.5"/>
+    <!-- Small inclusion-like circles scattered -->
+    <circle cx="310" cy="130" r="6" fill="none" stroke="white" stroke-width="0.8"/>
+    <circle cx="490" cy="220" r="9" fill="none" stroke="white" stroke-width="0.8"/>
+    <circle cx="340" cy="235" r="4" fill="none" stroke="white" stroke-width="0.7"/>
+    <circle cx="460" cy="125" r="5" fill="none" stroke="white" stroke-width="0.7"/>
+    <circle cx="520" cy="160" r="7" fill="none" stroke="white" stroke-width="0.6"/>
+    <circle cx="280" cy="200" r="5" fill="none" stroke="white" stroke-width="0.6"/>
+    <!-- Diagonal measurement lines -->
+    <line x1="160" y1="0" x2="640" y2="360" stroke="white" stroke-width="0.3" opacity="0.4"/>
+    <line x1="640" y1="0" x2="160" y2="360" stroke="white" stroke-width="0.3" opacity="0.4"/>
+  </svg>
+
+  <img class="hero-icon" src="/files/icon_512.png" alt="ChlamAtlas">
+
+  <h1 class="hero-title">ChlamAtlas</h1>
+  <p class="hero-sub">A genomic and mutant database for <em style="font-style:italic;">Chlamydia</em> research — integrating gene annotations, AlphaFold structures, and experimental mutant data</p>
+  <p class="hero-lab">Hybiske Lab &nbsp;·&nbsp; University of Washington &nbsp;·&nbsp; est. 2026</p>
+
+  <div class="hero-ctas">
+    <a href="#" class="btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Browse Genomes
+    </a>
+    <a href="#" class="btn-outline">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+      Explore Mutants
+    </a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ STATS BAR ═══════ -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-num">3</div>
+    <div class="stat-label">Organisms</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">2,687</div>
+    <div class="stat-label">Genes</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">2,687</div>
+    <div class="stat-label">Structures (AF + PDB)</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">421</div>
+    <div class="stat-label">Mutants</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">3</div>
+    <div class="stat-label">Partner Labs</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ MAIN ═══════ -->
+<main class="main-wrap">
+
+  <!-- ORGANISM PORTALS — full width -->
+  <section class="organisms-section">
+    <div class="section-title">Explore by Organism</div>
+    <div class="organism-grid">
+
+      <!-- CT-L2 -->
+      <a href="#" class="organism-card org-l2">
+        <div class="org-accent"></div>
+        <div class="org-body">
+          <div class="org-name"><em>C. trachomatis</em> L2/434</div>
+          <div class="org-abbr">CT-L2 &nbsp;·&nbsp; Primary experimental strain</div>
+          <div class="org-stats-mini">
+            <div class="org-stat-mini">
+              <span class="org-stat-n">1,111</span>
+              <span class="org-stat-lbl">Genes</span>
+            </div>
+            <div class="org-stat-mini">
+              <span class="org-stat-n">1,111</span>
+              <span class="org-stat-lbl">Structures</span>
+            </div>
+            <div class="org-stat-mini">
+              <span class="org-stat-n">300+</span>
+              <span class="org-stat-lbl">Mutants</span>
+            </div>
+          </div>
+        </div>
+        <div class="org-footer">
+          <span class="org-badge">trachomatis</span>
+          <span class="org-cta">Browse genome <span class="org-arrow">→</span></span>
+        </div>
+      </a>
+
+      <!-- CT-D -->
+      <a href="#" class="organism-card org-d">
+        <div class="org-accent"></div>
+        <div class="org-body">
+          <div class="org-name"><em>C. trachomatis</em> D/UW-3</div>
+          <div class="org-abbr">CT-D &nbsp;·&nbsp; Reference sequenced strain</div>
+          <div class="org-stats-mini">
+            <div class="org-stat-mini">
+              <span class="org-stat-n">895</span>
+              <span class="org-stat-lbl">Genes</span>
+            </div>
+            <div class="org-stat-mini">
+              <span class="org-stat-n">895</span>
+              <span class="org-stat-lbl">Structures</span>
+            </div>
+            <div class="org-stat-mini">
+              <span class="org-stat-n">—</span>
+              <span class="org-stat-lbl">Mutants</span>
+            </div>
+          </div>
+        </div>
+        <div class="org-footer">
+          <span class="org-badge">trachomatis</span>
+          <span class="org-cta">Browse genome <span class="org-arrow">→</span></span>
+        </div>
+      </a>
+
+      <!-- CM -->
+      <a href="#" class="organism-card org-cm">
+        <div class="org-accent"></div>
+        <div class="org-body">
+          <div class="org-name"><em>C. muridarum</em> Nigg</div>
+          <div class="org-abbr">CM &nbsp;·&nbsp; Mouse infection model strain</div>
+          <div class="org-stats-mini">
+            <div class="org-stat-mini">
+              <span class="org-stat-n">681</span>
+              <span class="org-stat-lbl">Genes</span>
+            </div>
+            <div class="org-stat-mini">
+              <span class="org-stat-n">681</span>
+              <span class="org-stat-lbl">Structures</span>
+            </div>
+            <div class="org-stat-mini">
+              <span class="org-stat-n">~50</span>
+              <span class="org-stat-lbl">Mutants</span>
+            </div>
+          </div>
+        </div>
+        <div class="org-footer">
+          <span class="org-badge">muridarum</span>
+          <span class="org-cta">Browse genome <span class="org-arrow">→</span></span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- LEFT COL -->
+  <div class="left-col">
+
+    <!-- RECENT UPDATES -->
+    <div class="updates-card">
+      <div class="updates-header">
+        <div class="section-title" style="margin-bottom:0;">Recent Updates</div>
+        <a href="#" class="view-all">View all</a>
+      </div>
+
+      <div class="update-item">
+        <div class="update-dot" style="background:#7c3aed;"></div>
+        <div class="update-content">
+          <div class="update-text">Added 12 new CT-L2 mutants from Lucky 17 chimera collection</div>
+          <div class="update-meta">Mar 14, 2026 &nbsp;·&nbsp; Kevin Hybiske</div>
+        </div>
+        <span class="update-tag" style="background:#ede9fe;color:#5b21b6;">Mutants</span>
+      </div>
+
+      <div class="update-item">
+        <div class="update-dot" style="background:#1a6b4a;"></div>
+        <div class="update-content">
+          <div class="update-text">AlphaFold v3 structures updated for CT-D genome (895 proteins)</div>
+          <div class="update-meta">Mar 10, 2026 &nbsp;·&nbsp; Kevin Hybiske</div>
+        </div>
+        <span class="update-tag" style="background:#e8f5ef;color:#1a6b4a;">Structures</span>
+      </div>
+
+      <div class="update-item">
+        <div class="update-dot" style="background:#c2410c;"></div>
+        <div class="update-content">
+          <div class="update-text">C. muridarum Nigg genome annotations reviewed and updated</div>
+          <div class="update-meta">Mar 5, 2026 &nbsp;·&nbsp; Kevin Hybiske</div>
+        </div>
+        <span class="update-tag" style="background:#ffedd5;color:#c2410c;">Genomes</span>
+      </div>
+
+      <div class="update-item">
+        <div class="update-dot" style="background:#1d4ed8;"></div>
+        <div class="update-content">
+          <div class="update-text">Pipeline records updated: 8 mutants advanced to in vivo screening</div>
+          <div class="update-meta">Mar 2, 2026 &nbsp;·&nbsp; Hefty Lab (KSU)</div>
+        </div>
+        <span class="update-tag" style="background:#dbeafe;color:#1d4ed8;">Pipeline</span>
+      </div>
+    </div>
+
+    <!-- CITATION COMMENTED OUT — not yet published
+    <div style="background:white;border:1px solid var(--border);border-left:3px solid var(--green);border-radius:0 10px 10px 0;padding:16px 18px;">
+      <div class="section-title" style="margin-bottom:8px;">Cite ChlamAtlas</div>
+      <p style="font-size:13px;color:var(--ink-2);font-style:italic;line-height:1.6;">
+        Hybiske K et al. (2026). ChlamAtlas: an integrated genomic and mutant database for <em>Chlamydia</em> research. <em>Nucleic Acids Research</em>.
+      </p>
+      <button style="margin-top:10px;font-size:11px;font-weight:600;color:var(--green);background:var(--green-light);border:1px solid rgba(26,107,74,0.2);border-radius:5px;padding:5px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        Copy citation
+      </button>
+    </div>
+    -->
+
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- QUICK ACCESS -->
+    <div class="quick-access-card">
+      <div class="quick-access-header">
+        <div class="section-title" style="margin-bottom:0;">Quick Access</div>
+      </div>
+
+      <a href="#" class="qa-item">
+        <div class="qa-icon" style="background:#ede9fe;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+        </div>
+        <div>
+          <div class="qa-label">Lucky 17 Mutants</div>
+          <div class="qa-sub">Curated chimera subset</div>
+        </div>
+        <svg class="qa-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+      <a href="#" class="qa-item">
+        <div class="qa-icon" style="background:#fef3c7;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"/></svg>
+        </div>
+        <div>
+          <div class="qa-label">Chimera Collection</div>
+          <div class="qa-sub">L2 × CM recombinants</div>
+        </div>
+        <svg class="qa-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+      <a href="#" class="qa-item">
+        <div class="qa-icon" style="background:#e8f5ef;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1a6b4a" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v8M8 12h8"/></svg>
+        </div>
+        <div>
+          <div class="qa-label">T3SS Effectors</div>
+          <div class="qa-sub">Inc membrane proteins</div>
+        </div>
+        <svg class="qa-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+      <a href="#" class="qa-item">
+        <div class="qa-icon" style="background:#f1f5f9;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div>
+          <div class="qa-label">Hypothetical Proteins</div>
+          <div class="qa-sub">Unannotated genes</div>
+        </div>
+        <svg class="qa-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+    </div>
+
+    <!-- CONTRIBUTING LABS -->
+    <div class="labs-card">
+      <div class="labs-header">
+        <div class="section-title" style="margin-bottom:0;">Contributing Labs</div>
+      </div>
+
+      <div class="lab-item">
+        <div class="lab-logo" style="background:#4b2e83;">
+          <!-- UW block W -->
+          <svg width="16" height="13" viewBox="0 0 32 26" fill="white">
+            <polygon points="0,0 5.5,0 9,15 12.5,4 16,4 19.5,15 23,0 28.5,0 22,26 17.5,26 14,16 10.5,26 6,26"/>
+          </svg>
+        </div>
+        <div>
+          <div class="lab-name">Hybiske Lab</div>
+          <div class="lab-inst">University of Washington</div>
+        </div>
+        <span class="lab-role-pill">Mutants · In vitro</span>
+      </div>
+
+      <div class="lab-item">
+        <div class="lab-logo" style="background:#dc4405;">
+          <span style="font-size:13px;font-weight:800;color:white;">O</span>
+        </div>
+        <div>
+          <div class="lab-name">Rockey Lab</div>
+          <div class="lab-inst">Oregon State University</div>
+        </div>
+        <span class="lab-role-pill">Sequencing</span>
+      </div>
+
+      <div class="lab-item">
+        <div class="lab-logo" style="background:#512888;">
+          <span style="font-size:13px;font-weight:800;color:white;">K</span>
+        </div>
+        <div>
+          <div class="lab-name">Hefty Lab</div>
+          <div class="lab-inst">Kansas State University</div>
+        </div>
+        <span class="lab-role-pill">Mutants · In vivo</span>
+      </div>
+    </div>
+
+  </aside>
+
+</main>
+
+<!-- ═══════════════════════════════════ FOOTER ═══════ -->
+<footer>
+  <div class="footer-left">
+    &copy; 2026 Hybiske Lab, University of Washington &nbsp;·&nbsp; v1.0.0
+  </div>
+  <div class="footer-right">
+    <a href="#">About</a>
+    <a href="#">API</a>
+    <a href="#">GitHub</a>
+    <a href="#">Contact</a>
+  </div>
+</footer>
+
+</body>
+</html>

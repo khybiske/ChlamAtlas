@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state } from '../app.js?v=3';
+import { sb, state } from '../app.js?v=4';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -1272,7 +1272,10 @@ function renderDetailLocalization(detail, gene, protein) {
   } else if (source === 'lab_flag') {
     const isInc = gene.functional_category === 'Inclusion membrane protein';
     const isT3  = gene.is_t3_secreted === true;
-    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/0204`;
+    // Prefer UniProt SL terms for diagram geometry (they have subcell_present markup);
+    // fall back to SL-0204 only when UniProt has no SL annotation at all.
+    const diagramSls = slTerms.length ? slTerms : ['SL-0204'];
+    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/${diagramSls.map(t => t.replace(/^SL-/, '')).join(',')}`;
     activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
     const reason = isInc
       ? 'Inc (inclusion membrane) proteins are actively secreted into the host cell via the T3SS. UniProt incorrectly annotates them as bacterial membrane proteins. Location overridden to Secreted.'

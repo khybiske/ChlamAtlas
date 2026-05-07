@@ -1,0 +1,161 @@
+<h2>Gene detail panel: how are sections organized?</h2>
+<p class="subtitle">You've clicked on <strong>incA (CTL0496)</strong> in the gene list. This is the right-hand panel. It contains: protein info, expression chart, AlphaFold structure, orthologs, GO annotations, external links, mutants targeting this gene. How should these sections be arranged?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="scroll" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:10px;font-family:sans-serif;font-size:10px;">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:8px;overflow:hidden;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9;">
+          <div style="width:32px;height:32px;background:#bfdbfe;border-radius:5px;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#1d4ed8;">incA <span style="color:#94a3b8;font-weight:400;font-size:10px;">CTL0496</span></div>
+            <div style="font-size:9px;color:#64748b;">Inclusion membrane protein A · CT-L2</div>
+          </div>
+          <span style="margin-left:auto;font-size:14px;">⭐</span>
+        </div>
+        <!-- Protein stats row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px;">
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">Mass</div><div style="font-weight:600;font-size:9px;">38.4 kDa</div></div>
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">Length</div><div style="font-weight:600;font-size:9px;">339 aa</div></div>
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">Loc.</div><div style="font-weight:600;font-size:9px;">Inc. mem.</div></div>
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">TM Domains</div><div style="font-weight:600;font-size:9px;">2</div></div>
+        </div>
+        <!-- Expression -->
+        <div style="margin-bottom:6px;">
+          <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">EXPRESSION (T0–T5)</div>
+          <div style="display:flex;gap:2px;align-items:flex-end;height:22px;">
+            <div style="width:13px;background:#93c5fd;height:4px;border-radius:1px;"></div>
+            <div style="width:13px;background:#93c5fd;height:8px;border-radius:1px;"></div>
+            <div style="width:13px;background:#3b82f6;height:13px;border-radius:1px;"></div>
+            <div style="width:13px;background:#3b82f6;height:18px;border-radius:1px;"></div>
+            <div style="width:13px;background:#1d4ed8;height:22px;border-radius:1px;"></div>
+            <div style="width:13px;background:#1d4ed8;height:16px;border-radius:1px;"></div>
+          </div>
+        </div>
+        <!-- Structure thumbnail -->
+        <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#bfdbfe,#818cf8);border-radius:4px;flex-shrink:0;"></div>
+          <div style="font-size:8px;color:#64748b;"><div style="font-weight:600;color:#374151;font-size:9px;">🧊 AlphaFold Structure</div>Outer membrane channel (AF3) · v2<br/><span style="color:#7c3aed;cursor:pointer;">▶ Launch 3D viewer</span></div>
+        </div>
+        <!-- Orthologs -->
+        <div style="margin-bottom:6px;">
+          <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">ORTHOLOGS</div>
+          <div style="display:flex;gap:4px;">
+            <span style="background:#dbeafe;color:#1d4ed8;font-size:8px;padding:2px 5px;border-radius:3px;cursor:pointer;">CT_260 (CT-D)</span>
+            <span style="background:#fef3c7;color:#92400e;font-size:8px;padding:2px 5px;border-radius:3px;cursor:pointer;">TC0372 (CM)</span>
+          </div>
+        </div>
+        <!-- Mutants -->
+        <div>
+          <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">MUTANTS TARGETING THIS GENE <span style="background:#fee2e2;color:#dc2626;border-radius:8px;padding:1px 5px;">3</span></div>
+          <div style="font-size:8px;color:#374151;">YW082 · KH001 · YW090 <span style="color:#94a3b8;">→ view all</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Single scrollable panel</h3>
+      <p>All sections stack vertically and the panel scrolls. Simple and predictable — no hidden content. Structure thumbnail is inline; 3D viewer opens on demand. Works well when the panel is tall (large monitor) and stays consistent.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:10px;font-family:sans-serif;font-size:10px;">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:8px;overflow:hidden;">
+        <!-- Header always visible -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9;">
+          <div style="width:32px;height:32px;background:#bfdbfe;border-radius:5px;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#1d4ed8;">incA <span style="color:#94a3b8;font-weight:400;font-size:10px;">CTL0496</span></div>
+            <div style="font-size:9px;color:#64748b;">Inclusion membrane protein A · CT-L2</div>
+          </div>
+          <span style="margin-left:auto;font-size:14px;">⭐</span>
+        </div>
+        <!-- Always-visible stats -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px;">
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">Mass</div><div style="font-weight:600;font-size:9px;">38.4 kDa</div></div>
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">Length</div><div style="font-weight:600;font-size:9px;">339 aa</div></div>
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">Loc.</div><div style="font-weight:600;font-size:9px;">Inc. mem.</div></div>
+          <div style="background:#f8fafc;border-radius:3px;padding:3px 4px;text-align:center;"><div style="color:#94a3b8;font-size:8px;">TM</div><div style="font-weight:600;font-size:9px;">2</div></div>
+        </div>
+        <!-- Sub-tabs -->
+        <div style="display:flex;gap:0;border-bottom:1px solid #e2e8f0;margin-bottom:6px;">
+          <span style="padding:4px 8px;font-size:8px;font-weight:700;color:#1a6b4a;border-bottom:2px solid #1a6b4a;">Expression</span>
+          <span style="padding:4px 8px;font-size:8px;color:#64748b;">Structure</span>
+          <span style="padding:4px 8px;font-size:8px;color:#64748b;">Orthologs</span>
+          <span style="padding:4px 8px;font-size:8px;color:#64748b;">Mutants</span>
+          <span style="padding:4px 8px;font-size:8px;color:#64748b;">Annotations</span>
+        </div>
+        <!-- Tab content (expression shown) -->
+        <div style="font-size:8px;color:#94a3b8;margin-bottom:3px;">T0–T5 expression (CT-L2 | CT-D | CM)</div>
+        <div style="display:flex;gap:2px;align-items:flex-end;height:26px;">
+          <div style="width:13px;background:#93c5fd;height:4px;border-radius:1px;"></div>
+          <div style="width:13px;background:#93c5fd;height:8px;border-radius:1px;"></div>
+          <div style="width:13px;background:#3b82f6;height:14px;border-radius:1px;"></div>
+          <div style="width:13px;background:#3b82f6;height:20px;border-radius:1px;"></div>
+          <div style="width:13px;background:#1d4ed8;height:26px;border-radius:1px;"></div>
+          <div style="width:13px;background:#1d4ed8;height:18px;border-radius:1px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Header always visible + sub-tabs below</h3>
+      <p>Gene name, stats, and star are always visible at top. Below that, sub-tabs switch between Expression / Structure / Orthologs / Mutants / Annotations. Keeps things compact — no scrolling. Good if the panel height is limited.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="two-col" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:10px;font-family:sans-serif;font-size:10px;">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:8px;overflow:hidden;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9;">
+          <div style="width:32px;height:32px;background:#bfdbfe;border-radius:5px;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#1d4ed8;">incA <span style="color:#94a3b8;font-weight:400;font-size:10px;">CTL0496</span></div>
+            <div style="font-size:9px;color:#64748b;">Inclusion membrane protein A · CT-L2</div>
+          </div>
+          <span style="margin-left:auto;font-size:14px;">⭐</span>
+        </div>
+        <!-- Two columns -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <!-- Left col -->
+          <div>
+            <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">PROTEIN</div>
+            <div style="font-size:8px;color:#374151;margin-bottom:1px;">Mass: <b>38.4 kDa</b></div>
+            <div style="font-size:8px;color:#374151;margin-bottom:1px;">Length: <b>339 aa</b></div>
+            <div style="font-size:8px;color:#374151;margin-bottom:1px;">Loc: <b>Inc. membrane</b></div>
+            <div style="font-size:8px;color:#374151;margin-bottom:6px;">TM: <b>2 domains</b></div>
+            <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">EXPRESSION</div>
+            <div style="display:flex;gap:2px;align-items:flex-end;height:18px;">
+              <div style="width:10px;background:#93c5fd;height:3px;border-radius:1px;"></div>
+              <div style="width:10px;background:#93c5fd;height:6px;border-radius:1px;"></div>
+              <div style="width:10px;background:#3b82f6;height:10px;border-radius:1px;"></div>
+              <div style="width:10px;background:#3b82f6;height:14px;border-radius:1px;"></div>
+              <div style="width:10px;background:#1d4ed8;height:18px;border-radius:1px;"></div>
+              <div style="width:10px;background:#1d4ed8;height:12px;border-radius:1px;"></div>
+            </div>
+          </div>
+          <!-- Right col -->
+          <div>
+            <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">STRUCTURE</div>
+            <div style="width:100%;height:40px;background:linear-gradient(135deg,#bfdbfe,#818cf8);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;color:white;margin-bottom:6px;cursor:pointer;">▶ 3D Viewer</div>
+            <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-bottom:3px;">ORTHOLOGS</div>
+            <div style="display:flex;gap:3px;flex-wrap:wrap;">
+              <span style="background:#dbeafe;color:#1d4ed8;font-size:7px;padding:2px 4px;border-radius:3px;">CT-D</span>
+              <span style="background:#fef3c7;color:#92400e;font-size:7px;padding:2px 4px;border-radius:3px;">CM</span>
+            </div>
+            <div style="font-size:8px;font-weight:700;color:#94a3b8;margin-top:5px;margin-bottom:3px;">MUTANTS <span style="background:#fee2e2;color:#dc2626;border-radius:8px;padding:1px 4px;">3</span></div>
+            <div style="font-size:8px;color:#374151;">YW082 · KH001 · YW090</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Two-column detail panel</h3>
+      <p>Header at top, then a two-column grid below: left has protein properties + expression chart; right has structure thumbnail + orthologs + mutants. Maximizes information density — everything visible at once with minimal scrolling.</p>
+    </div>
+  </div>
+
+</div>
+<p class="subtitle" style="margin-top:12px;text-align:center;">Click to select, or mix and match ideas in the terminal.</p>
