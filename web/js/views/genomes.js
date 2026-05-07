@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state } from '../app.js?v=4';
+import { sb, state } from '../app.js?v=5';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -1370,8 +1370,10 @@ function renderDetailLocalization(detail, gene, protein) {
     fetch(diagramUrl)
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); })
       .then(svg => {
+        // Strip width/height only from the root <svg> tag (not child elements like rect)
         const responsive = svg
-          .replace(/\s(?:width|height)="[^"]*"/g, '')
+          .replace(/(<svg\b[^>]*?)\s(?:width|height)="[^"]*"/g, '$1')
+          .replace(/(<svg\b[^>]*?)\s(?:width|height)="[^"]*"/g, '$1')
           .replace('<svg', '<svg style="width:100%;height:auto;display:block;"');
         svgContainer.innerHTML = responsive;
       })

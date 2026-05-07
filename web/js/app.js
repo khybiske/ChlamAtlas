@@ -1,10 +1,10 @@
 // ChlamAtlas — main application entry point
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=4';
-import { renderHome } from './views/home.js?v=4';
-import { renderGenomes } from './views/genomes.js?v=4';
-import { renderMutants } from './views/mutants.js?v=4';
-import { renderPipeline } from './views/pipeline.js?v=4';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=5';
+import { renderHome } from './views/home.js?v=5';
+import { renderGenomes } from './views/genomes.js?v=5';
+import { renderMutants } from './views/mutants.js?v=5';
+import { renderPipeline } from './views/pipeline.js?v=5';
 
 // ─── Supabase client (singleton) ──────────────────────────
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
