@@ -188,7 +188,7 @@ function showGeneList(container) {
       </div>
 
       <!-- ── Detail panel ── -->
-      <div id="detail-panel" style="overflow-y:auto;overflow-x:hidden;min-width:0;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
+      <div id="detail-panel" style="overflow-y:auto;overflow-x:clip;min-width:0;display:${isMobile ? 'none' : 'flex'};flex-direction:column;">
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#d1d5db;gap:8px;">
           <span style="font-size:28px;opacity:0.4;">🧬</span>
           <span style="font-size:12px;">Select a gene to view details</span>
@@ -885,10 +885,9 @@ async function loadDetailAsync(detail, gene) {
     if (l2Orth?.gene_b?.id) {
       const { data: od } = await sb.from('expression_data')
         .select('eb_expression,rb_expression')
-        .eq('gene_id', l2Orth.gene_b.id)
-        .not('eb_expression', 'is', null)
-        .limit(1);
-      if (od?.[0]) orthoProtRow = { ...od[0], _orthoTag: l2Orth.gene_b.locus_tag };
+        .eq('gene_id', l2Orth.gene_b.id);
+      const protOd = od?.find(r => r.eb_expression != null || r.rb_expression != null) ?? null;
+      if (protOd) orthoProtRow = { ...protOd, _orthoTag: l2Orth.gene_b.locus_tag };
     }
   }
 
@@ -1430,7 +1429,7 @@ function renderDetailStructure(detail, gene, afRows) {
     ].filter(Boolean).join('');
 
     return `
-      <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div style="display:flex;gap:16px;align-items:flex-start;overflow:hidden;min-width:0;">
         <div id="struct-viewer-wrap" style="width:260px;height:260px;flex-shrink:0;border-radius:8px;overflow:hidden;position:relative;background:#0a1628;cursor:pointer;" title="Click to load interactive 3D viewer">
           ${thumbHtml}
           ${record.mmcif_path ? `
@@ -1891,28 +1890,28 @@ function showGeneDetailDesktop(gene, container) {
   }
 
   detail.innerHTML = `
-    <div style="background:white;">
+    <div style="background:white;min-width:0;overflow:hidden;width:100%;box-sizing:border-box;">
       ${heroHtml}
       <!-- 2-col: Gene Info + Orthologs -->
       <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0;">
-        <div id="d-gene-info" style="border-right:1px solid #f0f0f0;"></div>
-        <div id="d-orthologs">${detailSkeleton(3)}</div>
+        <div id="d-gene-info" style="border-right:1px solid #f0f0f0;min-width:0;overflow:hidden;"></div>
+        <div id="d-orthologs" style="min-width:0;overflow:hidden;">${detailSkeleton(3)}</div>
       </div>
       <!-- Genomic Context -->
-      <div id="d-gene-map" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(2)}</div>
+      <div id="d-gene-map" style="border-bottom:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(2)}</div>
       <!-- Protein + Transcriptomics + EB/RB (left 2/3) + Cell Localization (right 1/3, full height) -->
       <div style="display:grid;grid-template-columns:2fr 1fr;border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex;flex-direction:column;border-right:1px solid #f0f0f0;">
-          <div id="d-protein" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(4)}</div>
+        <div style="display:flex;flex-direction:column;border-right:1px solid #f0f0f0;min-width:0;overflow:hidden;">
+          <div id="d-protein" style="border-bottom:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(4)}</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;">
-            <div id="d-transcriptomics" style="border-right:1px solid #f0f0f0;">${detailSkeleton(3)}</div>
-            <div id="d-proteomics">${detailSkeleton(2)}</div>
+            <div id="d-transcriptomics" style="border-right:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(3)}</div>
+            <div id="d-proteomics" style="min-width:0;overflow:hidden;">${detailSkeleton(2)}</div>
           </div>
         </div>
-        <div id="d-localization"></div>
+        <div id="d-localization" style="min-width:0;overflow:hidden;"></div>
       </div>
       <!-- Structure -->
-      <div id="d-structure" style="border-bottom:1px solid #f0f0f0;">${detailSkeleton(3)}</div>
+      <div id="d-structure" style="border-bottom:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(3)}</div>
     </div>`;
 
   // Wire favorite button in detail panel
