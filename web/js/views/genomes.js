@@ -769,13 +769,13 @@ function _loadMolstarBundle() {
   if (_bundlePromise) return _bundlePromise;
   _bundlePromise = new Promise((resolve, reject) => {
     const s   = document.createElement('script');
-    s.src     = 'https://cdn.jsdelivr.net/npm/molstar@3.49.0/build/viewer/molstar.js';
+    s.src     = 'https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.js';
     s.onload  = resolve;
     s.onerror = reject;
     document.head.appendChild(s);
     const l  = document.createElement('link');
     l.rel    = 'stylesheet';
-    l.href   = 'https://cdn.jsdelivr.net/npm/molstar@3.49.0/build/viewer/molstar.css';
+    l.href   = 'https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.css';
     document.head.appendChild(l);
   });
   return _bundlePromise;
@@ -1453,14 +1453,24 @@ function renderDetailStructure(detail, gene, protein, afRows) {
   const el = detail.querySelector('#d-structure');
   if (!el) return;
 
-  const crystal = afRows.find(r => r.af_version === 'crystal');
-  const af3     = afRows.find(r => r.af_version === 'AF3');
-  const af2     = afRows.find(r => r.af_version === 'AF2' || r.af_version === 'AFDB');
+  const crystal   = afRows.find(r => r.af_version === 'crystal');
+  const af3       = afRows.find(r => r.af_version === 'AF3');
+  const uniprotId = protein?.uniprot_id ?? null;
+
+  // Use DB row if present; otherwise synthesize from AlphaFoldDB using UniProt ID
+  // (AFDB covers the entire Chlamydia proteome)
+  const af2 = afRows.find(r => r.af_version === 'AF2' || r.af_version === 'AFDB')
+    ?? (uniprotId ? {
+      af_version: 'AF2',
+      mmcif_path:     `https://alphafold.ebi.ac.uk/files/AF-${uniprotId}-F1-model_v4.cif`,
+      thumbnail_path: `https://alphafold.ebi.ac.uk/files/AF-${uniprotId}-F1-model_v4.png`,
+      homology_score: null, ptm_score: null,
+      top_homolog_pdb_id: null, top_homolog_description: null,
+      homology_method: null, inferred_function: null,
+    } : null);
 
   let activeTab    = crystal ? 'crystal' : af3 ? 'af3' : 'af2';
   let activeRecord = crystal ?? af3 ?? af2;
-
-  const uniprotId = protein?.uniprot_id ?? null;
 
   function tabBtn(id, label, record) {
     const available = !!record;
