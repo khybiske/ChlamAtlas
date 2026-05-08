@@ -721,7 +721,7 @@ function geneRow(g) {
 async function loadMolstar(wrapEl, url) {
   if (!url) return;
 
-  const vpId  = 'molstar-vp';
+  const vpId  = 'molstar-vp-' + Date.now();
   const vpDiv = document.createElement('div');
   vpDiv.id    = vpId;
   vpDiv.style.cssText =
@@ -732,7 +732,8 @@ async function loadMolstar(wrapEl, url) {
   if (!window.molstar) {
     try {
       await _loadMolstarBundle();
-    } catch {
+    } catch (err) {
+      console.warn('[Molstar] bundle load failed:', err);
       vpDiv.remove();
       _showStructureFallback(wrapEl, url);
       return;
@@ -756,24 +757,28 @@ async function loadMolstar(wrapEl, url) {
     vpDiv.style.opacity = '1';
     const thumb = wrapEl.querySelector('#struct-thumb');
     if (thumb) { thumb.style.transition = 'opacity 0.4s'; thumb.style.opacity = '0'; }
-  } catch {
+  } catch (err) {
+    console.warn('[Molstar] viewer init failed:', err);
     vpDiv.remove();
     _showStructureFallback(wrapEl, url);
   }
 }
 
+let _bundlePromise = null;
 function _loadMolstarBundle() {
-  return new Promise((resolve, reject) => {
+  if (_bundlePromise) return _bundlePromise;
+  _bundlePromise = new Promise((resolve, reject) => {
     const s   = document.createElement('script');
-    s.src     = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js';
+    s.src     = 'https://cdn.jsdelivr.net/npm/molstar@3.49.0/build/viewer/molstar.js';
     s.onload  = resolve;
     s.onerror = reject;
     document.head.appendChild(s);
     const l  = document.createElement('link');
     l.rel    = 'stylesheet';
-    l.href   = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css';
+    l.href   = 'https://cdn.jsdelivr.net/npm/molstar@3.49.0/build/viewer/molstar.css';
     document.head.appendChild(l);
   });
+  return _bundlePromise;
 }
 
 function _showStructureFallback(wrapEl, url) {
@@ -1430,6 +1435,8 @@ function ptmColor(score) {
 function setupMolstarObserver(el) {
   const wrap = el.querySelector('#struct-viewer-wrap');
   if (!wrap || !wrap.dataset.url) return;
+  if (wrap.dataset.molstarInitiated) return;
+  wrap.dataset.molstarInitiated = 'true';
 
   let fired = false;
   const observer = new IntersectionObserver(entries => {
