@@ -716,39 +716,78 @@ function geneRow(g) {
     </div>`;
 }
 
-// ─── Mol* loader ──────────────────────────────────────────
+// ─── Mol* loader (IntersectionObserver-driven) ────────────
 
 async function loadMolstar(wrapEl, url) {
-  wrapEl.innerHTML = `<div id="molstar-vp" style="width:100%;height:100%;position:relative;border-radius:8px;overflow:hidden;"></div>`;
+  if (!url) return;
+
+  const vpId  = 'molstar-vp';
+  const vpDiv = document.createElement('div');
+  vpDiv.id    = vpId;
+  vpDiv.style.cssText =
+    'position:absolute;inset:0;border-radius:8px;overflow:hidden;opacity:0;transition:opacity 0.4s;';
+  wrapEl.style.position = 'relative';
+  wrapEl.appendChild(vpDiv);
 
   if (!window.molstar) {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js';
-    s.onload = () => _initMolstar(url);
-    document.head.appendChild(s);
-    const l = document.createElement('link');
-    l.rel = 'stylesheet';
-    l.href = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css';
-    document.head.appendChild(l);
-  } else {
-    _initMolstar(url);
+    try {
+      await _loadMolstarBundle();
+    } catch {
+      vpDiv.remove();
+      _showStructureFallback(wrapEl, url);
+      return;
+    }
+  }
+
+  try {
+    const { Viewer } = molstar.Viewer;
+    const v = await Viewer.create(vpId, {
+      layoutIsExpanded:          false,
+      layoutShowControls:        false,
+      layoutShowRemoteState:     false,
+      layoutShowSequence:        true,
+      layoutShowLog:             false,
+      layoutShowLeftPanel:       false,
+      viewportShowExpand:        true,
+      viewportShowSelectionMode: false,
+      viewportShowAnimation:     false,
+    });
+    await v.loadStructureFromUrl(url, 'mmcif');
+    vpDiv.style.opacity = '1';
+    const thumb = wrapEl.querySelector('#struct-thumb');
+    if (thumb) { thumb.style.transition = 'opacity 0.4s'; thumb.style.opacity = '0'; }
+  } catch {
+    vpDiv.remove();
+    _showStructureFallback(wrapEl, url);
   }
 }
 
-async function _initMolstar(url) {
-  const { Viewer } = molstar.Viewer;
-  const v = await Viewer.create('molstar-vp', {
-    layoutIsExpanded: false,
-    layoutShowControls: false,
-    layoutShowRemoteState: false,
-    layoutShowSequence: true,
-    layoutShowLog: false,
-    layoutShowLeftPanel: false,
-    viewportShowExpand: true,
-    viewportShowSelectionMode: false,
-    viewportShowAnimation: false,
+function _loadMolstarBundle() {
+  return new Promise((resolve, reject) => {
+    const s   = document.createElement('script');
+    s.src     = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.js';
+    s.onload  = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+    const l  = document.createElement('link');
+    l.rel    = 'stylesheet';
+    l.href   = 'https://cdn.jsdelivr.net/npm/molstar@latest/build/viewer/molstar.css';
+    document.head.appendChild(l);
   });
-  await v.loadStructureFromUrl(url, 'mmcif');
+}
+
+function _showStructureFallback(wrapEl, url) {
+  const a = document.createElement('a');
+  a.href   = url;
+  a.target = '_blank';
+  a.rel    = 'noopener';
+  a.style.cssText =
+    'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);' +
+    'font-size:9px;font-weight:600;background:rgba(15,69,48,0.85);color:white;' +
+    'border-radius:5px;padding:4px 10px;text-decoration:none;white-space:nowrap;';
+  a.textContent = 'View / Download ↗';
+  wrapEl.style.position = 'relative';
+  wrapEl.appendChild(a);
 }
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -1388,8 +1427,20 @@ function ptmColor(score) {
   return '#f97316';
 }
 
-// Temporary stub — replaced in next task with IntersectionObserver implementation
-function setupMolstarObserver(el) {}
+function setupMolstarObserver(el) {
+  const wrap = el.querySelector('#struct-viewer-wrap');
+  if (!wrap || !wrap.dataset.url) return;
+
+  let fired = false;
+  const observer = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting || fired) return;
+    fired = true;
+    observer.disconnect();
+    loadMolstar(wrap, wrap.dataset.url);
+  }, { threshold: 0.1 });
+
+  observer.observe(wrap);
+}
 
 function renderDetailStructure(detail, gene, protein, afRows) {
   const el = detail.querySelector('#d-structure');
