@@ -2043,7 +2043,7 @@ function showGeneDetailDesktop(gene, container) {
   }
 
   detail.innerHTML = `
-    <div style="background:white;min-width:0;overflow:hidden;width:100%;box-sizing:border-box;">
+    <div style="background:white;min-width:0;overflow-x:clip;width:100%;box-sizing:border-box;">
       ${heroHtml}
       <!-- 2-col: Gene Info + Orthologs -->
       <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0;">
