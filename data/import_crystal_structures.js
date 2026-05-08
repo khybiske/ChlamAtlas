@@ -112,4 +112,4 @@ async function main() {
   console.log(`Inserted/updated ${rows.length} rows.`);
 }
 
-main();
+main().catch(err => { console.error('Unexpected error:', err); process.exit(1); });
