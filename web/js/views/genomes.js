@@ -741,8 +741,7 @@ async function loadMolstar(wrapEl, url) {
   }
 
   try {
-    const { Viewer } = molstar.Viewer;
-    const v = await Viewer.create(vpId, {
+    const v = await molstar.Viewer.create(vpId, {
       layoutIsExpanded:          false,
       layoutShowControls:        false,
       layoutShowRemoteState:     false,
