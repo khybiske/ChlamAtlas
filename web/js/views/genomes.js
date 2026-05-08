@@ -100,8 +100,10 @@ let _sortAsc        = true;
 let _filters        = { favorites: false, characterized: false, hypothetical: false,
                         inc: false, membrane: false, secreted: false, dnaBinding: false,
                         hasAf3: false, hasCrystal: false };
-let _categoryFilter  = null;
-let _locationFilter  = null;  // SL or GO term id set by clicking a localization pill
+let _categoryFilter    = null;
+let _locationFilter    = null;  // SL or GO term id set by clicking a localization pill
+let _expressionFilter  = null;  // 'Early' | 'Mid' | 'Late' | 'Constitutive'
+let _ebRbFilter        = null;  // 'eb' | 'rb'
 let _offset         = 0;
 let _total       = 0;
 let _hasMore     = false;
@@ -121,7 +123,7 @@ let _sectionOpen = {
 };
 
 // Which More-panel sections are expanded (persists across filter bar re-renders)
-let _expandedSections = { characterization: false, function: false, location: false, structure: false };
+let _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false };
 
 // HTML-escape helper for DB strings interpolated into innerHTML.
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -132,10 +134,11 @@ export function renderGenomes(container) {
   _strain = window.__preferredStrain ?? 'CT-L2';
   delete window.__preferredStrain;
   _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
+  _expressionFilter = null; _ebRbFilter = null;
   _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
                membrane: false, secreted: false, dnaBinding: false,
                hasAf3: false, hasCrystal: false };
-  _expandedSections = { characterization: false, function: false, location: false, structure: false };
+  _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false };
   showGeneList(container);
 }
 
@@ -200,6 +203,7 @@ function showGeneList(container) {
     btn.addEventListener('click', () => {
       _strain = btn.dataset.strain;
       _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
+      _expressionFilter = null;
       _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
                    membrane: false, secreted: false, dnaBinding: false,
                    hasAf3: false, hasCrystal: false };
@@ -308,9 +312,33 @@ function renderFilterBar(container, expandMore = false) {
     { id: 'hasCrystal', label: 'Crystal structure', title: 'Filter to genes with an experimentally resolved structure' },
   ];
 
+  const EXPR_FILTERS = [
+    { value: 'Early',        label: 'Early'        },
+    { value: 'Mid',          label: 'Mid'          },
+    { value: 'Late',         label: 'Late'         },
+    { value: 'Constitutive', label: 'Constitutive' },
+  ];
+
+  const exprChip = (value, label) => {
+    const active = _expressionFilter === value;
+    return `<button data-expr-filter="${esc(value)}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#a5f3fc' : '#e5e7eb'};
+             background:${active ? '#ecfeff' : 'white'};color:${active ? '#164e63' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
+      ${active ? '📈 ' : ''}${label}${active ? ' ×' : ''}
+    </button>`;
+  };
+  const ebRbChip = (value, label) => {
+    const active = _ebRbFilter === value;
+    return `<button data-ebrb-filter="${esc(value)}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#a5f3fc' : '#e5e7eb'};
+             background:${active ? '#ecfeff' : 'white'};color:${active ? '#164e63' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
+      ${active ? '📈 ' : ''}${label}${active ? ' ×' : ''}
+    </button>`;
+  };
+
   const activeChar   = CHAR_FILTERS.filter(f => _filters[f.id]);
   const activeStruct = STRUCT_FILTERS.filter(f => _filters[f.id]);
-  const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter;
+  const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter || _expressionFilter || _ebRbFilter;
 
   // Section open state is purely user-controlled — no forced-open based on active filters
   const secOpen = {
@@ -318,6 +346,7 @@ function renderFilterBar(container, expandMore = false) {
     function:         _expandedSections.function,
     location:         _expandedSections.location,
     structure:        _expandedSections.structure,
+    expression:       _expandedSections.expression,
   };
 
   const groupHead = (id, icon, label, isOpen, hint = '') => `
@@ -352,8 +381,10 @@ function renderFilterBar(container, expandMore = false) {
       ${chip('favorites', '★ Favorites', _filters.favorites)}
       ${activeChar.map(f => chip(f.id, f.label, true)).join('')}
       ${activeStruct.map(f => chip(f.id, f.label, true, f.title)).join('')}
-      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${esc(funcLabel(_categoryFilter))} ×</button>` : ''}
-      ${_locationFilter ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>` : ''}
+      ${_categoryFilter   ? `<button data-clear-category   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${esc(funcLabel(_categoryFilter))} ×</button>` : ''}
+      ${_locationFilter   ? `<button data-clear-location   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>` : ''}
+      ${_expressionFilter ? `<button data-clear-expression style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #a5f3fc;background:#ecfeff;color:#164e63;cursor:pointer;white-space:nowrap;font-family:inherit;">📈 ${esc(_expressionFilter)} ×</button>` : ''}
+      ${_ebRbFilter ? `<button data-clear-ebrb style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #a5f3fc;background:#ecfeff;color:#164e63;cursor:pointer;white-space:nowrap;font-family:inherit;">📈 ${_ebRbFilter === 'eb' ? 'EB enriched' : 'RB enriched'} ×</button>` : ''}
       <button id="more-filters-btn"
         style="font-size:10.5px;font-weight:600;color:${startOpen ? '#16a34a' : '#9ca3af'};background:white;border:1px solid ${startOpen ? '#bbf7d0' : '#e5e7eb'};border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
         ${startOpen ? '− Less' : '+ More'}
@@ -377,6 +408,11 @@ function renderFilterBar(container, expandMore = false) {
       ${groupHead('structure', '🧊', 'Structure', secOpen.structure)}
       <div style="display:${secOpen.structure ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${STRUCT_FILTERS.map(f => chip(f.id, f.label, _filters[f.id], f.title)).join('')}
+      </div>
+      ${groupHead('expression', '📈', 'Expression', secOpen.expression, '— click chart or peak label on any gene')}
+      <div style="display:${secOpen.expression ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+        ${EXPR_FILTERS.map(f => exprChip(f.value, f.label)).join('')}
+        ${_strain === 'CT-L2' ? ebRbChip('eb', 'EB enriched') + ebRbChip('rb', 'RB enriched') : ''}
       </div>
     </div>
   `;
@@ -447,6 +483,44 @@ function renderFilterBar(container, expandMore = false) {
     });
   });
 
+  // Expression filter chips
+  bar.querySelectorAll('[data-expr-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.exprFilter;
+      _expressionFilter = _expressionFilter === val ? null : val;
+      _offset = 0;
+      renderFilterBar(container, true);
+      fetchGenes(container, true);
+    });
+  });
+
+  // Clear expression filter
+  bar.querySelector('[data-clear-expression]')?.addEventListener('click', () => {
+    _expressionFilter = null;
+    _offset = 0;
+    renderFilterBar(container);
+    fetchGenes(container, true);
+  });
+
+  // EB/RB proteomics filter chips
+  bar.querySelectorAll('[data-ebrb-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.ebrbFilter;
+      _ebRbFilter = _ebRbFilter === val ? null : val;
+      _offset = 0;
+      renderFilterBar(container, true);
+      fetchGenes(container, true);
+    });
+  });
+
+  // Clear EB/RB filter
+  bar.querySelector('[data-clear-ebrb]')?.addEventListener('click', () => {
+    _ebRbFilter = null;
+    _offset = 0;
+    renderFilterBar(container);
+    fetchGenes(container, true);
+  });
+
   // More panel toggle
   const moreBtn   = bar.querySelector('#more-filters-btn');
   const morePanel = bar.querySelector('#more-panel');
@@ -478,7 +552,7 @@ async function fetchGenes(container, reset = false) {
   let q = sb.from('genes')
     .select(
       'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
-      'start_bp,end_bp,strand,' +
+      'start_bp,end_bp,strand,expression_pattern,eb_enriched,rb_enriched,' +
       'functional_category,is_characterized,is_membrane_protein,' +
       'is_hypothetical,is_dna_binding,is_t3_secreted,' +
       'strains!inner(common_name,color_hex),' +
@@ -503,6 +577,9 @@ async function fetchGenes(container, reset = false) {
   if (_filters.hasAf3)         q = q.eq('proteins.has_af3_structure', true);
   if (_filters.hasCrystal)     q = q.eq('proteins.has_crystal_structure', true);
   if (_categoryFilter)         q = q.eq('functional_category', _categoryFilter);
+  if (_expressionFilter)       q = q.eq('expression_pattern', _expressionFilter);
+  if (_ebRbFilter === 'eb')    q = q.eq('eb_enriched', true);
+  if (_ebRbFilter === 'rb')    q = q.eq('rb_enriched', true);
   if (_locationFilter) {
     // Try SL term first; if it starts with GO: use the go column
     if (_locationFilter.startsWith('GO:')) {
@@ -1073,6 +1150,13 @@ function ncbiLink(locusTag) {
     onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='#f9fafb'">NCBI ↗</a>`;
 }
 
+// Map raw pattern_label values → normalized 4-bucket vocabulary
+const L2_PATTERN_BUCKET = {
+  'Early': 'Early', 'Mid': 'Mid', 'Mid_Late': 'Mid',
+  'Late': 'Late', 'late': 'Late', 'Very_Late': 'Late',
+  'Constitutive': 'Constitutive',
+};
+
 function renderDetailTranscriptomics(detail, gene, exprRows) {
   const el = detail.querySelector('#d-transcriptomics');
   if (!el) return;
@@ -1093,18 +1177,55 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
   const values = sorted.map(r => r.value ?? 0);
   const maxVal = Math.max(...values, 1);
 
-  // CT-L2 qualitative case: pattern_label column holds the expression pattern string
+  // CT-L2 qualitative case: pattern_label holds expression pattern, no quantitative values
   if (values.every(v => v === 0) && sorted[0]?.pattern_label) {
-    const pattern = String(sorted[0].pattern_label ?? 'Unknown').toUpperCase().replace(/_/g, ' ');
+    const rawLabel  = sorted[0].pattern_label;
+    const bucket    = gene.expression_pattern ?? L2_PATTERN_BUCKET[rawLabel] ?? null;
+    const display   = String(rawLabel).toUpperCase().replace(/_/g, ' ');
+    const clickable = bucket != null;
+    const isActive  = bucket && _expressionFilter === bucket;
+
     el.innerHTML = `
       ${sectionHead('Transcriptomics')}
       <div style="padding:8px 16px 14px;">
         <div style="font-size:9px;color:#555;margin-bottom:6px;">Expression pattern (CT-L2)</div>
-        <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">${pattern}</span>
-        <div style="font-size:8.5px;color:#bbb;margin-top:6px;font-style:italic;">Qualitative · quantitative timepoints not available for CT-L2</div>
+        <span data-expr-pill="${esc(bucket ?? '')}"
+          style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;
+                 background:${isActive ? '#ecfeff' : '#f0fdf4'};
+                 color:${isActive ? '#164e63' : '#16a34a'};
+                 border:1px solid ${isActive ? '#a5f3fc' : '#bbf7d0'};
+                 ${clickable ? 'cursor:pointer;' : ''}
+                 transition:background 0.15s;">
+          ${display}${isActive ? ' ×' : (clickable ? ' ↗' : '')}
+        </span>
+        <div style="font-size:8.5px;color:#bbb;margin-top:6px;font-style:italic;">
+          Qualitative · Nicholson et al. 2003, J Bacteriol · PMID 12730178
+          ${clickable ? '· click to filter' : ''}
+        </div>
       </div>`;
+
+    if (clickable) {
+      el.querySelector('[data-expr-pill]')?.addEventListener('click', () => {
+        _expressionFilter = _expressionFilter === bucket ? null : bucket;
+        _offset = 0;
+        if (_expressionFilter) _expandedSections.expression = true;
+        renderFilterBar(_container, !!_expressionFilter);
+        fetchGenes(_container, true);
+        // Re-render pill state
+        renderDetailTranscriptomics(detail, gene, exprRows);
+      });
+    }
     return;
   }
+
+  // CT-D quantitative case
+  const bucket   = gene.expression_pattern ?? null;
+  const isActive = bucket && _expressionFilter === bucket;
+
+  // Peak: first timepoint at ≥90% of max (avoids noise-driven right-shift)
+  const threshold = maxVal * 0.90;
+  const peakTp = sorted.find(r => (r.value ?? 0) >= threshold) ?? sorted[sorted.length - 1];
+  const peakLabel = TP_LABEL[peakTp.timepoint] ?? peakTp.timepoint;
 
   const bars = sorted.map(r => {
     const h   = Math.round(((r.value ?? 0) / maxVal) * 40);
@@ -1113,28 +1234,46 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
     return `
       <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
         <div style="height:40px;display:flex;align-items:flex-end;width:100%;">
-          <div title="${lbl}: ${r.value ?? 0}" style="background:#4ade80;border-radius:2px 2px 0 0;width:100%;height:${pct}px;cursor:pointer;"
-            onmouseenter="this.style.background='#16a34a'" onmouseleave="this.style.background='#4ade80'"></div>
+          <div data-expr-bar title="${lbl}: ${r.value ?? 0}"
+            style="background:#4ade80;border-radius:2px 2px 0 0;width:100%;height:${pct}px;
+                   ${bucket ? 'cursor:pointer;' : ''}transition:background 0.1s;"
+            onmouseenter="this.style.background='#16a34a'"
+            onmouseleave="this.style.background='#4ade80'"></div>
         </div>
         <div style="font-size:7.5px;color:#9ca3af;font-family:'DM Mono',monospace;margin-top:3px;">${lbl}</div>
       </div>`;
   }).join('');
 
-  const peakTp = sorted.reduce((a, b) => ((a.value ?? 0) >= (b.value ?? 0) ? a : b), sorted[0]);
-
   el.innerHTML = `
     ${sectionHead('Transcriptomics')}
     <div style="padding:2px 16px 14px;">
-      <div style="font-size:8px;color:#9ca3af;margin-bottom:6px;">CT-D microarray · 1h–40h</div>
+      <div style="font-size:8px;color:#9ca3af;margin-bottom:6px;">CT-D microarray · 1h–40h · Belland et al. 2003, PNAS · PMID 12815105</div>
       <div style="display:flex;align-items:flex-end;gap:4px;height:57px;padding-bottom:17px;position:relative;">
         <div style="position:absolute;bottom:17px;left:0;right:0;height:1px;background:#e5e7eb;"></div>
         ${bars}
       </div>
-      <div style="font-size:8px;color:#9ca3af;margin-top:4px;display:flex;align-items:center;gap:4px;">
+      <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
         <div style="width:5px;height:5px;border-radius:50%;background:#16a34a;flex-shrink:0;"></div>
-        Peak ${TP_LABEL[peakTp.timepoint] ?? peakTp.timepoint}
+        <span data-expr-peak
+          style="font-size:8px;color:${isActive ? '#164e63' : '#9ca3af'};
+                 ${bucket ? 'cursor:pointer;text-decoration:underline dotted;' : ''}">
+          Peak ${peakLabel}${bucket ? ` · ${bucket}` : ''}${isActive ? ' ×' : ''}
+        </span>
       </div>
     </div>`;
+
+  if (bucket) {
+    const activate = () => {
+      _expressionFilter = _expressionFilter === bucket ? null : bucket;
+      _offset = 0;
+      if (_expressionFilter) _expandedSections.expression = true;
+      renderFilterBar(_container, !!_expressionFilter);
+      fetchGenes(_container, true);
+      renderDetailTranscriptomics(detail, gene, exprRows);
+    };
+    el.querySelectorAll('[data-expr-bar]').forEach(b => b.addEventListener('click', activate));
+    el.querySelector('[data-expr-peak]')?.addEventListener('click', activate);
+  }
 }
 
 function renderDetailProteomics(detail, gene, exprRows) {
@@ -1176,7 +1315,7 @@ function renderDetailProteomics(detail, gene, exprRows) {
     <div style="padding:2px 16px 14px;">
       ${bar('EB (elementary body)', ebVal, '/web/images/eb.png')}
       ${bar('RB (reticulate body)', rbVal, '/web/images/rb.png')}
-      <div style="font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 spectral counts</div>
+      <div style="font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 spectral counts · Saka et al. 2011, Mol Microbiol · PMID 22014092</div>
     </div>`;
 }
 
@@ -1306,6 +1445,7 @@ function wireStructureEvents(el, gene) {
 
 // Mapping of common GO cellular component IDs → human-readable labels
 const GO_LABELS = {
+  // General compartments
   'GO:0005737': 'Cytoplasm',
   'GO:0005829': 'Cytosol',
   'GO:0005576': 'Extracellular region',
@@ -1317,18 +1457,97 @@ const GO_LABELS = {
   'GO:0042025': 'Host cell nucleus',
   'GO:0044164': 'Host cell cytosol',
   'GO:0030140': 'Trans-Golgi network transport vesicle',
+  // Bacterial compartments & envelopes
+  'GO:0009276': 'Cell wall',
+  'GO:0009279': 'Cell outer membrane',
+  'GO:0009295': 'Nucleoid',
+  'GO:0019867': 'Outer membrane',
+  'GO:0030288': 'Periplasmic space',
+  'GO:0042597': 'Periplasmic space',
+  'GO:0043590': 'Bacterial nucleoid',
+  'GO:0032153': 'Cell division site',
+  'GO:0005856': 'Cytoskeleton',
+  'GO:0005694': 'Chromosome',
+  'GO:0097268': 'Cytoophidium',
+  // Ribosomes & translation
+  'GO:0005840': 'Ribosome',
+  'GO:0015934': 'Large ribosomal subunit',
+  'GO:0015935': 'Small ribosomal subunit',
+  'GO:0022625': 'Cytosolic large ribosomal subunit',
+  'GO:0022627': 'Cytosolic small ribosomal subunit',
+  'GO:1990904': 'Ribonucleoprotein complex',
+  // Secretion systems
+  'GO:0015627': 'Type II secretion system complex',
+  'GO:0030257': 'Type III secretion system complex',
+  // Energy / metabolism complexes
+  'GO:0045259': 'ATP synthase complex',
+  'GO:0033176': 'V-type ATPase complex',
+  'GO:0033177': 'Two-sector ATPase complex',
+  'GO:0033178': 'Two-sector ATPase complex',
+  'GO:0033179': 'V-type ATPase, V0 domain',
+  'GO:0016471': 'Vacuolar V-type ATPase complex',
+  'GO:0045254': 'Pyruvate dehydrogenase complex',
+  'GO:0045252': 'Oxoglutarate dehydrogenase complex',
+  'GO:0009361': 'Succinate-CoA ligase complex',
+  'GO:0042709': 'Succinate-CoA ligase complex',
+  'GO:0070069': 'Cytochrome complex',
+  'GO:1990220': 'GroEL-GroES complex',
+  'GO:1990229': 'Iron-sulfur cluster assembly complex',
+  'GO:1990228': 'Sulfurtransferase complex',
+  'GO:1990351': 'Transporter complex',
+  'GO:0043190': 'ABC transporter complex',
+  'GO:0010170': 'ADP-glucose pyrophosphorylase complex',
+  // DNA / repair complexes
+  'GO:0000428': 'RNA polymerase complex',
+  'GO:0009360': 'DNA polymerase III complex',
+  'GO:0009330': 'Topoisomerase II complex',
+  'GO:0009338': 'Exodeoxyribonuclease V complex',
+  'GO:0009318': 'Exodeoxyribonuclease VII complex',
+  'GO:0009380': 'Excinuclease repair complex',
+  'GO:0048476': 'Holliday junction resolvase complex',
+  'GO:0033202': 'DNA helicase complex',
+  'GO:0032300': 'Mismatch repair complex',
+  'GO:0032299': 'Ribonuclease H2 complex',
+  'GO:1990077': 'Primosome complex',
+  'GO:0032993': 'Protein-DNA complex',
+  // Other complexes
+  'GO:0009317': 'Acetyl-CoA carboxylase complex',
+  'GO:0009349': 'Riboflavin synthase complex',
+  'GO:0009368': 'Endopeptidase Clp complex',
+  'GO:0009376': 'HslUV protease complex',
+  'GO:0048500': 'Signal recognition particle',
+  'GO:0030677': 'Ribonuclease P complex',
+  'GO:0030956': 'Glutamyl-tRNA amidotransferase complex',
+  'GO:0043527': 'tRNA methyltransferase complex',
+  'GO:0005971': 'Ribonucleotide reductase complex',
+  'GO:0005960': 'Glycine cleavage complex',
+  'GO:0005952': 'cAMP-dependent protein kinase complex',
+  'GO:0046930': 'Pore complex',
+  'GO:0098797': 'Plasma membrane protein complex',
 };
 
 function locTermLabel(termId) {
   if (!termId) return termId;
   if (termId.startsWith('GO:')) return GO_LABELS[termId] ?? termId;
-  // SL ID → human label via a small common map; fallback to SL-XXXX
+  // SL ID → human label; fallback to raw ID
   const SL_LABELS = {
-    'SL-0086': 'Cytoplasm', 'SL-0037': 'Cell inner membrane',
-    'SL-0204': 'Secreted',  'SL-0243': 'Secreted',
-    'SL-0191': 'Periplasm', 'SL-0020': 'Cell outer membrane',
-    'SL-0122': 'Host cell membrane', 'SL-0093': 'Cell membrane',
-    'SL-0023': 'Cell surface', 'SL-0478': 'Host cytoplasm',
+    'SL-0086': 'Cytoplasm',
+    'SL-0037': 'Cell inner membrane',
+    'SL-0039': 'Cell membrane',
+    'SL-0040': 'Cell outer membrane',
+    'SL-0041': 'Cell wall',
+    'SL-0093': 'Cell membrane',
+    'SL-0162': 'Nucleoid',
+    'SL-0187': 'Periplasm',
+    'SL-0191': 'Periplasm',
+    'SL-0200': 'Membrane',
+    'SL-0204': 'Secreted',
+    'SL-0243': 'Secreted',
+    'SL-0310': 'Cell surface',
+    'SL-0020': 'Cell outer membrane',
+    'SL-0122': 'Host cell membrane',
+    'SL-0023': 'Cell surface',
+    'SL-0478': 'Host cytoplasm',
   };
   return SL_LABELS[termId] ?? termId;
 }
