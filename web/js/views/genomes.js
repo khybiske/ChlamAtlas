@@ -1911,8 +1911,11 @@ function showGeneDetailDesktop(gene, container) {
         </div>
         <div id="d-localization" style="min-width:0;overflow:hidden;"></div>
       </div>
-      <!-- Structure -->
-      <div id="d-structure" style="border-bottom:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(3)}</div>
+      <!-- Structure + reserved placeholder -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;border-bottom:1px solid #f0f0f0;">
+        <div id="d-structure" style="border-right:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(3)}</div>
+        <div id="d-structure-placeholder" style="min-width:0;"></div>
+      </div>
     </div>`;
 
   // Wire favorite button in detail panel
