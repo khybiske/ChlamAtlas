@@ -1388,6 +1388,9 @@ function ptmColor(score) {
   return '#f97316';
 }
 
+// Temporary stub — replaced in next task with IntersectionObserver implementation
+function setupMolstarObserver(el) {}
+
 function renderDetailStructure(detail, gene, protein, afRows) {
   const el = detail.querySelector('#d-structure');
   if (!el) return;
@@ -1417,8 +1420,8 @@ function renderDetailStructure(detail, gene, protein, afRows) {
 
   function extLink(href, label, download = false) {
     const attrs = download
-      ? `href="${href}" download`
-      : `href="${href}" target="_blank" rel="noopener"`;
+      ? `href="${esc(href)}" download`
+      : `href="${esc(href)}" target="_blank" rel="noopener"`;
     return `<a ${attrs}
       style="font-size:9.5px;font-weight:500;color:#6b7280;text-decoration:none;
              padding:3px 8px;border:1px solid #d1d5db;border-radius:5px;background:#f9fafb;">
@@ -1440,7 +1443,7 @@ function renderDetailStructure(detail, gene, protein, afRows) {
     }
 
     const thumbHtml = record.thumbnail_path
-      ? `<img src="${record.thumbnail_path}" alt="Structure thumbnail" id="struct-thumb"
+      ? `<img src="${esc(record.thumbnail_path)}" alt="Structure thumbnail" id="struct-thumb"
               style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />`
       : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;
                      font-size:28px;color:#374151;background:#111827;border-radius:8px;">⬡</div>`;
@@ -1495,10 +1498,12 @@ function renderDetailStructure(detail, gene, protein, afRows) {
     if (record.af_version === 'crystal') {
       sourceLabel = 'Crystal Structure · RCSB PDB';
       const pdbId = record.top_homolog_pdb_id ?? '';
-      idHtml = `<div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;
-                            color:#111;line-height:1;margin-bottom:14px;">
-                  ${esc(pdbId)}
-                </div>`;
+      idHtml = pdbId
+        ? `<div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;
+                              color:#111;line-height:1;margin-bottom:14px;">
+                    ${esc(pdbId)}
+                  </div>`
+        : '';
       const links = [
         pdbId ? extLink(`https://www.rcsb.org/structure/${encodeURIComponent(pdbId)}`, `RCSB ${esc(pdbId)} ↗`) : '',
         afdbLink(),
@@ -1512,7 +1517,7 @@ function renderDetailStructure(detail, gene, protein, afRows) {
                     `RCSB ${esc(record.top_homolog_pdb_id)} ↗`)
           : '',
         afdbLink(),
-        record.mmcif_path ? extLink(record.mmcif_path, 'Download mmCIF ↗', true) : '',
+        record.mmcif_path ? extLink(record.mmcif_path, 'Open mmCIF ↗') : '',
       ].filter(Boolean);
       linksHtml = links.join('');
     } else {
