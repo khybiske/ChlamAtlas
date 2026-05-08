@@ -878,11 +878,25 @@ async function loadDetailAsync(detail, gene) {
   const seenIds = new Set(fwdRows.map(o => o.id));
   const orthoRows = [...fwdRows, ...revRows.filter(o => !seenIds.has(o.id))];
 
+  // For non-CT-L2 genes, fetch CT-L2 ortholog proteomics for the proteomics panel
+  let orthoProtRow = null;
+  if ((gene.strains?.common_name ?? _strain) !== 'CT-L2') {
+    const l2Orth = orthoRows.find(o => o.gene_b?.strains?.common_name === 'CT-L2');
+    if (l2Orth?.gene_b?.id) {
+      const { data: od } = await sb.from('expression_data')
+        .select('eb_expression,rb_expression')
+        .eq('gene_id', l2Orth.gene_b.id)
+        .not('eb_expression', 'is', null)
+        .limit(1);
+      if (od?.[0]) orthoProtRow = { ...od[0], _orthoTag: l2Orth.gene_b.locus_tag };
+    }
+  }
+
   renderDetailOrthologs(detail, orthoRows, gene);
   renderDetailGeneMap(detail, gene, neighborResult.data ?? []);
   renderDetailProtein(detail, gene, protResult.data);
   renderDetailTranscriptomics(detail, gene, exprRows ?? []);
-  renderDetailProteomics(detail, gene, exprRows ?? []);
+  renderDetailProteomics(detail, gene, exprRows ?? [], orthoProtRow);
   renderDetailStructure(detail, gene, protResult.data?.alphafold_results ?? []);
   renderDetailLocalization(detail, gene, protResult.data);
 }
@@ -1196,7 +1210,7 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
                  border:1px solid ${isActive ? '#a5f3fc' : '#bbf7d0'};
                  ${clickable ? 'cursor:pointer;' : ''}
                  transition:background 0.15s;">
-          ${display}${isActive ? ' ×' : (clickable ? ' ↗' : '')}
+          ${display}${isActive ? ' ×' : ''}
         </span>
         <div style="font-size:8.5px;color:#bbb;margin-top:6px;font-style:italic;">
           Qualitative · Nicholson et al. 2003, J Bacteriol · PMID 12730178
@@ -1247,7 +1261,6 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
   el.innerHTML = `
     ${sectionHead('Transcriptomics')}
     <div style="padding:2px 16px 14px;">
-      <div style="font-size:8px;color:#9ca3af;margin-bottom:6px;">CT-D microarray · 1h–40h · Belland et al. 2003, PNAS · PMID 12815105</div>
       <div style="display:flex;align-items:flex-end;gap:4px;height:57px;padding-bottom:17px;position:relative;">
         <div style="position:absolute;bottom:17px;left:0;right:0;height:1px;background:#e5e7eb;"></div>
         ${bars}
@@ -1260,6 +1273,7 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
           Peak ${peakLabel}${bucket ? ` · ${bucket}` : ''}${isActive ? ' ×' : ''}
         </span>
       </div>
+      <div style="font-size:8px;color:#9ca3af;margin-top:6px;font-style:italic;">CT-D microarray · 1h–40h · Belland et al. 2003, PNAS · PMID 12815105</div>
     </div>`;
 
   if (bucket) {
@@ -1276,16 +1290,18 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
   }
 }
 
-function renderDetailProteomics(detail, gene, exprRows) {
+function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
   const el = detail.querySelector('#d-proteomics');
   if (!el) return;
 
-  const protRow = exprRows.find(r => r.eb_expression != null || r.rb_expression != null);
+  const localProtRow = exprRows.find(r => r.eb_expression != null || r.rb_expression != null);
+  const protRow = localProtRow ?? orthoProtRow;
+  const isInferred = !localProtRow && orthoProtRow != null;
 
   if (!protRow) {
     el.innerHTML = `
       ${sectionHead('EB / RB Proteomics')}
-      <div style="padding:8px 16px 14px;font-size:9px;color:#bbb;font-style:italic;">No proteomic data imported yet</div>`;
+      <div style="padding:8px 16px 14px;font-size:9px;color:#bbb;font-style:italic;">No proteomic data available</div>`;
     return;
   }
 
@@ -1310,13 +1326,42 @@ function renderDetailProteomics(detail, gene, exprRows) {
       </div>`;
   };
 
+  // Enrichment pill — only for CT-L2 genes (eb_enriched/rb_enriched are null for other strains)
+  const ebEnriched = gene.eb_enriched;
+  const rbEnriched = gene.rb_enriched;
+  const enrichLabel = ebEnriched ? 'EB enriched' : rbEnriched ? 'RB enriched' : null;
+  const enrichFilter = ebEnriched ? 'eb' : rbEnriched ? 'rb' : null;
+  const pillActive = enrichFilter && _ebRbFilter === enrichFilter;
+
+  const enrichPill = enrichLabel ? `
+    <span data-prot-enrich-pill="${esc(enrichFilter)}"
+      style="display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;
+             background:${pillActive ? '#ecfeff' : '#f0fdf4'};
+             color:${pillActive ? '#164e63' : '#16a34a'};
+             border:1px solid ${pillActive ? '#a5f3fc' : '#bbf7d0'};
+             cursor:pointer;margin-bottom:8px;transition:background 0.15s;">
+      📈 ${enrichLabel}${pillActive ? ' ×' : ''}
+    </span>` : '';
+
   el.innerHTML = `
     ${sectionHead('EB / RB Proteomics')}
     <div style="padding:2px 16px 14px;">
+      ${isInferred ? `<div style="font-size:8px;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:5px 8px;margin-bottom:8px;">Data from CT-L2 ortholog (${esc(orthoProtRow._orthoTag)}) · Not measured in CT-D · May not reflect CT-D protein abundance</div>` : ''}
       ${bar('EB (elementary body)', ebVal, '/web/images/eb.png')}
       ${bar('RB (reticulate body)', rbVal, '/web/images/rb.png')}
+      ${enrichPill}
       <div style="font-size:8.5px;color:#bbb;font-style:italic;">CT-L2 spectral counts · Saka et al. 2011, Mol Microbiol · PMID 22014092</div>
     </div>`;
+
+  if (enrichFilter) {
+    el.querySelector('[data-prot-enrich-pill]')?.addEventListener('click', () => {
+      _ebRbFilter = _ebRbFilter === enrichFilter ? null : enrichFilter;
+      _offset = 0;
+      renderFilterBar(_container, !!_ebRbFilter);
+      fetchGenes(_container, true);
+      renderDetailProteomics(detail, gene, exprRows, orthoProtRow);
+    });
+  }
 }
 
 function renderDetailStructure(detail, gene, afRows) {
