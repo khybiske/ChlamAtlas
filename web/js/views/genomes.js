@@ -1259,7 +1259,7 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
 
   el.innerHTML = `
     ${sectionHead('Transcriptomics')}
-    <div style="padding:2px 16px 14px;">
+    <div style="padding:8px 16px 14px;">
       <div style="display:flex;align-items:flex-end;gap:4px;height:57px;padding-bottom:17px;position:relative;">
         <div style="position:absolute;bottom:17px;left:0;right:0;height:1px;background:#e5e7eb;"></div>
         ${bars}
@@ -1345,7 +1345,7 @@ function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
 
   el.innerHTML = `
     ${sectionHead('EB / RB Proteomics')}
-    <div style="padding:2px 16px 14px;">
+    <div style="padding:8px 16px 14px;">
       ${isInferred ? `<div style="font-size:8px;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:5px 8px;margin-bottom:8px;">Data from CT-L2 ortholog${orthoProtRow?._orthoTag ? ` (${esc(orthoProtRow._orthoTag)})` : ''} · Not measured in CT-D/CM · May not reflect this strain's protein abundance</div>` : ''}
       ${bar('EB (elementary body)', ebVal, '/web/images/eb.png')}
       ${bar('RB (reticulate body)', rbVal, '/web/images/rb.png')}
