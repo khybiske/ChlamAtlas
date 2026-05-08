@@ -1204,9 +1204,9 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
         <div style="font-size:9px;color:#555;margin-bottom:6px;">Expression pattern (CT-L2)</div>
         <span data-expr-pill="${esc(bucket ?? '')}"
           style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;
-                 background:${isActive ? '#ecfeff' : '#f0fdf4'};
-                 color:${isActive ? '#164e63' : '#16a34a'};
-                 border:1px solid ${isActive ? '#a5f3fc' : '#bbf7d0'};
+                 background:${isActive ? '#ecfeff' : '#f3f4f6'};
+                 color:${isActive ? '#164e63' : '#374151'};
+                 border:1px solid ${isActive ? '#a5f3fc' : '#e5e7eb'};
                  ${clickable ? 'cursor:pointer;' : ''}
                  transition:background 0.15s;">
           ${display}${isActive ? ' ×' : ''}
@@ -1295,7 +1295,8 @@ function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
 
   const localProtRow = exprRows.find(r => r.eb_expression != null || r.rb_expression != null);
   const protRow = localProtRow ?? orthoProtRow;
-  const isInferred = !localProtRow && orthoProtRow != null;
+  const strainName = gene.strains?.common_name ?? _strain;
+  const isInferred = strainName !== 'CT-L2' && protRow != null;
 
   if (!protRow) {
     el.innerHTML = `
@@ -1335,9 +1336,9 @@ function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
   const enrichPill = enrichLabel ? `
     <span data-prot-enrich-pill="${esc(enrichFilter)}"
       style="display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;
-             background:${pillActive ? '#ecfeff' : '#f0fdf4'};
-             color:${pillActive ? '#164e63' : '#16a34a'};
-             border:1px solid ${pillActive ? '#a5f3fc' : '#bbf7d0'};
+             background:${pillActive ? '#ecfeff' : '#f3f4f6'};
+             color:${pillActive ? '#164e63' : '#374151'};
+             border:1px solid ${pillActive ? '#a5f3fc' : '#e5e7eb'};
              cursor:pointer;margin-bottom:8px;transition:background 0.15s;">
       📈 ${enrichLabel}${pillActive ? ' ×' : ''}
     </span>` : '';
@@ -1345,7 +1346,7 @@ function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
   el.innerHTML = `
     ${sectionHead('EB / RB Proteomics')}
     <div style="padding:2px 16px 14px;">
-      ${isInferred ? `<div style="font-size:8px;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:5px 8px;margin-bottom:8px;">Data from CT-L2 ortholog (${esc(orthoProtRow._orthoTag)}) · Not measured in CT-D · May not reflect CT-D protein abundance</div>` : ''}
+      ${isInferred ? `<div style="font-size:8px;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:5px 8px;margin-bottom:8px;">Data from CT-L2 ortholog${orthoProtRow?._orthoTag ? ` (${esc(orthoProtRow._orthoTag)})` : ''} · Not measured in CT-D/CM · May not reflect this strain's protein abundance</div>` : ''}
       ${bar('EB (elementary body)', ebVal, '/web/images/eb.png')}
       ${bar('RB (reticulate body)', rbVal, '/web/images/rb.png')}
       ${enrichPill}
