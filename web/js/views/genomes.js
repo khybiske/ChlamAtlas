@@ -1255,24 +1255,27 @@ function renderDetailProtein(detail, gene, protein) {
 // Call attachCopyBtns(el) after setting el.innerHTML to wire up the listener.
 function seqCopyBtn(label, seq) {
   if (!seq) return '';
+  const icon = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-left:4px;flex-shrink:0;">
+    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>`;
   return `<button data-copy-seq="${esc(seq)}" data-copy-label="${label}"
-    style="font-size:8px;font-weight:600;color:#6b7280;background:white;border:1px solid #e5e7eb;
+    style="display:inline-flex;align-items:center;font-size:8px;font-weight:600;color:#6b7280;background:white;border:1px solid #e5e7eb;
            border-radius:5px;padding:2px 8px;cursor:pointer;font-family:inherit;line-height:1.4;
            transition:color 0.15s,border-color 0.15s;"
     onmouseenter="this.style.borderColor='#d1d5db'"
-    onmouseleave="this.style.borderColor='#e5e7eb'">${label}</button>`;
+    onmouseleave="this.style.borderColor='#e5e7eb'">${label}${icon}</button>`;
 }
 
 function attachCopyBtns(el) {
   el.querySelectorAll('[data-copy-seq]').forEach(btn => {
     btn.addEventListener('click', () => {
       navigator.clipboard.writeText(btn.dataset.copySeq).then(() => {
-        const orig = btn.dataset.copyLabel;
+        const orig = btn.innerHTML;
         btn.textContent = 'Copied!';
         btn.style.color = '#16a34a';
         btn.style.borderColor = '#bbf7d0';
         setTimeout(() => {
-          btn.textContent = orig;
+          btn.innerHTML = orig;
           btn.style.color = '#6b7280';
           btn.style.borderColor = '#e5e7eb';
         }, 1800);
