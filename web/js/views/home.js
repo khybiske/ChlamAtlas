@@ -1,5 +1,5 @@
 // ChlamAtlas — Home tab
-import { sb, state } from '../app.js?v=46';
+import { sb, state } from '../app.js?v=48';
 
 const ORGANISMS = [
   {

@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=47';
-import { renderHome } from './views/home.js?v=47';
-import { renderGenomes } from './views/genomes.js?v=47';
-import { renderMutants } from './views/mutants.js?v=47';
-import { renderPipeline } from './views/pipeline.js?v=47';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=48';
+import { renderHome } from './views/home.js?v=48';
+import { renderGenomes } from './views/genomes.js?v=48';
+import { renderMutants } from './views/mutants.js?v=48';
+import { renderPipeline } from './views/pipeline.js?v=48';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -83,7 +83,7 @@ async function refreshRole() {
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session) {
     state.user = session.user;
-    await refreshRole();
+    try { await refreshRole(); } catch (e) { console.warn('[ChlamAtlas] refreshRole error:', e); }
     updateNavVisibility();
     renderAuthArea();
   } else if (event === 'SIGNED_OUT') {
@@ -473,7 +473,13 @@ window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab))
 
 // ─── Boot ─────────────────────────────────────────────────
 (async () => {
-  await loadUser();
+  try {
+    await loadUser();
+  } catch (err) {
+    // Safari: Supabase auth lock contention on duplicate client instances.
+    // Swallow so content still renders even if session restoration fails.
+    console.warn('[ChlamAtlas] auth init error (continuing as guest):', err);
+  }
   renderAuthArea();
   updateNavVisibility();
   const hash = location.hash.replace(/^#\/?/, '');

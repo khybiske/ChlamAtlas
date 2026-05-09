@@ -2,8 +2,8 @@
 
 ## Up Next (in order)
 
-1. **Users** — auth UI polish + role request flow + admin user management (see plan below)
-2. **Ortholog data validation** — CT119 (CT-D) does not show reciprocal orthologs when navigated to; likely a row direction issue in orthologs table (gene_id_a/gene_id_b pairing); investigate query and/or data
+1. **Users** — ✅ COMPLETE in Chrome: sign-up, sign-in, dropdown, role badge, role request, admin user panel. Pending: email notification to khybiske@uw.edu when role request submitted (needs Supabase Edge Function + Resend — defer until site is being shared).
+3. **Ortholog data validation** — CT119 (CT-D) does not show reciprocal orthologs when navigated to; likely a row direction issue in orthologs table (gene_id_a/gene_id_b pairing); investigate query and/or data
 2. **Product field cleanup** — review all Product entries across 2,687 genes for repetition, redundancy, and clarity; some UniProt entries have verbose/duplicated text that should be simplified; this is a data editing task
 3. **Cell Localization module** — wire `<sib-swissbiopics-sl>` web component; requires `subcellular_location_sl` data in proteins table; taxid 813 for C. trachomatis; complete gene detail before moving to other areas
 4. **Structure module** — multiple components/sources (Crystal, AFv3, AFv2, Mol* viewer); full brainstorm + design needed; complete gene detail before moving to other areas
@@ -49,6 +49,7 @@
 
 ## Done
 
+- [x] **Safari loading fix (v=48, 2026-05-09)** — `loadUser()` in `app.js` was throwing an unhandled error in Safari due to Supabase auth lock contention ("Lock was released because another request stole it"), crashing the boot sequence before any tab rendered. Fixed by wrapping `loadUser()` and `refreshRole()` in try/catch so the page falls back to guest rendering. Confirmed identical output in Chrome and Safari (WebKit) via Playwright. See memory: `safari_overflow_fix.md`.
 - [x] Schema — 17 tables, RLS policies, seed data, 3 test users
 - [x] Nav chrome + app shell — dark green nav, Cormorant Garamond wordmark, mobile bottom nav, hash routing
 - [x] Home tab — full-bleed hero, 5-stat bar, strain portal cards, updates feed, citation modal
