@@ -6,7 +6,9 @@
   <title>ChlamAtlas</title>
 
   <!-- Tailwind CSS via CDN (replace with build pipeline if needed) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Supabase UMD bundle — loaded as plain script to avoid ESM CDN issues in Safari -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -33,7 +35,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/web/css/app.css?v=46" />
+  <link rel="stylesheet" href="/web/css/app.css?v=47" />
 </head>
 <body class="bg-white text-gray-900 font-sans min-h-screen">
 
@@ -192,6 +194,6 @@
   </div>
 
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=46"></script>
+  <script type="module" src="/web/js/app.js?v=47"></script>
 </body>
 </html>
