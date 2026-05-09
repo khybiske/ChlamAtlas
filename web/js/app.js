@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=48';
-import { renderHome } from './views/home.js?v=48';
-import { renderGenomes } from './views/genomes.js?v=48';
-import { renderMutants } from './views/mutants.js?v=48';
-import { renderPipeline } from './views/pipeline.js?v=48';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=49';
+import { renderHome } from './views/home.js?v=49';
+import { renderGenomes } from './views/genomes.js?v=49';
+import { renderMutants } from './views/mutants.js?v=49';
+import { renderPipeline } from './views/pipeline.js?v=49';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -57,14 +57,6 @@ function activateTab(name) {
 }
 
 // ─── Auth ─────────────────────────────────────────────────
-async function loadUser() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    state.user = session.user;
-    await refreshRole();
-  }
-}
-
 async function refreshRole() {
   if (!state.user) {
     state.userRole    = 'guest';
@@ -79,13 +71,22 @@ async function refreshRole() {
   state.userProfile = data ?? null;
 }
 
-// Reflect login/logout across browser tabs without a reload.
+// Auth state listener — single source of truth for session state.
+// INITIAL_SESSION fires once after Supabase cleanly resolves the stored session
+// (including any lock contention); this is more reliable than getSession() which
+// can throw in Safari when the storage lock is contested at page load.
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session) {
-    state.user = session.user;
-    try { await refreshRole(); } catch (e) { console.warn('[ChlamAtlas] refreshRole error:', e); }
+  if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+    if (session?.user) {
+      state.user = session.user;
+      try { await refreshRole(); } catch (e) { console.warn('[ChlamAtlas] refreshRole error:', e); }
+    }
     updateNavVisibility();
     renderAuthArea();
+  } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+    // Token silently refreshed — re-fetch role in case it changed.
+    state.user = session.user;
+    try { await refreshRole(); } catch (e) { /* non-critical */ }
   } else if (event === 'SIGNED_OUT') {
     state.user        = null;
     state.userRole    = 'guest';
@@ -263,17 +264,14 @@ document.getElementById('auth-form-signin').addEventListener('submit', async (e)
   const errEl    = document.getElementById('auth-error');
   errEl.classList.add('hidden');
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     errEl.textContent = error.message;
     errEl.classList.remove('hidden');
     return;
   }
 
-  state.user = data.user;
-  await refreshRole();
-  updateNavVisibility();
-  renderAuthArea();
+  // onAuthStateChange(SIGNED_IN) fires automatically and handles state + re-render.
   hideAuthModal();
   activateTab(state.currentTab);
 });
@@ -472,16 +470,12 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
 window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab));
 
 // ─── Boot ─────────────────────────────────────────────────
-(async () => {
-  try {
-    await loadUser();
-  } catch (err) {
-    // Safari: Supabase auth lock contention on duplicate client instances.
-    // Swallow so content still renders even if session restoration fails.
-    console.warn('[ChlamAtlas] auth init error (continuing as guest):', err);
-  }
-  renderAuthArea();
-  updateNavVisibility();
-  const hash = location.hash.replace(/^#\/?/, '');
-  activateTab(TABS.includes(hash) ? hash : 'home');
-})();
+// Render immediately as guest — onAuthStateChange(INITIAL_SESSION) will fire
+// shortly after and update nav/role once Supabase resolves the stored session.
+// Never call getSession() here: in Safari it acquires a storage lock that can
+// throw "Lock was released" when an existing session is present, leaving the
+// Supabase client in a broken state that silences all subsequent queries.
+renderAuthArea();
+updateNavVisibility();
+const _hash = location.hash.replace(/^#\/?/, '');
+activateTab(TABS.includes(_hash) ? _hash : 'home');
