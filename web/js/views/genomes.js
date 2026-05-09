@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state } from '../app.js?v=5';
+import { sb, state } from '../app.js?v=45';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
