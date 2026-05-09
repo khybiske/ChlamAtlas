@@ -1488,6 +1488,30 @@ async function loadMolstarViaAfdbApi(wrap, uniprotId, panelEl) {
   if (wrap.isConnected) loadMolstar(wrap, cifUrl);
 }
 
+function formatExptlMethod(method) {
+  const map = {
+    'X-RAY DIFFRACTION':  'X-ray crystallography',
+    'ELECTRON MICROSCOPY': 'Cryo-EM',
+    'NEUTRON DIFFRACTION': 'Neutron diffraction',
+    'SOLUTION NMR':       'NMR',
+    'SOLID-STATE NMR':    'Solid-state NMR',
+  };
+  return map[method?.toUpperCase()] ?? method ?? '';
+}
+
+async function fetchRcsbMetadata(el, pdbId) {
+  const container = el.querySelector('#rcsb-detail');
+  if (!container || !pdbId) return;
+  try {
+    const res  = await fetch(`https://data.rcsb.org/rest/v1/core/entry/${pdbId.toLowerCase()}`);
+    const data = await res.json();
+    const method  = data.exptl?.[0]?.method ?? '';
+    const res_hi  = data.refine?.[0]?.ls_d_res_high ?? null;
+    const parts   = [formatExptlMethod(method), res_hi ? `${parseFloat(res_hi).toFixed(2)} Å` : ''].filter(Boolean);
+    if (container.isConnected) container.textContent = parts.join(' · ');
+  } catch { /* silently fail */ }
+}
+
 function renderDetailStructure(detail, gene, protein, afRows) {
   const el = detail.querySelector('#d-structure');
   if (!el) return;
@@ -1564,19 +1588,16 @@ function renderDetailStructure(detail, gene, protein, afRows) {
                        letter-spacing:0.08em;color:#9ca3af;">pTM score</span>
         </div>`;
     } else if (record.af_version === 'AF2' || record.af_version === 'AFDB') {
-      if (record.homology_score != null) {
-        const s = record.homology_score;
-        scoreHtml = `
-          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
-            <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;
-                         color:${plddtColor(s)};line-height:1;">${s.toFixed(1)}</span>
-            <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;
-                         letter-spacing:0.08em;color:#9ca3af;">mean pLDDT · ${plddtLabel(s)}</span>
-          </div>`;
-      } else if (record._synthetic) {
-        // Placeholder — populated by AFDB API fetch when viewer loads
-        scoreHtml = `<div id="af2-score-display" style="margin-bottom:10px;min-height:26px;"></div>`;
-      }
+      // Pre-fill from DB if available; AFDB API will confirm/update when viewer loads
+      const dbScore = record.homology_score;
+      const preHtml = dbScore != null ? `
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;
+                       color:${plddtColor(dbScore)};line-height:1;">${dbScore.toFixed(1)}</span>
+          <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;
+                       letter-spacing:0.08em;color:#9ca3af;">mean pLDDT · ${plddtLabel(dbScore)}</span>
+        </div>` : '';
+      scoreHtml = `<div id="af2-score-display" style="margin-bottom:10px;min-height:26px;">${preHtml}</div>`;
     }
 
     const homologHtml = (record.af_version !== 'crystal' && record.top_homolog_description)
@@ -1605,13 +1626,14 @@ function renderDetailStructure(detail, gene, protein, afRows) {
       const pdbId = record.top_homolog_pdb_id ?? '';
       idHtml = pdbId
         ? `<div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;
-                              color:#111;line-height:1;margin-bottom:14px;">
+                              color:#111;line-height:1;margin-bottom:4px;">
                     ${esc(pdbId)}
-                  </div>`
+                  </div>
+                  <div id="rcsb-detail" style="font-size:9.5px;color:#9ca3af;
+                       margin-bottom:14px;min-height:14px;"></div>`
         : '';
       const links = [
         pdbId ? extLink(`https://www.rcsb.org/structure/${encodeURIComponent(pdbId)}`, `RCSB ${esc(pdbId)} ↗`) : '',
-        afdbLink(),
       ].filter(Boolean);
       linksHtml = links.join('');
     } else if (record.af_version === 'AF3') {
@@ -1627,14 +1649,7 @@ function renderDetailStructure(detail, gene, protein, afRows) {
       linksHtml = links.join('');
     } else {
       sourceLabel = 'AlphaFold v2 · AlphaFoldDB';
-      const links = [
-        record.top_homolog_pdb_id
-          ? extLink(`https://www.rcsb.org/structure/${encodeURIComponent(record.top_homolog_pdb_id)}`,
-                    `RCSB ${esc(record.top_homolog_pdb_id)} ↗`)
-          : '',
-        afdbLink(),
-      ].filter(Boolean);
-      linksHtml = links.join('');
+      linksHtml = afdbLink();
     }
 
     return `
@@ -1642,8 +1657,8 @@ function renderDetailStructure(detail, gene, protein, afRows) {
         <div id="struct-viewer-wrap"
           style="width:200px;height:200px;flex-shrink:0;border-radius:8px;overflow:hidden;
                  position:relative;background:#0a1628;"
-          ${record._synthetic
-            ? `data-uniprot-id="${esc(record._uniprotId)}"`
+          ${(record.af_version === 'AF2' || record.af_version === 'AFDB') && uniprotId
+            ? `data-uniprot-id="${esc(uniprotId)}"`
             : `data-url="${record.mmcif_path ? esc(record.mmcif_path) : ''}"`}>
           ${thumbHtml}
         </div>
@@ -1683,10 +1698,16 @@ function renderDetailStructure(detail, gene, protein, afRows) {
       });
       el.querySelector('#struct-viewer-body').innerHTML = viewerHtml(activeRecord);
       setupMolstarObserver(el);
+      if (activeTab === 'crystal' && crystal?.top_homolog_pdb_id) {
+        fetchRcsbMetadata(el, crystal.top_homolog_pdb_id);
+      }
     });
   });
 
   setupMolstarObserver(el);
+  if (activeTab === 'crystal' && crystal?.top_homolog_pdb_id) {
+    fetchRcsbMetadata(el, crystal.top_homolog_pdb_id);
+  }
 }
 
 // Mapping of common GO cellular component IDs → human-readable labels
