@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/web/css/app.css?v=44" />
+  <link rel="stylesheet" href="/web/css/app.css?v=45" />
 </head>
 <body class="bg-white text-gray-900 font-sans min-h-screen">
 
@@ -122,33 +122,76 @@
   <!-- ─── AUTH MODAL ────────────────────────────────────────── -->
   <div id="auth-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <!-- Accent header -->
       <div class="px-6 py-5" style="background:#0f4530;">
         <h2 class="font-display font-bold text-white text-2xl leading-tight">ChlamAtlas</h2>
-        <p class="text-white/60 text-xs mt-0.5">Sign in to access lab data</p>
+        <p class="text-white/60 text-xs mt-0.5">Research data for <em>Chlamydia</em></p>
       </div>
-
       <div class="p-6">
-        <p class="text-sm text-gray-500 mb-5">Lab members get full access to unpublished mutants and pipeline records.</p>
+        <!-- Tab bar -->
+        <div class="flex mb-5 border-b border-gray-100">
+          <button id="auth-tab-signin"
+            class="text-sm font-semibold pb-2 mr-5 border-b-2 transition-colors"
+            style="color:#0f4530;border-color:#0f4530;">Sign in</button>
+          <button id="auth-tab-signup"
+            class="text-sm font-medium pb-2 border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-colors">Create account</button>
+        </div>
 
-      <form id="auth-form" class="flex flex-col gap-3">
-        <input id="auth-email" type="email" placeholder="Email" required
-          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-        <input id="auth-password" type="password" placeholder="Password" required
-          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-        <p id="auth-error" class="text-red-500 text-xs hidden"></p>
-        <button type="submit"
-          class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition mt-1" style="background:#0f4530;">
-          Sign in
-        </button>
-      </form>
+        <!-- Sign-in panel -->
+        <div id="auth-panel-signin">
+          <form id="auth-form-signin" class="flex flex-col gap-3">
+            <input id="auth-email" type="email" placeholder="Email" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <input id="auth-password" type="password" placeholder="Password" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <p id="auth-error" class="text-red-500 text-xs hidden"></p>
+            <button type="submit"
+              class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition mt-1" style="background:#0f4530;">
+              Sign in
+            </button>
+          </form>
+        </div>
 
-      <button id="auth-modal-close" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600">Cancel</button>
-      </div><!-- /inner padding -->
+        <!-- Create account panel -->
+        <div id="auth-panel-signup" class="hidden">
+          <form id="auth-form-signup" class="flex flex-col gap-3">
+            <input id="signup-email" type="email" placeholder="Email" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <input id="signup-password" type="password" placeholder="Password (min 8 characters)" required minlength="8"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <input id="signup-password2" type="password" placeholder="Confirm password" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <input id="signup-name" type="text" placeholder="Your name (optional)"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <input id="signup-affil" type="text" placeholder="Lab or institution (optional)"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <p id="signup-error" class="text-red-500 text-xs hidden"></p>
+            <p id="signup-success" class="text-green-700 text-xs hidden"></p>
+            <button type="submit"
+              class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition mt-1" style="background:#0f4530;">
+              Create account
+            </button>
+          </form>
+        </div>
+
+        <button id="auth-modal-close" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ADMIN MODAL ───────────────────────────────────────── -->
+  <div id="admin-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col" style="max-height:85vh;">
+      <div class="px-6 py-4 flex items-center justify-between flex-shrink-0" style="background:#0f4530;">
+        <h2 class="font-display font-bold text-white text-xl">User Management</h2>
+        <button id="admin-modal-close" class="text-white/60 hover:text-white text-xl leading-none transition-colors">✕</button>
+      </div>
+      <div id="admin-panel-content" class="flex-1 overflow-y-auto p-6">
+        <div class="text-center text-gray-300 py-8">Loading…</div>
+      </div>
     </div>
   </div>
 
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=44"></script>
+  <script type="module" src="/web/js/app.js?v=45"></script>
 </body>
 </html>

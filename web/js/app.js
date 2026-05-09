@@ -1,19 +1,20 @@
 // ChlamAtlas — main application entry point
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=44';
-import { renderHome } from './views/home.js?v=44';
-import { renderGenomes } from './views/genomes.js?v=44';
-import { renderMutants } from './views/mutants.js?v=44';
-import { renderPipeline } from './views/pipeline.js?v=44';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=45';
+import { renderHome } from './views/home.js?v=45';
+import { renderGenomes } from './views/genomes.js?v=45';
+import { renderMutants } from './views/mutants.js?v=45';
+import { renderPipeline } from './views/pipeline.js?v=45';
 
 // ─── Supabase client (singleton) ──────────────────────────
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── App state ────────────────────────────────────────────
 export const state = {
-  user: null,
-  userRole: 'guest',
-  currentTab: 'home',
+  user:        null,
+  userRole:    'guest',
+  userProfile: null,   // { display_name, lab_affiliation, role, role_request }
+  currentTab:  'home',
 };
 
 // ─── Tab routing ──────────────────────────────────────────
@@ -29,76 +30,187 @@ function activateTab(name) {
   if (!TABS.includes(name)) name = 'home';
   state.currentTab = name;
 
-  // Pipeline tab is lab_member and admin only
   if (name === 'pipeline' && !['lab_member','admin'].includes(state.userRole)) {
     name = 'home';
     state.currentTab = 'home';
   }
 
-  // Show/hide panels
   TABS.forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
   });
-
-  // Update desktop nav
   document.querySelectorAll('.nav-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
-
-  // Update mobile nav
   document.querySelectorAll('.mobile-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
 
-  // Always re-render (views manage their own state, and cross-tab navigation needs fresh renders)
   const container = document.getElementById(`${name}-content`);
   if (container) {
     container.innerHTML = '';
     RENDERERS[name](container);
   }
 
-  // Update URL hash (deep-link format)
   history.replaceState(null, '', `#/${name}`);
 }
 
-// ─── Auth ──────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────
 async function loadUser() {
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     state.user = session.user;
     await refreshRole();
-    updateNavVisibility();
-    renderAuthArea();
   }
 }
 
 async function refreshRole() {
-  if (!state.user) { state.userRole = 'guest'; return; }
-  const { data } = await sb.from('users').select('role').eq('id', state.user.id).single();
-  state.userRole = data?.role ?? 'guest';
+  if (!state.user) {
+    state.userRole    = 'guest';
+    state.userProfile = null;
+    return;
+  }
+  const { data } = await sb.from('users')
+    .select('role, display_name, lab_affiliation, role_request')
+    .eq('id', state.user.id)
+    .single();
+  state.userRole    = data?.role    ?? 'community';
+  state.userProfile = data ?? null;
 }
 
+// Reflect login/logout across browser tabs without a reload.
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    state.user = session.user;
+    await refreshRole();
+    updateNavVisibility();
+    renderAuthArea();
+  } else if (event === 'SIGNED_OUT') {
+    state.user        = null;
+    state.userRole    = 'guest';
+    state.userProfile = null;
+    updateNavVisibility();
+    renderAuthArea();
+  }
+});
+
+// ─── Nav auth area ─────────────────────────────────────────
 function renderAuthArea() {
   const area = document.getElementById('auth-area');
   if (state.user) {
-    const firstName = (state.user.email ?? '').split('@')[0];
+    const profile = state.userProfile;
+    const name = profile?.display_name || (state.user.email ?? '').split('@')[0];
+
+    // Role badge — only shown for lab_member and admin, not community
+    const roleBadge = state.userRole === 'admin'
+      ? `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;
+             background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);
+             border-radius:4px;padding:1px 6px;margin-left:6px;">Admin</span>`
+      : state.userRole === 'lab_member'
+      ? `<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;
+             background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);
+             border-radius:4px;padding:1px 6px;margin-left:6px;">Lab</span>`
+      : '';
+
     area.innerHTML = `
-      <button id="btn-sign-out"
-        class="text-sm font-medium transition hover:text-white"
-        style="color:rgba(255,255,255,0.8);">
-        Hello, ${firstName}
+      <button id="btn-user-menu"
+        style="display:flex;align-items:center;font-size:13px;font-weight:500;color:rgba(255,255,255,0.85);
+               background:none;border:none;cursor:pointer;padding:4px 2px;gap:4px;line-height:1.2;">
+        ${name}${roleBadge}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          style="opacity:0.6;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
       </button>`;
-    document.getElementById('btn-sign-out').addEventListener('click', signOut);
+    document.getElementById('btn-user-menu').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleUserDropdown();
+    });
   } else {
     area.innerHTML = `
       <button id="btn-sign-in"
         class="text-sm text-white/80 hover:text-white font-medium px-3 py-1.5 rounded-lg hover:bg-white/10 transition border border-white/30 hover:border-white/50">
         Sign in
       </button>`;
-    document.getElementById('btn-sign-in').addEventListener('click', () => showAuthModal());
+    document.getElementById('btn-sign-in').addEventListener('click', () => showAuthModal('signin'));
   }
 }
 
+// ─── User dropdown ─────────────────────────────────────────
+let _dropdownEl = null;
+
+function toggleUserDropdown() {
+  if (_dropdownEl) { hideUserDropdown(); return; }
+  showUserDropdown();
+}
+
+function showUserDropdown() {
+  hideUserDropdown();
+
+  const trigger  = document.getElementById('btn-user-menu');
+  const rect     = trigger.getBoundingClientRect();
+  const profile  = state.userProfile;
+  const name     = profile?.display_name || (state.user.email ?? '').split('@')[0];
+  const affil    = profile?.lab_affiliation ? `<div style="font-size:10.5px;color:#6b7280;margin-top:1px;">${profile.lab_affiliation}</div>` : '';
+  const email    = `<div style="font-size:10px;color:#9ca3af;margin-top:1px;">${state.user.email}</div>`;
+
+  const requestBtn = state.userRole === 'community' && !profile?.role_request
+    ? `<button id="dd-request-access"
+        style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+        onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+        Request lab access
+      </button>`
+    : state.userRole === 'community' && profile?.role_request
+    ? `<div style="padding:7px 12px;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;font-style:italic;">Lab access request pending</div>`
+    : '';
+
+  const adminBtn = state.userRole === 'admin'
+    ? `<button id="dd-admin-panel"
+        style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+        onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+        Manage users
+      </button>`
+    : '';
+
+  _dropdownEl = document.createElement('div');
+  _dropdownEl.id = 'user-dropdown';
+  _dropdownEl.style.cssText = `
+    position:fixed;top:${rect.bottom + 6}px;right:${window.innerWidth - rect.right}px;
+    background:white;border:1px solid #e5e7eb;border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200;min-width:200px;overflow:hidden;`;
+
+  _dropdownEl.innerHTML = `
+    <div style="padding:10px 12px 8px;">
+      <div style="font-size:13px;font-weight:600;color:#111;">${name}</div>
+      ${affil}
+      ${email}
+    </div>
+    ${requestBtn}
+    ${adminBtn}
+    <button id="dd-sign-out"
+      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+      onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+      Sign out
+    </button>`;
+
+  document.body.appendChild(_dropdownEl);
+
+  document.getElementById('dd-sign-out').addEventListener('click', () => { hideUserDropdown(); signOut(); });
+  document.getElementById('dd-request-access')?.addEventListener('click', () => { hideUserDropdown(); requestLabAccess(); });
+  document.getElementById('dd-admin-panel')?.addEventListener('click', () => { hideUserDropdown(); showAdminPanel(); });
+
+  // Close on click outside
+  setTimeout(() => document.addEventListener('click', _outsideClick), 0);
+}
+
+function _outsideClick(e) {
+  if (_dropdownEl && !_dropdownEl.contains(e.target)) hideUserDropdown();
+}
+
+function hideUserDropdown() {
+  _dropdownEl?.remove();
+  _dropdownEl = null;
+  document.removeEventListener('click', _outsideClick);
+}
+
+// ─── Nav visibility ────────────────────────────────────────
 function updateNavVisibility() {
   const showPipeline = ['lab_member','admin'].includes(state.userRole);
   document.querySelectorAll('[data-tab="pipeline"]').forEach(btn => {
@@ -106,26 +218,43 @@ function updateNavVisibility() {
   });
 }
 
-function showAuthModal() {
+// ─── Auth modal ────────────────────────────────────────────
+function showAuthModal(panel = 'signin') {
   document.getElementById('auth-modal').classList.remove('hidden');
-  document.getElementById('auth-email').focus();
+  switchAuthTab(panel);
+  const focusEl = panel === 'signin'
+    ? document.getElementById('auth-email')
+    : document.getElementById('signup-email');
+  focusEl?.focus();
 }
+
 function hideAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
   document.getElementById('auth-error').classList.add('hidden');
+  document.getElementById('signup-error').classList.add('hidden');
+  document.getElementById('signup-success').classList.add('hidden');
 }
 
-async function signOut() {
-  await sb.auth.signOut();
-  state.user = null;
-  state.userRole = 'guest';
-  updateNavVisibility();
-  renderAuthArea();
-  activateTab('home');
+function switchAuthTab(panel) {
+  const isSignin = panel === 'signin';
+  document.getElementById('auth-panel-signin').classList.toggle('hidden', !isSignin);
+  document.getElementById('auth-panel-signup').classList.toggle('hidden', isSignin);
+
+  const signinBtn = document.getElementById('auth-tab-signin');
+  const signupBtn = document.getElementById('auth-tab-signup');
+  signinBtn.style.color       = isSignin ? '#0f4530' : '#9ca3af';
+  signinBtn.style.borderColor = isSignin ? '#0f4530' : 'transparent';
+  signinBtn.style.fontWeight  = isSignin ? '600' : '500';
+  signupBtn.style.color       = !isSignin ? '#0f4530' : '#9ca3af';
+  signupBtn.style.borderColor = !isSignin ? '#0f4530' : 'transparent';
+  signupBtn.style.fontWeight  = !isSignin ? '600' : '500';
 }
 
-// ─── Auth form ────────────────────────────────────────────
-document.getElementById('auth-form').addEventListener('submit', async (e) => {
+document.getElementById('auth-tab-signin').addEventListener('click', () => switchAuthTab('signin'));
+document.getElementById('auth-tab-signup').addEventListener('click', () => switchAuthTab('signup'));
+
+// ─── Sign-in form ──────────────────────────────────────────
+document.getElementById('auth-form-signin').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email    = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
@@ -144,16 +273,192 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
   updateNavVisibility();
   renderAuthArea();
   hideAuthModal();
-
   activateTab(state.currentTab);
 });
 
+// ─── Sign-up form ──────────────────────────────────────────
+document.getElementById('auth-form-signup').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email    = document.getElementById('signup-email').value.trim();
+  const pw1      = document.getElementById('signup-password').value;
+  const pw2      = document.getElementById('signup-password2').value;
+  const name     = document.getElementById('signup-name').value.trim();
+  const affil    = document.getElementById('signup-affil').value.trim();
+  const errEl    = document.getElementById('signup-error');
+  const okEl     = document.getElementById('signup-success');
+  errEl.classList.add('hidden');
+  okEl.classList.add('hidden');
+
+  if (pw1 !== pw2) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const { error } = await sb.auth.signUp({
+    email,
+    password: pw1,
+    options: { data: { display_name: name || null, lab_affiliation: affil || null } },
+  });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  okEl.textContent = 'Account created! Check your email for a verification link.';
+  okEl.classList.remove('hidden');
+  document.getElementById('auth-form-signup').reset();
+});
+
+// ─── Sign-out ──────────────────────────────────────────────
+async function signOut() {
+  await sb.auth.signOut();
+  state.user        = null;
+  state.userRole    = 'guest';
+  state.userProfile = null;
+  updateNavVisibility();
+  renderAuthArea();
+  activateTab('home');
+}
+
+// ─── Role request ──────────────────────────────────────────
+async function requestLabAccess() {
+  const { error } = await sb.from('users')
+    .update({ role_request: 'lab_member' })
+    .eq('id', state.user.id);
+  if (error) { alert('Something went wrong. Please try again.'); return; }
+  state.userProfile = { ...state.userProfile, role_request: 'lab_member' };
+  renderAuthArea();
+  // Small confirmation
+  const area = document.getElementById('auth-area');
+  const orig = area.innerHTML;
+  const note = document.createElement('span');
+  note.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.7);margin-left:8px;';
+  note.textContent = 'Request sent';
+  area.appendChild(note);
+  setTimeout(() => note.remove(), 3000);
+}
+
+// ─── Admin panel ───────────────────────────────────────────
+function showAdminPanel() {
+  document.getElementById('admin-modal').classList.remove('hidden');
+  loadAdminPanel();
+}
+function hideAdminPanel() {
+  document.getElementById('admin-modal').classList.add('hidden');
+}
+
+async function loadAdminPanel() {
+  const el = document.getElementById('admin-panel-content');
+  el.innerHTML = '<div class="text-center text-gray-300 py-8">Loading…</div>';
+
+  const { data: users, error } = await sb
+    .from('users')
+    .select('id, email, display_name, lab_affiliation, role, role_request')
+    .order('role')
+    .order('email');
+
+  if (error) {
+    el.innerHTML = `<div class="text-red-400 text-sm">${error.message}</div>`;
+    return;
+  }
+
+  const pending  = users.filter(u => u.role_request);
+  const rest     = users.filter(u => !u.role_request);
+  const sorted   = [...pending, ...rest];
+
+  const rolePill = (role) => {
+    const map = {
+      admin:      { bg:'#ecfdf5', text:'#065f46', label:'Admin' },
+      lab_member: { bg:'#eff6ff', text:'#1d4ed8', label:'Lab Member' },
+      community:  { bg:'#f9fafb', text:'#6b7280', label:'Community' },
+    };
+    const s = map[role] ?? map.community;
+    return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:${s.bg};color:${s.text};">${s.label}</span>`;
+  };
+
+  const rows = sorted.map(u => `
+    <tr data-uid="${u.id}" style="border-bottom:1px solid #f3f4f6;">
+      <td style="padding:10px 8px;">
+        <div style="font-size:12.5px;font-weight:500;color:#111;">${u.display_name || '—'}</div>
+        <div style="font-size:10.5px;color:#9ca3af;">${u.email}</div>
+        ${u.lab_affiliation ? `<div style="font-size:10.5px;color:#9ca3af;">${u.lab_affiliation}</div>` : ''}
+      </td>
+      <td style="padding:10px 8px;">${rolePill(u.role)}</td>
+      <td style="padding:10px 8px;">
+        ${u.role_request
+          ? `<div style="display:flex;gap:6px;align-items:center;">
+               <span style="font-size:10px;color:#d97706;font-weight:500;">Requesting lab access</span>
+               <button data-action="approve" data-uid="${u.id}"
+                 style="font-size:10px;font-weight:600;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:5px;padding:2px 8px;cursor:pointer;">Approve</button>
+               <button data-action="deny" data-uid="${u.id}"
+                 style="font-size:10px;font-weight:600;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:2px 8px;cursor:pointer;">Deny</button>
+             </div>`
+          : `<select data-action="setrole" data-uid="${u.id}"
+               style="font-size:11px;border:1px solid #e5e7eb;border-radius:6px;padding:3px 6px;color:#374151;background:white;cursor:pointer;">
+               <option value="community" ${u.role==='community'?'selected':''}>Community</option>
+               <option value="lab_member" ${u.role==='lab_member'?'selected':''}>Lab Member</option>
+               <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+             </select>`
+        }
+      </td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <p style="font-size:12px;color:#9ca3af;margin-bottom:12px;">${users.length} users · ${pending.length} pending request${pending.length !== 1 ? 's' : ''}</p>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:2px solid #f0f0f0;">
+          <th style="text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;padding:0 8px 8px;">User</th>
+          <th style="text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;padding:0 8px 8px;">Role</th>
+          <th style="text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;padding:0 8px 8px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  // Wire action buttons and dropdowns
+  el.querySelectorAll('[data-action="approve"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await setUserRole(btn.dataset.uid, 'lab_member', true);
+      loadAdminPanel();
+    });
+  });
+  el.querySelectorAll('[data-action="deny"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await setUserRole(btn.dataset.uid, null, true);
+      loadAdminPanel();
+    });
+  });
+  el.querySelectorAll('[data-action="setrole"]').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      await setUserRole(sel.dataset.uid, sel.value, false);
+      loadAdminPanel();
+    });
+  });
+}
+
+async function setUserRole(uid, role, clearRequest) {
+  const update = {};
+  if (role !== null) update.role = role;
+  if (clearRequest)  update.role_request = null;
+  await sb.from('users').update(update).eq('id', uid);
+}
+
+document.getElementById('admin-modal-close').addEventListener('click', hideAdminPanel);
+document.getElementById('admin-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('admin-modal')) hideAdminPanel();
+});
+
+// ─── Modal close wiring ────────────────────────────────────
 document.getElementById('auth-modal-close').addEventListener('click', hideAuthModal);
 document.getElementById('auth-modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('auth-modal')) hideAuthModal();
 });
 
-// ─── Wire up nav buttons ──────────────────────────────────
+// ─── Nav wiring ───────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => activateTab(btn.dataset.tab));
 });
@@ -162,7 +467,6 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
   activateTab('home');
 });
 
-// Home view hero buttons dispatch this event (they can't import activateTab directly)
 window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab));
 
 // ─── Boot ─────────────────────────────────────────────────
@@ -170,8 +474,6 @@ window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab))
   await loadUser();
   renderAuthArea();
   updateNavVisibility();
-
-  // Route to hash or default home (supports both #home and #/home formats)
   const hash = location.hash.replace(/^#\/?/, '');
   activateTab(TABS.includes(hash) ? hash : 'home');
 })();
