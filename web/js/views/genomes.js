@@ -147,8 +147,11 @@ export function renderGenomes(container) {
 function showGeneList(container) {
   const isMobile = window.innerWidth < 640;
 
-  container.style.padding = '0';
+  // Prevent browser scroll restoration from repositioning the gene list on initial load.
+  // This is a SPA — we own all scroll state.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
+  container.style.padding = '0';
   container.innerHTML = `
     <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:260px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});width:100%;overflow:hidden;padding:0 12px;box-sizing:border-box;">
 
@@ -197,6 +200,10 @@ function showGeneList(container) {
 
     </div>
   `;
+
+  // Ensure gene list scroll starts at top regardless of browser scroll restoration.
+  const geneScrollEl = container.querySelector('#gene-scroll');
+  if (geneScrollEl) geneScrollEl.scrollTop = 0;
 
   // Wire strain tabs
   container.querySelectorAll('[data-strain]').forEach(btn => {
@@ -548,17 +555,28 @@ async function fetchGenes(container, reset = false) {
     _selectedId = null;
   }
 
+  // Use !inner on proteins only when a structure filter is active — that's what makes
+  // .eq('proteins.has_*', true) filter parent rows. Without structure filters, use a
+  // LEFT JOIN so genes without a proteins row (e.g. CTL0001–CTL0050) are still shown.
+  const structFilterActive = _filters.hasAf3 || _filters.hasCrystal;
+  const proteinsJoin = structFilterActive
+    ? 'proteins!inner(has_af3_structure,has_crystal_structure,' +
+      'subcellular_location_sl,subcellular_location_go,localization_source,' +
+      'alphafold_results(thumbnail_path))'
+    : 'proteins(has_af3_structure,has_crystal_structure,' +
+      'subcellular_location_sl,subcellular_location_go,localization_source,' +
+      'alphafold_results(thumbnail_path))';
+
   // Build query — strain filtered via embedded join (strain_id is UUID, _strain is common_name)
   let q = sb.from('genes')
     .select(
       'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
       'start_bp,end_bp,strand,expression_pattern,eb_enriched,rb_enriched,' +
       'functional_category,is_characterized,is_membrane_protein,' +
-      'is_hypothetical,is_dna_binding,is_t3_secreted,' +
+      'is_hypothetical,is_dna_binding,is_t3_secreted,updated_at,updated_by,' +
+      'dna_sequence,' +
       'strains!inner(common_name,color_hex),' +
-      'proteins(has_af3_structure,has_crystal_structure,' +
-      'subcellular_location_sl,subcellular_location_go,localization_source,' +
-      'alphafold_results(thumbnail_path))',
+      proteinsJoin,
       { count: 'exact' }
     )
     .eq('strains.common_name', _strain)
@@ -592,8 +610,14 @@ async function fetchGenes(container, reset = false) {
   const { data: genes, count, error } = await q;
   _loading = false;
 
+  // Re-query after await — the DOM may have been rebuilt while the fetch was in flight
+  // (e.g. a second renderGenomes call). Using the pre-await reference would write to a
+  // detached element.
+  const liveList = container.querySelector('#gene-list');
+  if (!liveList) return;
+
   if (error) {
-    if (reset) list.innerHTML = `<div style="padding:1.5rem;font-size:0.75rem;color:#ef4444;">${error.message}</div>`;
+    if (reset) liveList.innerHTML = `<div style="padding:1.5rem;font-size:0.75rem;color:#ef4444;">${error.message}</div>`;
     return;
   }
 
@@ -605,7 +629,7 @@ async function fetchGenes(container, reset = false) {
   if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
 
   if (!genes?.length) {
-    if (reset) list.innerHTML = `<div style="padding:2rem;text-align:center;font-size:0.75rem;color:#9ca3af;">No genes found.</div>`;
+    if (reset) liveList.innerHTML = `<div style="padding:2rem;text-align:center;font-size:0.75rem;color:#9ca3af;">No genes found.</div>`;
     return;
   }
 
@@ -620,15 +644,17 @@ async function fetchGenes(container, reset = false) {
   }
 
   if (reset) {
-    list.innerHTML = rows.map(g => geneRow(g)).join('');
+    liveList.innerHTML = rows.map(g => geneRow(g)).join('');
+    const scroll = container.querySelector('#gene-scroll');
+    if (scroll) scroll.scrollTop = 0;
   } else {
-    list.insertAdjacentHTML('beforeend', rows.map(g => geneRow(g)).join(''));
+    liveList.insertAdjacentHTML('beforeend', rows.map(g => geneRow(g)).join(''));
   }
 
   _offset += PAGE_SIZE;
 
   // Wire row click handlers for newly added rows
-  const newRows = list.querySelectorAll('.gene-row:not([data-wired])');
+  const newRows = liveList.querySelectorAll('.gene-row:not([data-wired])');
   newRows.forEach(row => {
     row.dataset.wired = '1';
     row.addEventListener('click', () => {
@@ -641,7 +667,7 @@ async function fetchGenes(container, reset = false) {
         showGeneDetailMobile(gene, container);
       } else {
         _selectedId = geneId;
-        list.querySelectorAll('.gene-row').forEach(r => {
+        liveList.querySelectorAll('.gene-row').forEach(r => {
           const sel = r.dataset.id === _selectedId;
           r.style.background  = sel ? '#f0fdf4' : '';
           r.style.borderLeft  = sel ? '2px solid #16a34a' : '';
@@ -867,7 +893,7 @@ function renderDetailGeneInfo(detail, gene) {
   const el = detail.querySelector('#d-gene-info');
   if (!el) return;
   el.innerHTML = `
-    ${sectionHead('Gene Info')}
+    ${sectionHead('Gene Info', seqCopyBtn('Copy DNA', gene.dna_sequence))}
     <div style="padding:2px 16px 14px;">
       <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Length', lengthLabel)}
@@ -876,10 +902,18 @@ function renderDetailGeneInfo(detail, gene) {
         ${prop('Organism', ORGANISM_FULL[gene.strains?.common_name] ?? null)}
       </div>
     </div>`;
+  attachCopyBtns(el);
 
   // Seed hero ext links with NCBI immediately (UniProt added when protein loads)
   const heroLinks = detail.querySelector('#d-hero-ext-links');
-  if (heroLinks) heroLinks.innerHTML = ncbiLink(gene.locus_tag);
+  if (heroLinks) {
+    const updatedStamp = gene.updated_at
+      ? `<span style="font-size:8px;color:#bbb;line-height:1;white-space:nowrap;margin-right:4px;">
+           Last updated ${new Date(gene.updated_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })}${gene.updated_by ? ` · ${esc(gene.updated_by)}` : ''}
+         </span>`
+      : '';
+    heroLinks.innerHTML = updatedStamp + ncbiLink(gene.locus_tag);
+  }
 }
 
 async function loadDetailAsync(detail, gene) {
@@ -1002,6 +1036,7 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
           'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
           'start_bp,end_bp,strand,functional_category,is_characterized,' +
           'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+          'dna_sequence,' +
           'strains!inner(common_name,color_hex)'
         )
         .eq('id', targetId)
@@ -1137,6 +1172,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
           'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
           'start_bp,end_bp,strand,functional_category,is_characterized,' +
           'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+          'dna_sequence,' +
           'strains!inner(common_name,color_hex)'
         )
         .eq('id', targetId)
@@ -1187,7 +1223,7 @@ function renderDetailProtein(detail, gene, protein) {
     </div>`;
 
   el.innerHTML = `
-    ${sectionHead('Protein')}
+    ${sectionHead('Protein', seqCopyBtn('Copy AA', protein.aa_sequence))}
     <div style="padding:2px 16px 14px;">
       <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Mass',           protein.mass_kd ? `${protein.mass_kd} kDa` : null)}
@@ -1199,12 +1235,50 @@ function renderDetailProtein(detail, gene, protein) {
       ${propBlock('Product', gene.product ? esc(gene.product) : null)}
       ${propBlock('Subunit Structure', protein.oligomeric_state ? esc(stripEvidenceTags(protein.oligomeric_state)) : null)}
     </div>`;
+  attachCopyBtns(el);
 
   // Update hero ext links now that we have the UniProt ID
   const heroLinks = detail.querySelector('#d-hero-ext-links');
-  if (heroLinks) heroLinks.innerHTML = `
-    ${extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null)}
-    ${ncbiLink(gene.locus_tag)}`;
+  if (heroLinks) {
+    const updatedStamp = gene.updated_at
+      ? `<span style="font-size:8px;color:#bbb;line-height:1;white-space:nowrap;margin-right:4px;">
+           Last updated ${new Date(gene.updated_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })}${gene.updated_by ? ` · ${esc(gene.updated_by)}` : ''}
+         </span>`
+      : '';
+    heroLinks.innerHTML = updatedStamp +
+      extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null) +
+      ncbiLink(gene.locus_tag);
+  }
+}
+
+// Generates a copy-to-clipboard button for a raw sequence string.
+// Call attachCopyBtns(el) after setting el.innerHTML to wire up the listener.
+function seqCopyBtn(label, seq) {
+  if (!seq) return '';
+  return `<button data-copy-seq="${esc(seq)}" data-copy-label="${label}"
+    style="font-size:8px;font-weight:600;color:#6b7280;background:white;border:1px solid #e5e7eb;
+           border-radius:5px;padding:2px 8px;cursor:pointer;font-family:inherit;line-height:1.4;
+           transition:color 0.15s,border-color 0.15s;"
+    onmouseenter="this.style.borderColor='#d1d5db'"
+    onmouseleave="this.style.borderColor='#e5e7eb'">${label}</button>`;
+}
+
+function attachCopyBtns(el) {
+  el.querySelectorAll('[data-copy-seq]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(btn.dataset.copySeq).then(() => {
+        const orig = btn.dataset.copyLabel;
+        btn.textContent = 'Copied!';
+        btn.style.color = '#16a34a';
+        btn.style.borderColor = '#bbf7d0';
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.style.color = '#6b7280';
+          btn.style.borderColor = '#e5e7eb';
+        }, 1800);
+      });
+    });
+  });
 }
 
 // Helper: NCBI gene link (always available from locus tag)
@@ -1391,7 +1465,7 @@ function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
              color:${pillActive ? '#164e63' : '#374151'};
              border:1px solid ${pillActive ? '#a5f3fc' : '#e5e7eb'};
              cursor:pointer;margin-bottom:8px;transition:background 0.15s;">
-      📈 ${enrichLabel}${pillActive ? ' ×' : ''}
+      ${enrichLabel}${pillActive ? ' ×' : ''}
     </span>` : '';
 
   el.innerHTML = `
@@ -1624,6 +1698,19 @@ function renderDetailStructure(detail, gene, protein, afRows) {
     let idHtml      = '';
     let linksHtml   = '';
 
+    let versionNoteHtml = '';
+    if (record.af_version === 'AF3') {
+      versionNoteHtml = `<div style="font-size:9px;color:#9ca3af;line-height:1.5;margin-bottom:10px;">
+        AlphaFold v3 (2024) uses a diffusion-based architecture that improves accuracy, especially for proteins with few homologs.
+        These predictions were generated by the Hybiske Lab.
+      </div>`;
+    } else if (record.af_version === 'AF2' || record.af_version === 'AFDB') {
+      versionNoteHtml = `<div style="font-size:9px;color:#9ca3af;line-height:1.5;margin-bottom:10px;">
+        AlphaFold v2 (2021) predicts structure from sequence and evolutionary data using a transformer-based model.
+        Predictions are sourced from the EBI AlphaFold Database.
+      </div>`;
+    }
+
     if (record.af_version === 'crystal') {
       sourceLabel = 'Crystal Structure · RCSB PDB';
       const pdbId = record.top_homolog_pdb_id ?? '';
@@ -1667,9 +1754,10 @@ function renderDetailStructure(detail, gene, protein, afRows) {
         </div>
         <div style="flex:1;min-width:0;padding-top:2px;">
           <div style="font-size:9px;font-weight:700;text-transform:uppercase;
-                      letter-spacing:0.08em;color:#9ca3af;margin-bottom:10px;">
+                      letter-spacing:0.08em;color:#9ca3af;margin-bottom:6px;">
             ${sourceLabel}
           </div>
+          ${versionNoteHtml}
           ${idHtml}
           ${scoreHtml}
           ${homologHtml}
@@ -2136,10 +2224,22 @@ function showGeneDetailDesktop(gene, container) {
         </div>
         <div id="d-localization" style="min-width:0;overflow:hidden;"></div>
       </div>
-      <!-- Structure + reserved placeholder -->
+      <!-- Structure + Protein Interactions -->
       <div style="display:grid;grid-template-columns:2fr 1fr;border-bottom:1px solid #f0f0f0;">
         <div id="d-structure" style="border-right:1px solid #f0f0f0;min-width:0;overflow:hidden;">${detailSkeleton(3)}</div>
-        <div id="d-structure-placeholder" style="min-width:0;"></div>
+        <div id="d-interactions" style="min-width:0;overflow:hidden;">
+          <div style="padding:14px 16px;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:10px;">Protein Interactions</div>
+            <div style="font-size:10px;color:#bbb;font-style:italic;">Coming soon</div>
+          </div>
+        </div>
+      </div>
+      <!-- Mutants (full width) -->
+      <div style="border-bottom:1px solid #f0f0f0;min-width:0;overflow:hidden;">
+        <div style="padding:14px 16px;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:10px;">Mutants</div>
+          <div style="font-size:10px;color:#bbb;font-style:italic;">Coming soon</div>
+        </div>
       </div>
     </div>`;
 
