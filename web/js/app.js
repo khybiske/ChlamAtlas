@@ -1,5 +1,5 @@
 // ChlamAtlas — main application entry point
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/+esm';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=45';
 import { renderHome } from './views/home.js?v=45';
 import { renderGenomes } from './views/genomes.js?v=45';
