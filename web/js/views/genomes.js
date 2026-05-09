@@ -1529,8 +1529,11 @@ function renderDetailStructure(detail, gene, protein, afRows) {
       homology_method: null, inferred_function: null,
     } : null);
 
-  let activeTab    = crystal ? 'crystal' : af3 ? 'af3' : 'af2';
-  let activeRecord = crystal ?? af3 ?? af2;
+  // AF3 tab is only enabled when a mmcif model has actually been supplied
+  const af3Available = af3?.mmcif_path ? af3 : null;
+
+  let activeTab    = crystal ? 'crystal' : af3Available ? 'af3' : 'af2';
+  let activeRecord = crystal ?? af3Available ?? af2;
 
   function tabBtn(id, label, record) {
     const available = !!record;
@@ -1680,7 +1683,7 @@ function renderDetailStructure(detail, gene, protein, afRows) {
     ${sectionHead('Structure')}
     <div style="border-bottom:1px solid #e5e7eb;margin:0 16px 12px;display:flex;">
       ${tabBtn('crystal', 'Crystal Structure', crystal)}
-      ${tabBtn('af3',     'AlphaFold v3',      af3)}
+      ${tabBtn('af3',     'AlphaFold v3',      af3Available)}
       ${tabBtn('af2',     'AlphaFold v2',      af2)}
     </div>
     <div id="struct-viewer-body" style="padding:0 16px 16px;">
@@ -1690,7 +1693,7 @@ function renderDetailStructure(detail, gene, protein, afRows) {
   el.querySelectorAll('.struct-tab:not([disabled])').forEach(tab => {
     tab.addEventListener('click', () => {
       activeTab    = tab.dataset.tab;
-      activeRecord = activeTab === 'crystal' ? crystal : activeTab === 'af3' ? af3 : af2;
+      activeRecord = activeTab === 'crystal' ? crystal : activeTab === 'af3' ? af3Available : af2;
       el.querySelectorAll('.struct-tab').forEach(t => {
         const isActive = t.dataset.tab === activeTab;
         t.style.color             = isActive ? '#1a6b4a' : (t.disabled ? '#d1d5db' : '#9ca3af');
