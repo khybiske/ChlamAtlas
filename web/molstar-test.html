@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Molstar Viewer Test</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.css">
+<style>
+  body { font-family: sans-serif; background: #f3f4f6; padding: 24px; margin: 0; }
+  h2 { font-size: 14px; font-weight: 700; margin: 0 0 8px; color: #1a6b4a; }
+  p.note { font-size: 11px; color: #6b7280; margin: 0 0 20px; }
+  .row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; width: 340px; }
+  .card h3 { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 6px; }
+  .card p  { font-size: 10px; color: #374151; margin: 0 0 8px; line-height: 1.4; }
+  .viewer-wrap { width: 300px; height: 300px; background: #0a1628; border-radius: 8px; overflow: hidden; position: relative; }
+  .status { font-size: 11px; color: #6b7280; margin-top: 8px; min-height: 16px; word-break: break-all; }
+  .status.ok  { color: #16a34a; }
+  .status.err { color: #dc2626; }
+  button { font-size: 11px; font-weight: 600; background: #1a6b4a; color: white; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; margin-top: 8px; margin-right: 6px; }
+  button:hover { background: #155c3f; }
+  button.secondary { background: #6b7280; }
+  button.secondary:hover { background: #4b5563; }
+  pre { font-size: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; overflow: auto; max-height: 200px; white-space: pre-wrap; }
+  .score { font-family: monospace; font-size: 18px; font-weight: 700; margin-top: 6px; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<h2>Molstar Viewer Test</h2>
+<p class="note">Testing structure loading. Crystal uses RCSB (known CORS ✓). AF2 tests AFDB CIF loading via two approaches.</p>
+
+<div class="row">
+
+  <!-- Card 1: RCSB Crystal — 6OME (CT045 / pepA) -->
+  <div class="card">
+    <h3>Crystal · RCSB PDB</h3>
+    <p>6OME — pepA (CT045). Direct CIF from RCSB. CORS known-good.</p>
+    <div class="viewer-wrap" id="wrap-crystal">
+      <img src="https://cdn.rcsb.org/images/structures/om/6ome/6ome_assembly-1.jpeg"
+           id="thumb-crystal" style="width:100%;height:100%;object-fit:cover;" />
+    </div>
+    <div class="status" id="status-crystal">Ready</div>
+    <button onclick="loadDirect('wrap-crystal','thumb-crystal','status-crystal','https://files.rcsb.org/download/6OME.cif')">Load viewer</button>
+  </div>
+
+  <!-- Card 2: AFDB AF2 — direct v6 CIF URL (tests CORS) -->
+  <div class="card">
+    <h3>AlphaFold v2 · AFDB direct CIF</h3>
+    <p>B0B8K9 (nqrA, CT-L2). Uses hardcoded v6 URL. Tests whether AFDB CIF has CORS.</p>
+    <div class="viewer-wrap" id="wrap-af2-direct" style="display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:40px;color:#4ade80;opacity:0.3;">⬡</span>
+    </div>
+    <div class="status" id="status-af2-direct">Ready</div>
+    <button onclick="loadDirect('wrap-af2-direct',null,'status-af2-direct','https://alphafold.ebi.ac.uk/files/AF-B0B8K9-F1-model_v6.cif')">Load viewer (direct)</button>
+  </div>
+
+  <!-- Card 3: AFDB AF2 — via API fetch (gets correct URL + pLDDT) -->
+  <div class="card">
+    <h3>AlphaFold v2 · via AFDB API</h3>
+    <p>B0B8K9 (nqrA, CT-L2). Fetches AFDB API first to get correct versioned URL + mean pLDDT score.</p>
+    <div class="viewer-wrap" id="wrap-af2-api" style="display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:40px;color:#4ade80;opacity:0.3;">⬡</span>
+    </div>
+    <div class="score" id="plddt-display" style="display:none;"></div>
+    <div class="status" id="status-af2-api">Ready</div>
+    <button onclick="loadViaApi('wrap-af2-api','status-af2-api','plddt-display','B0B8K9')">Load viewer (via API)</button>
+  </div>
+
+</div>
+
+  <!-- Card 4: Toolbar experiment — Crystal with minimal controls -->
+  <div class="card">
+    <h3>Crystal · minimal toolbar</h3>
+    <p>Same 6OME but with extra Molstar flags + CSS to suppress submenu buttons. Expand kept.</p>
+    <div class="viewer-wrap" id="wrap-minimal">
+      <img src="https://cdn.rcsb.org/images/structures/om/6ome/6ome_assembly-1.jpeg"
+           id="thumb-minimal" style="width:100%;height:100%;object-fit:cover;" />
+    </div>
+    <div class="status" id="status-minimal">Ready</div>
+    <button onclick="loadMinimal()">Load minimal toolbar</button>
+    <button class="secondary" onclick="dumpButtons()">Dump button DOM</button>
+  </div>
+
+</div>
+
+<hr>
+
+<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;max-width:720px;">
+  <h3 style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">Button DOM dump</h3>
+  <pre id="btn-dump">Click "Dump button DOM" after loading card 4</pre>
+</div>
+
+<hr>
+
+<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;max-width:720px;">
+  <h3 style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">
+    AFDB API response — B0B8K9
+  </h3>
+  <p class="note" style="margin-bottom:8px;">Click to fetch the API and see what fields are available (pLDDT, cifUrl, etc.)</p>
+  <button class="secondary" onclick="fetchApi()">Fetch AFDB API</button>
+  <pre id="api-output">—</pre>
+</div>
+
+<div style="margin-top:16px;background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;max-width:720px;">
+  <h3 style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">
+    window.molstar introspect
+  </h3>
+  <button class="secondary" onclick="introspect()">Inspect</button>
+  <pre id="introspect-output">—</pre>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.js"></script>
+<script>
+function setStatus(id, msg, cls) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'status ' + (cls || '');
+}
+
+async function loadDirect(wrapId, thumbId, statusId, url) {
+  setStatus(statusId, 'Initializing Molstar…');
+  await initViewer(wrapId, thumbId, statusId, url);
+}
+
+async function loadViaApi(wrapId, statusId, plddt_id, uniprotId) {
+  setStatus(statusId, 'Fetching AFDB API…');
+  let cifUrl;
+  try {
+    const res  = await fetch(`https://alphafold.ebi.ac.uk/api/prediction/${uniprotId}`);
+    const data = await res.json();
+    const entry = data[0];
+    cifUrl = entry.cifUrl;
+    const score = entry.globalMetricValue;
+    const plddt = document.getElementById(plddt_id);
+    plddt.textContent = `pLDDT: ${score.toFixed(1)}`;
+    plddt.style.color = plddtColor(score);
+    plddt.style.display = 'block';
+    setStatus(statusId, `Got URL: ${cifUrl}`);
+  } catch(e) {
+    setStatus(statusId, '✗ API fetch failed: ' + e.message, 'err');
+    return;
+  }
+  await initViewer(wrapId, null, statusId, cifUrl);
+}
+
+async function initViewer(wrapId, thumbId, statusId, url) {
+  const wrapEl = document.getElementById(wrapId);
+  const vpId   = 'vp-' + wrapId;
+  const vpDiv  = document.createElement('div');
+  vpDiv.id     = vpId;
+  vpDiv.style.cssText = 'position:absolute;inset:0;border-radius:8px;overflow:hidden;opacity:0;transition:opacity 0.4s;';
+  wrapEl.style.position = 'relative';
+  wrapEl.appendChild(vpDiv);
+  try {
+    if (!window.molstar?.Viewer) throw new Error('molstar bundle not ready');
+    setStatus(statusId, 'Creating viewer…');
+    const v = await molstar.Viewer.create(vpId, {
+      layoutIsExpanded:          false,
+      layoutShowControls:        false,
+      layoutShowRemoteState:     false,
+      layoutShowSequence:        true,
+      layoutShowLog:             false,
+      layoutShowLeftPanel:       false,
+      viewportShowExpand:        true,
+      viewportShowSelectionMode: false,
+      viewportShowAnimation:     false,
+    });
+    setStatus(statusId, 'Loading structure…');
+    await v.loadStructureFromUrl(url, 'mmcif');
+    vpDiv.style.opacity = '1';
+    if (thumbId) {
+      const thumb = document.getElementById(thumbId);
+      if (thumb) { thumb.style.transition = 'opacity 0.4s'; thumb.style.opacity = '0'; }
+    }
+    setStatus(statusId, '✓ Loaded', 'ok');
+  } catch(err) {
+    console.error('[Molstar]', err);
+    vpDiv.remove();
+    setStatus(statusId, '✗ ' + err.message, 'err');
+  }
+}
+
+// Molstar CSS class names for controls we want to suppress.
+// We hide buttons that open large submenus while keeping expand + reset camera.
+const HIDE_SELECTORS = [
+  // Settings / preferences panel button
+  '.msp-btn[title*="Settings"]',
+  '.msp-btn[title*="Preferences"]',
+  // Screenshot button (opens panel)
+  '.msp-btn[title*="Screenshot"]',
+  '.msp-btn[title*="Image"]',
+  // Measurements / distance tools
+  '.msp-btn[title*="Measurement"]',
+  // "Toggle Controls Panel" — the ☰ hamburger that reveals a huge sidebar
+  '.msp-btn[title*="Toggle Controls"]',
+  '.msp-btn[title*="Controls Panel"]',
+];
+
+let _minimalViewer = null;
+async function loadMinimal() {
+  setStatus('status-minimal', 'Initializing…');
+  const wrapEl = document.getElementById('wrap-minimal');
+  const vpId   = 'vp-minimal';
+  const vpDiv  = document.createElement('div');
+  vpDiv.id     = vpId;
+  vpDiv.style.cssText = 'position:absolute;inset:0;border-radius:8px;overflow:hidden;opacity:0;transition:opacity 0.4s;';
+  wrapEl.style.position = 'relative';
+  wrapEl.appendChild(vpDiv);
+
+  try {
+    if (!window.molstar?.Viewer) throw new Error('molstar not ready');
+    const v = await molstar.Viewer.create(vpId, {
+      layoutIsExpanded:          false,
+      layoutShowControls:        false,
+      layoutShowRemoteState:     false,
+      layoutShowSequence:        false,   // hide sequence strip
+      layoutShowLog:             false,
+      layoutShowLeftPanel:       false,
+      viewportShowExpand:        true,    // keep expand
+      viewportShowSelectionMode: false,
+      viewportShowAnimation:     false,
+    });
+    _minimalViewer = v;
+    await v.loadStructureFromUrl('https://files.rcsb.org/download/6OME.cif', 'mmcif');
+    vpDiv.style.opacity = '1';
+    const thumb = document.getElementById('thumb-minimal');
+    if (thumb) { thumb.style.transition = 'opacity 0.4s'; thumb.style.opacity = '0'; }
+
+    // Attempt CSS suppression of submenu-heavy buttons
+    const style = document.createElement('style');
+    style.textContent = HIDE_SELECTORS.map(s => `#${vpId} ${s}`).join(', ') + ' { display:none !important; }';
+    document.head.appendChild(style);
+
+    setStatus('status-minimal', '✓ Loaded — compare toolbar with card 1', 'ok');
+  } catch(err) {
+    console.error('[Molstar minimal]', err);
+    vpDiv.remove();
+    setStatus('status-minimal', '✗ ' + err.message, 'err');
+  }
+}
+
+function dumpButtons() {
+  const vp = document.getElementById('vp-minimal');
+  if (!vp) { document.getElementById('btn-dump').textContent = 'Load card 4 first'; return; }
+  const buttons = Array.from(vp.querySelectorAll('button, [role="button"]'));
+  const info = buttons.map(b => ({
+    tag: b.tagName,
+    title: b.title || b.getAttribute('aria-label') || '',
+    className: b.className.substring(0, 80),
+    text: b.textContent.trim().substring(0, 40),
+  }));
+  document.getElementById('btn-dump').textContent = JSON.stringify(info, null, 2);
+}
+
+async function fetchApi() {
+  const out = document.getElementById('api-output');
+  out.textContent = 'Fetching…';
+  try {
+    const res  = await fetch('https://alphafold.ebi.ac.uk/api/prediction/B0B8K9');
+    const data = await res.json();
+    const d    = data[0];
+    const summary = {
+      uniprotAccession: d.uniprotAccession,
+      gene: d.gene,
+      latestVersion: d.latestVersion,
+      globalMetricValue: d.globalMetricValue,
+      cifUrl: d.cifUrl,
+      paeImageUrl: d.paeImageUrl,
+    };
+    out.textContent = JSON.stringify(summary, null, 2);
+  } catch(e) {
+    out.textContent = 'Error: ' + e.message;
+  }
+}
+
+function introspect() {
+  const m = window.molstar;
+  if (!m) { document.getElementById('introspect-output').textContent = 'not loaded yet'; return; }
+  document.getElementById('introspect-output').textContent = JSON.stringify({
+    keys: Object.keys(m),
+    viewerType: typeof m.Viewer,
+    viewerHasCreate: !!(m.Viewer?.create),
+  }, null, 2);
+}
+
+function plddtColor(s) {
+  if (s >= 90) return '#1d4ed8';
+  if (s >= 70) return '#60a5fa';
+  if (s >= 50) return '#f59e0b';
+  return '#f97316';
+}
+</script>
+</body>
+</html>
