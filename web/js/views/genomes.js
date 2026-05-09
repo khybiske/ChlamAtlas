@@ -756,6 +756,14 @@ async function loadMolstar(wrapEl, url) {
     vpDiv.style.opacity = '1';
     const thumb = wrapEl.querySelector('#struct-thumb');
     if (thumb) { thumb.style.transition = 'opacity 0.4s'; thumb.style.opacity = '0'; }
+
+    // Hide Molstar toolbar buttons that open large panels (overflow the small viewer)
+    const suppress = document.createElement('style');
+    suppress.textContent = `
+      #${vpId} button[title="Screenshot / State Snapshot"],
+      #${vpId} button[title="Toggle Controls Panel"],
+      #${vpId} button[title="Settings / Controls Info"] { display:none !important; }`;
+    document.head.appendChild(suppress);
   } catch (err) {
     console.warn('[Molstar] viewer init failed:', err);
     vpDiv.remove();
@@ -1433,7 +1441,10 @@ function ptmColor(score) {
 
 function setupMolstarObserver(el) {
   const wrap = el.querySelector('#struct-viewer-wrap');
-  if (!wrap || !wrap.dataset.url) return;
+  if (!wrap) return;
+  const url        = wrap.dataset.url;
+  const uniprotId  = wrap.dataset.uniprotId;
+  if (!url && !uniprotId) return;
   if (wrap.dataset.molstarInitiated) return;
   wrap.dataset.molstarInitiated = 'true';
 
@@ -1442,10 +1453,39 @@ function setupMolstarObserver(el) {
     if (!entries[0].isIntersecting || fired) return;
     fired = true;
     observer.disconnect();
-    loadMolstar(wrap, wrap.dataset.url);
+    if (uniprotId) {
+      loadMolstarViaAfdbApi(wrap, uniprotId, el);
+    } else {
+      loadMolstar(wrap, url);
+    }
   }, { threshold: 0.1 });
 
   observer.observe(wrap);
+}
+
+async function loadMolstarViaAfdbApi(wrap, uniprotId, panelEl) {
+  let cifUrl;
+  try {
+    const res   = await fetch(`https://alphafold.ebi.ac.uk/api/prediction/${uniprotId}`);
+    const entry = (await res.json())[0];
+    cifUrl = entry.cifUrl;
+    const plddt = entry.globalMetricValue;
+    const scoreEl = panelEl?.querySelector('#af2-score-display');
+    if (scoreEl && plddt != null) {
+      scoreEl.innerHTML = `
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
+          <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;
+                       color:${plddtColor(plddt)};line-height:1;">${plddt.toFixed(1)}</span>
+          <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;
+                       letter-spacing:0.08em;color:#9ca3af;">mean pLDDT · ${plddtLabel(plddt)}</span>
+        </div>`;
+    }
+  } catch (err) {
+    console.warn('[Molstar] AFDB API fetch failed:', err);
+    if (wrap.isConnected) _showStructureFallback(wrap, `https://alphafold.ebi.ac.uk/entry/${uniprotId}`);
+    return;
+  }
+  if (wrap.isConnected) loadMolstar(wrap, cifUrl);
 }
 
 function renderDetailStructure(detail, gene, protein, afRows) {
@@ -1456,14 +1496,11 @@ function renderDetailStructure(detail, gene, protein, afRows) {
   const af3       = afRows.find(r => r.af_version === 'AF3');
   const uniprotId = protein?.uniprot_id ?? null;
 
-  // Use DB row if present; otherwise synthesize from AlphaFoldDB using UniProt ID
-  // (AFDB covers the entire Chlamydia proteome)
+  // Use DB row if present; otherwise mark as synthetic — AFDB API fetched at load time
   const af2 = afRows.find(r => r.af_version === 'AF2' || r.af_version === 'AFDB')
     ?? (uniprotId ? {
-      af_version: 'AF2',
-      mmcif_path:     `https://alphafold.ebi.ac.uk/files/AF-${uniprotId}-F1-model_v4.cif`,
-      thumbnail_path: `https://alphafold.ebi.ac.uk/files/AF-${uniprotId}-F1-model_v4.png`,
-      homology_score: null, ptm_score: null,
+      af_version: 'AF2', _synthetic: true, _uniprotId: uniprotId,
+      mmcif_path: null, thumbnail_path: null, homology_score: null, ptm_score: null,
       top_homolog_pdb_id: null, top_homolog_description: null,
       homology_method: null, inferred_function: null,
     } : null);
@@ -1526,19 +1563,20 @@ function renderDetailStructure(detail, gene, protein, afRows) {
           <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;
                        letter-spacing:0.08em;color:#9ca3af;">pTM score</span>
         </div>`;
-    } else if ((record.af_version === 'AF2' || record.af_version === 'AFDB') && record.homology_score != null) {
-      const s = record.homology_score;
-      scoreHtml = `
-        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
-          <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;
-                       color:${plddtColor(s)};line-height:1;">
-            ${s.toFixed(1)}
-          </span>
-          <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;
-                       letter-spacing:0.08em;color:#9ca3af;">
-            mean pLDDT · ${plddtLabel(s)}
-          </span>
-        </div>`;
+    } else if (record.af_version === 'AF2' || record.af_version === 'AFDB') {
+      if (record.homology_score != null) {
+        const s = record.homology_score;
+        scoreHtml = `
+          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
+            <span style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;
+                         color:${plddtColor(s)};line-height:1;">${s.toFixed(1)}</span>
+            <span style="font-size:8.5px;font-weight:700;text-transform:uppercase;
+                         letter-spacing:0.08em;color:#9ca3af;">mean pLDDT · ${plddtLabel(s)}</span>
+          </div>`;
+      } else if (record._synthetic) {
+        // Placeholder — populated by AFDB API fetch when viewer loads
+        scoreHtml = `<div id="af2-score-display" style="margin-bottom:10px;min-height:26px;"></div>`;
+      }
     }
 
     const homologHtml = (record.af_version !== 'crystal' && record.top_homolog_description)
@@ -1604,7 +1642,9 @@ function renderDetailStructure(detail, gene, protein, afRows) {
         <div id="struct-viewer-wrap"
           style="width:200px;height:200px;flex-shrink:0;border-radius:8px;overflow:hidden;
                  position:relative;background:#0a1628;"
-          data-url="${record.mmcif_path ? esc(record.mmcif_path) : ''}">
+          ${record._synthetic
+            ? `data-uniprot-id="${esc(record._uniprotId)}"`
+            : `data-url="${record.mmcif_path ? esc(record.mmcif_path) : ''}"`}>
           ${thumbHtml}
         </div>
         <div style="flex:1;min-width:0;padding-top:2px;">
