@@ -269,12 +269,22 @@ document.getElementById('auth-tab-signup').addEventListener('click', () => switc
 // ─── Sign-in form ──────────────────────────────────────────
 document.getElementById('auth-form-signin').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn = e.submitter || e.target.querySelector('button[type=submit]');
+  if (btn.disabled) return;
+
   const email    = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
   const errEl    = document.getElementById('auth-error');
   errEl.classList.add('hidden');
 
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
   const { error } = await sb.auth.signInWithPassword({ email, password });
+
+  btn.disabled = false;
+  btn.textContent = 'Sign in';
+
   if (error) {
     errEl.textContent = error.message;
     errEl.classList.remove('hidden');
@@ -289,13 +299,16 @@ document.getElementById('auth-form-signin').addEventListener('submit', async (e)
 // ─── Sign-up form ──────────────────────────────────────────
 document.getElementById('auth-form-signup').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email    = document.getElementById('signup-email').value.trim();
-  const pw1      = document.getElementById('signup-password').value;
-  const pw2      = document.getElementById('signup-password2').value;
-  const name     = document.getElementById('signup-name').value.trim();
-  const affil    = document.getElementById('signup-affil').value.trim();
-  const errEl    = document.getElementById('signup-error');
-  const okEl     = document.getElementById('signup-success');
+  const btn   = e.submitter || e.target.querySelector('button[type=submit]');
+  if (btn.disabled) return;
+
+  const email  = document.getElementById('signup-email').value.trim();
+  const pw1    = document.getElementById('signup-password').value;
+  const pw2    = document.getElementById('signup-password2').value;
+  const name   = document.getElementById('signup-name').value.trim();
+  const affil  = document.getElementById('signup-affil').value.trim();
+  const errEl  = document.getElementById('signup-error');
+  const okEl   = document.getElementById('signup-success');
   errEl.classList.add('hidden');
   okEl.classList.add('hidden');
 
@@ -305,11 +318,17 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
     return;
   }
 
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+
   const { error } = await sb.auth.signUp({
     email,
     password: pw1,
     options: { data: { display_name: name || null, lab_affiliation: affil || null } },
   });
+
+  btn.disabled = false;
+  btn.textContent = 'Create account';
 
   if (error) {
     errEl.textContent = error.message;
@@ -328,15 +347,24 @@ document.getElementById('auth-back-signin').addEventListener('click', () => swit
 
 document.getElementById('auth-form-forgot').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn  = e.submitter || e.target.querySelector('button[type=submit]');
+  if (btn.disabled) return;
+
   const email = document.getElementById('forgot-email').value.trim();
   const errEl = document.getElementById('forgot-error');
   const okEl  = document.getElementById('forgot-success');
   errEl.classList.add('hidden');
   okEl.classList.add('hidden');
 
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
   const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin,
   });
+
+  btn.disabled = false;
+  btn.textContent = 'Send reset link';
 
   if (error) {
     errEl.textContent = error.message;
@@ -352,6 +380,9 @@ document.getElementById('auth-form-forgot').addEventListener('submit', async (e)
 // ─── Set new password (after clicking reset email link) ────
 document.getElementById('auth-form-reset').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn  = e.submitter || e.target.querySelector('button[type=submit]');
+  if (btn.disabled) return;
+
   const pw1   = document.getElementById('reset-password').value;
   const pw2   = document.getElementById('reset-password2').value;
   const errEl = document.getElementById('reset-error');
@@ -363,7 +394,14 @@ document.getElementById('auth-form-reset').addEventListener('submit', async (e) 
     return;
   }
 
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
   const { error } = await sb.auth.updateUser({ password: pw1 });
+
+  btn.disabled = false;
+  btn.textContent = 'Set new password';
+
   if (error) {
     errEl.textContent = error.message;
     errEl.classList.remove('hidden');
