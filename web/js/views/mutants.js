@@ -303,7 +303,7 @@ async function loadDetail(mutantUUID) {
   if (m.target_gene_ids?.length) {
     const { data: geneData } = await sb
       .from('genes')
-      .select(`id,locus_tag,gene_name,protein_product,is_characterized,
+      .select(`id,locus_tag,gene_name,product,is_characterized,
                proteins(id,localization,
                  alphafold_results(thumbnail_path))`)
       .in('id', m.target_gene_ids);
@@ -367,7 +367,7 @@ function heroHTML(m) {
 function geneCardsHTML(genes) {
   if (!genes.length) return '';
   const cards = genes.map(g => {
-    const af = g.proteins?.[0]?.alphafold_results?.[0];
+    const af = g.proteins?.alphafold_results?.[0];
     const thumb = af?.thumbnail_path
       ? `<img class="mut-gene-thumb" src="${af.thumbnail_path}" alt="">`
       : `<div class="mut-gene-thumb-placeholder">${(g.locus_tag || '?').slice(-2)}</div>`;
@@ -381,7 +381,7 @@ function geneCardsHTML(genes) {
         ${thumb}
         <div style="flex:1;min-width:0;">
           <div class="mut-gene-tag">${g.locus_tag}</div>
-          ${g.protein_product ? `<div class="mut-gene-desc">${g.protein_product}</div>` : ''}
+          ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
           ${funcBadge}
           <button class="mut-gene-link" data-gene-nav="${g.id}">View in Genomes →</button>
         </div>
