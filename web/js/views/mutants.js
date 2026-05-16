@@ -69,7 +69,7 @@ export function renderMutants(container) {
 
         <!-- Type filter pills -->
         <div style="display:flex;flex-wrap:wrap;gap:0.375rem;padding:0.5rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
-          ${['all','transposon','chimera','deletion','chemical'].map(t => `
+          ${['all','transposon','deletion','chemical'].map(t => `
             <button class="mut-type-pill ${t === _typeFilter ? 'active' : ''}" data-type="${t}">
               ${t === 'all' ? 'All' : TYPE_LABELS[t]}
             </button>`).join('')}
@@ -289,7 +289,8 @@ async function loadDetail(mutantUUID) {
 
   const m = mutantRes.data;
   if (!m) {
-    rightEl.innerHTML = `<div style="padding:1.5rem;color:#ef4444;font-size:0.875rem;">Mutant not found.</div>`;
+    const msg = mutantRes.error?.message ?? 'Unknown error';
+    rightEl.innerHTML = `<div style="padding:1.5rem;color:#ef4444;font-size:0.875rem;">Failed to load mutant: ${msg}</div>`;
     return;
   }
 
@@ -365,32 +366,56 @@ function heroHTML(m) {
 
 function geneCardsHTML(genes) {
   if (!genes.length) return '';
-  const cards = genes.map(g => {
-    const af = g.proteins?.alphafold_results?.[0];
-    const thumb = af?.thumbnail_path
-      ? `<img class="mut-gene-thumb" src="${af.thumbnail_path}" alt="">`
-      : `<div class="mut-gene-thumb-placeholder">${(g.locus_tag || '?').slice(-2)}</div>`;
 
-    const funcBadge = g.is_characterized
-      ? `<span class="func-badge func-badge-char">Characterized</span>`
-      : `<span class="func-badge func-badge-hypo">Hypothetical</span>`;
+  const title = `Target Gene${genes.length > 1 ? `s (${genes.length})` : ''}`;
+
+  // 1–2 genes: full cards (side by side if 2)
+  if (genes.length <= 2) {
+    const cards = genes.map(g => {
+      const af = g.proteins?.alphafold_results?.[0];
+      const thumb = af?.thumbnail_path
+        ? `<img class="mut-gene-thumb" src="${af.thumbnail_path}" alt="">`
+        : `<div class="mut-gene-thumb-placeholder">${(g.locus_tag || '?').slice(-2)}</div>`;
+      const funcBadge = g.is_characterized
+        ? `<span class="func-badge func-badge-char">Characterized</span>`
+        : `<span class="func-badge func-badge-hypo">Hypothetical</span>`;
+      return `
+        <div class="mut-gene-card" style="flex:1;min-width:0;">
+          ${thumb}
+          <div style="flex:1;min-width:0;">
+            <div class="mut-gene-tag">${g.locus_tag}</div>
+            ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
+            ${funcBadge}
+            <button class="mut-gene-link" data-gene-nav="${g.id}">View in Genomes →</button>
+          </div>
+        </div>`;
+    }).join('');
 
     return `
-      <div class="mut-gene-card">
-        ${thumb}
-        <div style="flex:1;min-width:0;">
-          <div class="mut-gene-tag">${g.locus_tag}</div>
-          ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
-          ${funcBadge}
-          <button class="mut-gene-link" data-gene-nav="${g.id}">View in Genomes →</button>
-        </div>
+      <div class="mut-card">
+        <div class="mut-card-title">${title}</div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">${cards}</div>
+      </div>`;
+  }
+
+  // 3+ genes: compact scrollable list
+  const rows = genes.map(g => {
+    const funcBadge = g.is_characterized
+      ? `<span class="func-badge func-badge-char" style="font-size:0.5625rem;">Characterized</span>`
+      : `<span class="func-badge func-badge-hypo" style="font-size:0.5625rem;">Hypothetical</span>`;
+    return `
+      <div style="display:flex;align-items:center;gap:0.625rem;padding:0.375rem 0;border-bottom:1px solid #f3f4f6;">
+        <span class="mut-gene-tag" style="min-width:5.5rem;flex-shrink:0;">${g.locus_tag}</span>
+        <span style="flex:1;min-width:0;font-size:0.75rem;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${g.product ?? ''}</span>
+        ${funcBadge}
+        <button class="mut-gene-link" style="flex-shrink:0;font-size:0.6875rem;" data-gene-nav="${g.id}">→</button>
       </div>`;
   }).join('');
 
   return `
     <div class="mut-card">
-      <div class="mut-card-title">Target Gene${genes.length > 1 ? 's' : ''}</div>
-      ${cards}
+      <div class="mut-card-title">${title}</div>
+      <div style="max-height:12rem;overflow-y:auto;">${rows}</div>
     </div>`;
 }
 
