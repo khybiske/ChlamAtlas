@@ -54,7 +54,7 @@ export function renderMutants(container) {
         <div class="mut-strip">
           <img class="mut-strip-icon" src="${col.icon}" alt="">
           <div style="flex:1;min-width:0;">
-            <div class="mut-strip-name" style="font-style:italic;">${col.label}</div>
+            <div class="mut-strip-name">${col.label}</div>
             <div class="mut-strip-count" id="strip-count">Loading…</div>
           </div>
           <button class="mut-switch-btn" id="mut-switch-btn">Switch ▾</button>
@@ -68,7 +68,7 @@ export function renderMutants(container) {
         </div>
 
         <!-- Type filter pills -->
-        <div style="display:flex;gap:0.375rem;padding:0.5rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;overflow-x:auto;">
+        <div style="display:flex;flex-wrap:wrap;gap:0.375rem;padding:0.5rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
           ${['all','transposon','deletion','chemical'].map(t => `
             <button class="mut-type-pill ${t === _typeFilter ? 'active' : ''}" data-type="${t}">
               ${t === 'all' ? 'All' : TYPE_LABELS[t]}
@@ -172,13 +172,13 @@ function showCollectionDropdown(anchor) {
   const dd = document.createElement('div');
   dd.id = 'mut-coll-dd';
   dd.className = 'mut-nav-dropdown';
-  dd.style.cssText = 'position:absolute;top:auto;left:0.75rem;z-index:300;min-width:14rem;';
+  dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;z-index:300;min-width:14rem;';
   dd.innerHTML = `
     <div class="mut-nav-dropdown-header">Collections</div>
     ${COLLECTIONS.map(c => `
       <button class="mut-nav-row" data-collection="${c.id}">
         <img class="mut-nav-icon" src="${c.icon}" alt="">
-        <span class="mut-nav-label" style="font-style:italic;">${c.label}</span>
+        <span class="mut-nav-label">${c.label}</span>
       </button>`).join('')}
   `;
 
