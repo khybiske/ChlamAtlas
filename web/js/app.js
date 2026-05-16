@@ -57,19 +57,35 @@ function activateTab(name) {
 }
 
 // ─── Auth ─────────────────────────────────────────────────
-async function refreshRole() {
+// Fetch the user's profile row using the access_token we already have from the
+// auth event — avoids re-acquiring the Supabase auth storage lock, which causes
+// "lock was stolen" contention errors when called from inside onAuthStateChange.
+async function refreshRole(accessToken) {
   if (!state.user) {
     state.userRole    = 'guest';
     state.userProfile = null;
     return;
   }
-  const { data, error } = await sb.from('users')
-    .select('role, display_name, lab_affiliation, role_request, created_at')
-    .eq('id', state.user.id)
-    .maybeSingle();
-  console.log('[ChlamAtlas] refreshRole →', { data, error, userId: state.user.id });
-  state.userRole    = data?.role    ?? 'community';
-  state.userProfile = data ?? null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(state.user.id)}` +
+      `&select=role,display_name,lab_affiliation,role_request,created_at`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+    if (res.ok) {
+      const rows = await res.json();
+      const data = rows[0] ?? null;
+      state.userRole    = data?.role    ?? 'community';
+      state.userProfile = data ?? null;
+    }
+  } catch (e) {
+    console.warn('[ChlamAtlas] refreshRole error:', e);
+  }
 }
 
 // Auth state listener — single source of truth for session state.
@@ -78,21 +94,19 @@ async function refreshRole() {
 // can throw in Safari when the storage lock is contested at page load.
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
-    // User clicked a password-reset email link — show the set-new-password panel.
     showAuthModal('reset');
     return;
   }
   if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
     if (session?.user) {
       state.user = session.user;
-      try { await refreshRole(); } catch (e) { console.warn('[ChlamAtlas] refreshRole error:', e); }
+      await refreshRole(session.access_token);
     }
     updateNavVisibility();
     renderAuthArea();
   } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-    // Token silently refreshed — re-fetch role in case it changed.
     state.user = session.user;
-    try { await refreshRole(); } catch (e) { /* non-critical */ }
+    await refreshRole(session.access_token);
   } else if (event === 'SIGNED_OUT') {
     state.user        = null;
     state.userRole    = 'guest';
@@ -496,11 +510,20 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  const { error } = await sb.from('users')
-    .update({ display_name: newName || null, lab_affiliation: newAffl || null })
-    .eq('id', state.user.id);
-
-  console.log('[ChlamAtlas] profile save →', { error, userId: state.user.id });
+  const { data: { session } } = await sb.auth.getSession();
+  const saveRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(state.user.id)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${session?.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ display_name: newName || null, lab_affiliation: newAffl || null }),
+    }
+  );
+  const error = saveRes.ok ? null : await saveRes.json();
   btn.disabled = false;
   btn.textContent = 'Save changes';
 
