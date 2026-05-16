@@ -321,7 +321,7 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
   btn.disabled = true;
   btn.textContent = 'Creating account…';
 
-  const { error } = await sb.auth.signUp({
+  const { data, error } = await sb.auth.signUp({
     email,
     password: pw1,
     options: { data: { display_name: name || null, lab_affiliation: affil || null } },
@@ -336,9 +336,16 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
     return;
   }
 
-  okEl.textContent = 'Account created! Check your email for a verification link.';
-  okEl.classList.remove('hidden');
-  document.getElementById('auth-form-signup').reset();
+  if (data.session) {
+    // Email confirmation is disabled — user is signed in immediately.
+    hideAuthModal();
+    activateTab(state.currentTab);
+  } else {
+    // Email confirmation is enabled — user must verify before signing in.
+    okEl.textContent = 'Account created! Check your email for a verification link.';
+    okEl.classList.remove('hidden');
+    document.getElementById('auth-form-signup').reset();
+  }
 });
 
 // ─── Forgot password ───────────────────────────────────────
