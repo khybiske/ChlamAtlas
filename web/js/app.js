@@ -1,24 +1,11 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=59';
-import { renderHome } from './views/home.js?v=59';
-import { renderGenomes } from './views/genomes.js?v=59';
-import { renderMutants } from './views/mutants.js?v=59';
-import { renderPipeline } from './views/pipeline.js?v=59';
+import { sb, state } from './client.js?v=61';
+import { renderHome } from './views/home.js?v=61';
+import { renderGenomes } from './views/genomes.js?v=61';
+import { renderMutants } from './views/mutants.js?v=61';
+import { renderPipeline } from './views/pipeline.js?v=61';
 
-// Supabase loaded via UMD script tag in index.html → window.supabase
-const { createClient } = window.supabase;
-
-// ─── Supabase client (singleton) ──────────────────────────
-export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// ─── App state ────────────────────────────────────────────
-export const state = {
-  user:        null,
-  userRole:    'guest',
-  userProfile: null,   // { display_name, lab_affiliation, city, role, role_request }
-  accessToken: null,   // cached from onAuthStateChange — avoids re-acquiring auth lock
-  currentTab:  'home',
-};
+export { sb, state };
 
 // ─── Tab routing ──────────────────────────────────────────
 const TABS = ['home', 'genomes', 'mutants', 'pipeline'];
