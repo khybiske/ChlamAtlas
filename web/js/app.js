@@ -495,11 +495,9 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  const { data, error } = await sb.from('users')
+  const { error } = await sb.from('users')
     .update({ display_name: newName || null, lab_affiliation: newAffl || null })
-    .eq('id', state.user.id)
-    .select('role, display_name, lab_affiliation, role_request, created_at')
-    .maybeSingle();
+    .eq('id', state.user.id);
 
   btn.disabled = false;
   btn.textContent = 'Save changes';
@@ -510,19 +508,11 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
     return;
   }
 
-  if (!data) {
-    errEl.textContent = 'Profile not found — contact an admin to fix your account.';
-    errEl.classList.remove('hidden');
-    return;
-  }
-
-  // Update local state and refresh nav
-  state.userProfile = data;
-  state.userRole    = data.role;
+  // Re-fetch profile to get updated values and refresh nav
+  await refreshRole();
   renderAuthArea();
 
-  // Update displayed name in the modal header
-  const displayName = data.display_name || (state.user.email ?? '').split('@')[0];
+  const displayName = state.userProfile?.display_name || (state.user.email ?? '').split('@')[0];
   document.getElementById('acct-avatar').textContent       = displayName.charAt(0).toUpperCase();
   document.getElementById('acct-name-display').textContent = displayName;
 

@@ -6,9 +6,10 @@
 -- Returns the current user's UUID from the PostgREST JWT, or NULL if anonymous.
 -- Using current_setting() directly avoids any auth.uid() type ambiguity across
 -- different Supabase versions.
+-- current_user_id() kept for backwards compat; auth.uid() is preferred in new code
 CREATE OR REPLACE FUNCTION public.current_user_id()
 RETURNS uuid LANGUAGE sql STABLE AS $$
-  SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+  SELECT auth.uid();
 $$;
 
 -- ─── ROLE HELPERS ─────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS text LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
   SELECT COALESCE(
-    (SELECT role FROM public.users WHERE id = public.current_user_id()),
+    (SELECT role FROM public.users WHERE id = auth.uid()),
     'guest'
   );
 $$;
@@ -33,7 +34,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_authenticated()
 RETURNS boolean LANGUAGE sql STABLE AS $$
-  SELECT public.current_user_id() IS NOT NULL;
+  SELECT auth.uid() IS NOT NULL;
 $$;
 
 -- ─── STRAINS: public read ─────────────────────────────────────────────────────
