@@ -105,8 +105,7 @@
 /* ─── Mutation type badges ───────────────────────────────── */
 .badge-tn     { background: #fce7f3; color: #9d174d; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
 .badge-chem   { background: #dbeafe; color: #1e40af; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
-.badge-recomb { background: #dcfce7; color: #166534; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
-.badge-intron { background: #fef3c7; color: #92400e; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
+.badge-deletion { background: #dcfce7; color: #166534; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
 .badge-other  { background: #f3f4f6; color: #6b7280; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
 
 /* ─── Mutant list ───────────────────────────────────────── */
@@ -188,4 +187,232 @@
 #swissbiopics-svg .subcell_present rect {
   fill: rgba(74, 222, 128, 0.5) !important;
   stroke: #16a34a !important;
+}
+
+/* ─── Mutants tab two-panel layout ──────────────────────── */
+.mut-list-panel {
+  display: flex; flex-direction: column;
+  border-right: 1px solid #e5e7eb;
+  overflow: hidden; background: #fff;
+  min-width: 0;
+}
+.mut-detail-panel {
+  overflow-y: auto; background: #f8f8f8;
+  min-width: 0;
+}
+
+/* Collection strip */
+.mut-strip {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff; flex-shrink: 0;
+}
+.mut-strip-icon {
+  width: 2rem; height: 2rem; border-radius: 9999px;
+  object-fit: cover; flex-shrink: 0;
+}
+.mut-strip-name { font-weight: 600; font-size: 0.9375rem; color: #111; flex: 1; }
+.mut-strip-count { font-size: 0.75rem; color: #9ca3af; }
+.mut-switch-btn {
+  padding: 0.25rem 0.625rem; border-radius: 0.375rem;
+  border: 1px solid #e5e7eb; background: #fff;
+  font-size: 0.75rem; color: #374151; cursor: pointer;
+  transition: background 0.15s;
+}
+.mut-switch-btn:hover { background: #f9fafb; }
+
+/* List rows */
+.mut-row {
+  display: flex; flex-direction: column; gap: 0.125rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer; transition: background 0.15s;
+  border-left: 3px solid transparent;
+  text-align: left; background: transparent; width: 100%;
+}
+.mut-row:last-child { border-bottom: none; }
+.mut-row:hover { background: #f9fafb; }
+.mut-row.selected { background: #f0fdf4; border-left-color: #16a34a; }
+.mut-row-id { font-size: 0.6875rem; color: #9ca3af; font-family: ui-monospace, monospace; }
+.mut-row-name { font-size: 0.875rem; font-weight: 600; color: #111; }
+.mut-unpub {
+  display: inline-block; font-size: 0.625rem; font-weight: 700;
+  padding: 0.0625rem 0.375rem; border-radius: 9999px;
+  background: #fef3c7; color: #92400e; letter-spacing: 0.03em;
+  vertical-align: middle; margin-left: 0.25rem;
+}
+
+/* Type filter pills */
+.mut-type-pill {
+  padding: 0.25rem 0.75rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 500; cursor: pointer;
+  border: 1px solid #e5e7eb; background: #fff; color: #374151;
+  transition: all 0.15s; white-space: nowrap;
+}
+.mut-type-pill:hover { background: #f3f4f6; }
+.mut-type-pill.active { background: #166534; border-color: #166534; color: #fff; }
+
+/* Detail panel */
+.mut-placeholder {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; gap: 1rem;
+  color: #9ca3af; font-size: 0.9375rem;
+}
+.mut-placeholder-icon { width: 4rem; height: 4rem; border-radius: 9999px; object-fit: cover; opacity: 0.5; }
+
+/* Hero card */
+.mut-hero {
+  background: #fff; border-radius: 0.75rem;
+  padding: 1.5rem; margin: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.mut-hero-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #111; }
+.mut-hero-id { font-size: 0.6875rem; color: #9ca3af; font-family: ui-monospace, monospace; margin-top: 0.125rem; }
+
+/* Badges */
+.mut-badge {
+  display: inline-block; font-size: 0.6875rem; font-weight: 600;
+  padding: 0.1875rem 0.625rem; border-radius: 9999px;
+}
+.mut-badge-strain  { background: #e0f2fe; color: #0369a1; }
+.mut-badge-type    { background: #ede9fe; color: #5b21b6; }
+.mut-badge-pub     { background: #dcfce7; color: #166534; }
+.mut-badge-unpub   { background: #fef3c7; color: #92400e; }
+
+/* Cards */
+.mut-card {
+  background: #fff; border-radius: 0.75rem;
+  padding: 1.25rem; margin: 0 1.25rem 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.mut-card:last-child { margin-bottom: 1.25rem; }
+.mut-card-title {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #9ca3af; margin-bottom: 0.875rem;
+}
+
+/* Gene cards */
+.mut-gene-card {
+  display: flex; align-items: flex-start; gap: 0.875rem;
+  padding: 0.875rem; border-radius: 0.5rem;
+  background: #f9fafb; margin-bottom: 0.75rem;
+}
+.mut-gene-card:last-child { margin-bottom: 0; }
+.mut-gene-thumb {
+  width: 3rem; height: 3rem; border-radius: 0.375rem;
+  object-fit: cover; background: #e5e7eb; flex-shrink: 0;
+}
+.mut-gene-thumb-placeholder {
+  width: 3rem; height: 3rem; border-radius: 0.375rem;
+  background: #e5e7eb; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.875rem; font-weight: 700; color: #9ca3af;
+  font-family: ui-monospace, monospace;
+}
+.mut-gene-tag { font-size: 0.875rem; font-weight: 700; color: #111; font-family: ui-monospace, monospace; }
+.mut-gene-desc { font-size: 0.8125rem; color: #6b7280; margin-top: 0.125rem; }
+.mut-gene-link {
+  font-size: 0.75rem; color: #1a6b4a; font-weight: 500;
+  cursor: pointer; margin-top: 0.25rem; display: inline-block;
+  text-decoration: none; background: transparent; border: none; padding: 0;
+}
+.mut-gene-link:hover { color: #0f4530; text-decoration: underline; }
+
+/* Func badges */
+.func-badge {
+  display: inline-block; font-size: 0.625rem; font-weight: 600;
+  padding: 0.125rem 0.5rem; border-radius: 9999px; margin-top: 0.25rem;
+}
+.func-badge-hypo   { background: #f3f4f6; color: #6b7280; }
+.func-badge-inc    { background: #fce7f3; color: #9d174d; }
+.func-badge-t3     { background: #ede9fe; color: #5b21b6; }
+.func-badge-char   { background: #dcfce7; color: #166534; }
+
+/* Info grid (recombinant/genotyping) */
+.mut-info-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.5rem;
+}
+.mut-info-row { display: flex; flex-direction: column; gap: 0.125rem; }
+.mut-info-label { font-size: 0.6875rem; color: #9ca3af; font-weight: 500; }
+.mut-info-value { font-size: 0.875rem; color: #111; }
+
+/* Pipeline bar */
+.mut-pipeline { display: flex; gap: 0.375rem; }
+.mut-stage { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+.mut-stage-bar {
+  height: 6px; border-radius: 9999px;
+}
+.mut-stage-bar.done    { background: #16a34a; }
+.mut-stage-bar.pending { background: #e5e7eb; }
+.mut-stage-name {
+  font-size: 0.625rem; font-weight: 500; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mut-stage-name.done    { color: #166534; }
+.mut-stage-name.pending { color: #9ca3af; }
+.mut-stage-date {
+  font-size: 0.5625rem; text-align: center; color: #9ca3af;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Phenotype cards */
+.mut-pheno-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.mut-pheno-card {
+  border-radius: 0.5rem; padding: 0.875rem;
+  background: #f9fafb;
+}
+.mut-pheno-label { font-size: 0.6875rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem; }
+.mut-pheno-status { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; }
+.mut-pheno-status.positive { color: #16a34a; }
+.mut-pheno-status.none     { color: #9ca3af; }
+.mut-pheno-status.untested { color: #d97706; }
+.mut-pheno-desc { font-size: 0.8125rem; color: #6b7280; }
+.mut-pheno-imgs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+
+/* Stocks */
+.mut-stocks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.mut-stock-item { display: flex; align-items: center; gap: 0.5rem; }
+.mut-stock-dot {
+  width: 0.625rem; height: 0.625rem; border-radius: 9999px; flex-shrink: 0;
+}
+.mut-stock-dot.yes { background: #16a34a; }
+.mut-stock-dot.no  { background: #e5e7eb; }
+.mut-stock-name { font-size: 0.8125rem; color: #374151; }
+
+/* Nav dropdown — mutants */
+.mut-nav-dropdown {
+  position: absolute; top: calc(100% + 0.375rem); left: 0;
+  background: #fff; border-radius: 0.75rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid #e5e7eb;
+  min-width: 16rem; z-index: 200; overflow: hidden;
+}
+.mut-nav-dropdown-header {
+  padding: 0.5rem 1rem 0.375rem;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #9ca3af;
+}
+.mut-nav-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.625rem 1rem; cursor: pointer;
+  transition: background 0.15s; border: none; background: transparent;
+  width: 100%; text-align: left;
+}
+.mut-nav-row:hover { background: #f9fafb; }
+.mut-nav-row:last-child { margin-bottom: 0.375rem; }
+.mut-nav-icon { width: 1.75rem; height: 1.75rem; border-radius: 9999px; object-fit: cover; }
+.mut-nav-label { font-size: 0.875rem; font-weight: 500; color: #111; flex: 1; }
+.mut-nav-count { font-size: 0.75rem; color: #9ca3af; }
+
+/* Mobile: back button inside detail panel */
+.mut-mobile-back {
+  display: none;
+  padding: 0.75rem 1rem 0;
+}
+@media (max-width: 767px) {
+  .mut-mobile-back { display: block; }
+  .mut-list-panel  { width: 100%; }
+  .mut-detail-panel { width: 100%; }
 }
