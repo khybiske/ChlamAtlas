@@ -63,10 +63,11 @@ async function refreshRole() {
     state.userProfile = null;
     return;
   }
-  const { data } = await sb.from('users')
+  const { data, error } = await sb.from('users')
     .select('role, display_name, lab_affiliation, role_request, created_at')
     .eq('id', state.user.id)
     .maybeSingle();
+  console.log('[ChlamAtlas] refreshRole →', { data, error, userId: state.user.id });
   state.userRole    = data?.role    ?? 'community';
   state.userProfile = data ?? null;
 }
@@ -499,6 +500,7 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
     .update({ display_name: newName || null, lab_affiliation: newAffl || null })
     .eq('id', state.user.id);
 
+  console.log('[ChlamAtlas] profile save →', { error, userId: state.user.id });
   btn.disabled = false;
   btn.textContent = 'Save changes';
 
