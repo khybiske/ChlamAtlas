@@ -170,8 +170,12 @@
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <input id="signup-affil" type="text" placeholder="Lab or institution (optional)"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-            <input id="signup-city" type="text" placeholder="City (optional)"
-              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <div class="flex gap-2">
+              <input id="signup-city" type="text" placeholder="City (optional)"
+                style="flex:3;" class="min-w-0 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+              <input id="signup-country" type="text" placeholder="Country"
+                style="flex:2;" class="min-w-0 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            </div>
             <p id="signup-error" class="text-red-500 text-xs hidden"></p>
             <p id="signup-success" class="text-green-700 text-xs hidden"></p>
             <button type="submit"
@@ -263,10 +267,17 @@
           <input id="acct-affiliation" type="text" placeholder="Your lab or institution"
             class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
-        <div>
-          <label class="block" style="font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;">City</label>
-          <input id="acct-city" type="text" placeholder="Your city (optional)"
-            class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+        <div class="flex gap-2">
+          <div style="flex:3;">
+            <label class="block" style="font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;">City</label>
+            <input id="acct-city" type="text" placeholder="City"
+              class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+          </div>
+          <div style="flex:2;">
+            <label class="block" style="font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;">Country</label>
+            <input id="acct-country" type="text" placeholder="Country"
+              class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+          </div>
         </div>
         <p id="acct-save-error" class="text-red-500 text-xs hidden"></p>
         <p id="acct-save-success" class="text-green-700 text-xs hidden"></p>
@@ -301,6 +312,6 @@
   </div>
 
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=52"></script>
+  <script type="module" src="/web/js/app.js?v=53"></script>
 </body>
 </html>

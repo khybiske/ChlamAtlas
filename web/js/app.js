@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=52';
-import { renderHome } from './views/home.js?v=52';
-import { renderGenomes } from './views/genomes.js?v=52';
-import { renderMutants } from './views/mutants.js?v=52';
-import { renderPipeline } from './views/pipeline.js?v=52';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=53';
+import { renderHome } from './views/home.js?v=53';
+import { renderGenomes } from './views/genomes.js?v=53';
+import { renderMutants } from './views/mutants.js?v=53';
+import { renderPipeline } from './views/pipeline.js?v=53';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -70,7 +70,7 @@ async function refreshRole(accessToken) {
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(state.user.id)}` +
-      `&select=role,display_name,lab_affiliation,city,role_request,created_at`,
+      `&select=role,display_name,lab_affiliation,city,country,role_request,created_at`,
       {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -350,7 +350,7 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
   const { data, error } = await sb.auth.signUp({
     email,
     password: pw1,
-    options: { data: { display_name: name || null, lab_affiliation: affil || null, city: city || null } },
+    options: { data: { display_name: name || null, lab_affiliation: affil || null, city: city || null, country: document.getElementById('signup-country').value.trim() || null } },
   });
 
   btn.disabled = false;
@@ -470,6 +470,7 @@ function showAccountModal() {
   document.getElementById('acct-display-name').value  = profile?.display_name   ?? '';
   document.getElementById('acct-affiliation').value   = profile?.lab_affiliation ?? '';
   document.getElementById('acct-city').value          = profile?.city            ?? '';
+  document.getElementById('acct-country').value       = profile?.country         ?? '';
 
   // Member since
   const since = profile?.created_at
@@ -516,7 +517,8 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  const newCity = document.getElementById('acct-city').value.trim();
+  const newCity    = document.getElementById('acct-city').value.trim();
+  const newCountry = document.getElementById('acct-country').value.trim();
   const saveRes = await fetch(
     `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(state.user.id)}`,
     {
@@ -527,9 +529,10 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        display_name:    newName || null,
-        lab_affiliation: newAffl || null,
-        city:            newCity || null,
+        display_name:    newName    || null,
+        lab_affiliation: newAffl    || null,
+        city:            newCity    || null,
+        country:         newCountry || null,
       }),
     }
   );

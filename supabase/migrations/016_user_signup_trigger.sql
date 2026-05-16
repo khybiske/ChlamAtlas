@@ -3,13 +3,14 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  INSERT INTO public.users (id, email, display_name, lab_affiliation, city, role)
+  INSERT INTO public.users (id, email, display_name, lab_affiliation, city, country, role)
   VALUES (
     new.id,
     new.email,
     NULLIF(TRIM(new.raw_user_meta_data->>'display_name'), ''),
     NULLIF(TRIM(new.raw_user_meta_data->>'lab_affiliation'), ''),
     NULLIF(TRIM(new.raw_user_meta_data->>'city'), ''),
+    NULLIF(TRIM(new.raw_user_meta_data->>'country'), ''),
     'community'
   )
   ON CONFLICT (id) DO NOTHING;
