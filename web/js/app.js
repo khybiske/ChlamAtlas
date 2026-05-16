@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=53';
-import { renderHome } from './views/home.js?v=53';
-import { renderGenomes } from './views/genomes.js?v=53';
-import { renderMutants } from './views/mutants.js?v=53';
-import { renderPipeline } from './views/pipeline.js?v=53';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=54';
+import { renderHome } from './views/home.js?v=54';
+import { renderGenomes } from './views/genomes.js?v=54';
+import { renderMutants } from './views/mutants.js?v=54';
+import { renderPipeline } from './views/pipeline.js?v=54';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -710,9 +710,59 @@ document.getElementById('auth-modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('auth-modal')) hideAuthModal();
 });
 
+// ─── Mutants nav dropdown ─────────────────────────────────
+const MUTANT_COLLECTIONS = [
+  { id: 'CT_L2',   label: 'C. trachomatis', icon: '/design/L2icon.jpg',      count: null },
+  { id: 'CM',      label: 'C. muridarum',   icon: '/design/CMicon.jpg',      count: null },
+  { id: 'Lucky17', label: 'Lucky 17',        icon: '/design/L17icon.jpg',     count: null },
+  { id: 'Chimeras',label: 'Chimeras',        icon: '/design/Chimeraicon.jpg', count: null },
+];
+let _mutDropdownEl = null;
+let _mutOutsideClick = null;
+
+function showMutantDropdown(anchorEl) {
+  hideMutantDropdown();
+  const wrap = document.getElementById('nav-mutants-wrap');
+  const dd = document.createElement('div');
+  dd.className = 'mut-nav-dropdown';
+  dd.innerHTML = `
+    <div class="mut-nav-dropdown-header">Collections</div>
+    ${MUTANT_COLLECTIONS.map(c => `
+      <button class="mut-nav-row" data-collection="${c.id}">
+        <img class="mut-nav-icon" src="${c.icon}" alt="">
+        <span class="mut-nav-label">${c.label}</span>
+      </button>
+    `).join('')}
+  `;
+  wrap.appendChild(dd);
+  _mutDropdownEl = dd;
+  dd.querySelectorAll('[data-collection]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.__mutantCollection = btn.dataset.collection;
+      hideMutantDropdown();
+      activateTab('mutants');
+    });
+  });
+  _mutOutsideClick = (e) => {
+    if (!dd.contains(e.target) && e.target !== anchorEl) hideMutantDropdown();
+  };
+  setTimeout(() => document.addEventListener('click', _mutOutsideClick), 0);
+}
+
+function hideMutantDropdown() {
+  if (_mutDropdownEl) { _mutDropdownEl.remove(); _mutDropdownEl = null; }
+  if (_mutOutsideClick) { document.removeEventListener('click', _mutOutsideClick); _mutOutsideClick = null; }
+}
+
 // ─── Nav wiring ───────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
-  btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  btn.addEventListener('click', () => {
+    if (btn.dataset.dropdown === 'mutants') {
+      showMutantDropdown(btn);
+      return;
+    }
+    activateTab(btn.dataset.tab);
+  });
 });
 document.getElementById('nav-home-logo').addEventListener('click', (e) => {
   e.preventDefault();

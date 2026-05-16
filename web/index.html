@@ -35,7 +35,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/web/css/app.css?v=49" />
+  <link rel="stylesheet" href="/web/css/app.css?v=50" />
 </head>
 <body class="bg-white text-gray-900 font-sans min-h-screen">
 
@@ -53,7 +53,9 @@
       <nav class="hidden sm:flex items-center gap-0.5 flex-1 justify-center" id="primary-nav">
         <button data-tab="home"     class="nav-tab active">Home</button>
         <button data-tab="genomes"  class="nav-tab">Genomes</button>
-        <button data-tab="mutants"  class="nav-tab">Mutants</button>
+        <div class="relative" id="nav-mutants-wrap">
+          <button id="nav-mutants-btn" data-tab="mutants" data-dropdown="mutants" class="nav-tab">Mutants</button>
+        </div>
         <button data-tab="pipeline" class="nav-tab" style="display:none">Pipeline</button>
       </nav>
 
@@ -83,7 +85,7 @@
 
     <!-- MUTANTS TAB -->
     <section id="tab-mutants" class="tab-panel hidden">
-      <div id="mutants-content" class="max-w-5xl mx-auto px-4"></div>
+      <div id="mutants-content" style="height:100%;overflow:hidden;"></div>
     </section>
 
     <!-- PIPELINE TAB -->
@@ -312,6 +314,6 @@
   </div>
 
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=53"></script>
+  <script type="module" src="/web/js/app.js?v=54"></script>
 </body>
 </html>
