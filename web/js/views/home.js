@@ -170,6 +170,12 @@ function renderEntryBlocks(container) {
       icon: '🔬', verb: 'Explore',     title: 'Mutants',
       meta: '<span id="eb-mutant-count">—</span>+ characterized',
       tab: 'mutants', disabled: false,
+      collections: [
+        { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
+        { id: 'CM',       label: 'C. muridarum',   icon: '/design/CMicon.jpg' },
+        { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/L17icon.jpg' },
+        { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
+      ],
     },
   ];
 
@@ -236,20 +242,45 @@ function renderEntryBlocks(container) {
       if (tab) window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab } }));
     });
   });
+
+  // Collection pill buttons on the Mutants block
+  el.querySelectorAll('[data-collection-nav]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.__mutantCollection = btn.dataset.collectionNav;
+      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
+    });
+  });
 }
 
 function entryBlockHTML(block, borderStyle) {
   const cursor = block.disabled ? 'cursor:default;' : 'cursor:pointer;';
   const opacity = block.disabled ? 'opacity:0.32;' : '';
-  const hover = block.disabled ? '' : 'data-nav-tab="' + block.tab + '"';
+  const navAttr = !block.disabled && !block.collections ? 'data-nav-tab="' + block.tab + '"' : '';
+  const hoverHandlers = !block.disabled && !block.collections
+    ? 'onmouseenter="this.style.background=\'#f9fafb\'" onmouseleave="this.style.background=\'\'"'
+    : '';
+  const collectionPills = block.collections ? `
+    <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.625rem;">
+      ${block.collections.map(c => `
+        <button data-collection-nav="${c.id}"
+          style="display:inline-flex;align-items:center;gap:0.3125rem;padding:0.25rem 0.625rem 0.25rem 0.25rem;
+                 border-radius:9999px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;
+                 font-size:0.6875rem;font-weight:500;color:#374151;transition:background 0.15s;"
+          onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='#fff'">
+          <img src="${c.icon}" style="width:1rem;height:1rem;border-radius:9999px;object-fit:cover;" alt="">
+          ${c.label}
+        </button>`).join('')}
+    </div>` : '';
   return `
-    <div ${hover}
-      style="padding:1.125rem 1.25rem 1rem;${borderStyle}${cursor}${opacity}transition:background 0.15s;"
-      ${!block.disabled ? 'onmouseenter="this.style.background=\'#f9fafb\'" onmouseleave="this.style.background=\'\'"' : ''}>
+    <div ${navAttr}
+      style="padding:1.125rem 1.25rem 1rem;${borderStyle}${!block.collections ? cursor : 'cursor:default;'}${opacity}transition:background 0.15s;"
+      ${hoverHandlers}>
       <span style="font-size:1.375rem;margin-bottom:0.5rem;display:block;">${block.icon}</span>
       <div style="font-size:0.59375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:#1a6b4a;margin-bottom:0.25rem;">${block.verb}</div>
       <div style="font-size:1.0625rem;font-weight:600;color:#111;margin-bottom:0.25rem;">${block.title}</div>
       <div class="font-mono" style="font-size:0.75rem;color:#bbb;">${block.meta}</div>
+      ${collectionPills}
     </div>`;
 }
 
