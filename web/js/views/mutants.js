@@ -1,313 +1,553 @@
-// ChlamAtlas — Mutants tab
-import { sb, state } from '../app.js?v=49';
-
-const COLLECTIONS = [
-  { id: 'C. trachomatis', name: 'C. trachomatis', sub: 'Pathogenic human strain',  icon: '/design/L2icon.jpg'      },
-  { id: 'C. muridarum',   name: 'C. muridarum',   sub: 'Mouse adapted strain',     icon: '/design/CMicon.jpg'      },
-  { id: 'Lucky 17',       name: 'Lucky 17',        sub: 'Screening collection',     icon: '/design/L17icon.jpg'     },
-  { id: 'Chimeras',       name: 'Chimeras',        sub: 'Cross-species hybrids',    icon: '/design/Chimeraicon.jpg' },
-];
+// ChlamAtlas — Mutants tab (full two-panel view)
+import { sb, state } from '../app.js?v=54';
 
 const PAGE_SIZE = 50;
-let _collection = null;
-let _page = 0;
-let _total = 0;
+
+const COLLECTIONS = [
+  { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
+  { id: 'CM',       label: 'C. muridarum',   icon: '/design/CMicon.jpg' },
+  { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/L17icon.jpg' },
+  { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
+];
+
+const TYPE_LABELS = { transposon: 'Transposon', deletion: 'Deletion', chemical: 'Chemical' };
+const FUNC_CLASSES = ['Hypothetical', 'Inc protein', 'T3 secreted', 'Characterized'];
+
+// Module state
+let _collection  = 'CT_L2';
+let _typeFilter  = 'all';
+let _sortCol     = 'mutant_id';
+let _sortAsc     = true;
+let _page        = 0;
+let _total       = 0;
+let _searchTerm  = '';
+let _selectedId  = null;
+let _container   = null;
+let _searchTimer = null;
+let _activeFilters = {};
+
+// ─── Entry point ──────────────────────────────────────────
 
 export function renderMutants(container) {
-  _collection = null; _page = 0;
-  showCollectionSelector(container);
+  _container = container;
+  _collection = window.__mutantCollection ?? 'CT_L2';
+  _typeFilter = 'all';
+  _sortCol = 'mutant_id';
+  _sortAsc = true;
+  _page = 0;
+  _total = 0;
+  _searchTerm = '';
+  _selectedId = null;
+  _activeFilters = {};
 
-  // If navigated from pipeline with a specific mutant
-  if (window.__openMutant) {
-    const id = window.__openMutant;
-    delete window.__openMutant;
-    // Brief delay so DOM is ready
-    setTimeout(() => showMutantDetail(id, container), 50);
-  }
-}
+  const col = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
+  const isMobile = window.innerWidth < 768;
+  const panelHeight = `calc(100vh - ${isMobile ? 112 : 56}px)`;
 
-// ─── Collection selector ──────────────────────────────────
-
-function showCollectionSelector(container) {
   container.innerHTML = `
-    <div class="mt-4 bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-      ${COLLECTIONS.map(c => `
-        <button class="selector-row w-full text-left" data-collection="${c.id}">
-          <img src="${c.icon}" alt="${c.name}" class="selector-icon" />
-          <div>
-            <div class="font-semibold text-gray-900 text-base">${c.name}</div>
-            <div class="text-sm text-gray-400">${c.sub}</div>
+    <div style="display:grid;grid-template-columns:300px 1fr;height:${panelHeight};overflow:hidden;" id="mut-panels">
+
+      <!-- LEFT PANEL -->
+      <div class="mut-list-panel" id="mut-left">
+
+        <!-- Collection strip -->
+        <div class="mut-strip">
+          <img class="mut-strip-icon" src="${col.icon}" alt="">
+          <div style="flex:1;min-width:0;">
+            <div class="mut-strip-name" style="font-style:italic;">${col.label}</div>
+            <div class="mut-strip-count" id="strip-count">Loading…</div>
           </div>
-          <span class="ml-auto text-gray-300 text-lg">›</span>
-        </button>`).join('')}
+          <button class="mut-switch-btn" id="mut-switch-btn">Switch ▾</button>
+        </div>
+
+        <!-- Search -->
+        <div style="padding:0.625rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+          <input id="mut-search" type="search" placeholder="Search mutants…"
+            style="width:100%;padding:0.375rem 0.625rem;border:1px solid #e5e7eb;border-radius:0.5rem;
+                   font-size:0.8125rem;outline:none;background:#f9fafb;" />
+        </div>
+
+        <!-- Type filter pills -->
+        <div style="display:flex;gap:0.375rem;padding:0.5rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;overflow-x:auto;">
+          ${['all','transposon','deletion','chemical'].map(t => `
+            <button class="mut-type-pill ${t === _typeFilter ? 'active' : ''}" data-type="${t}">
+              ${t === 'all' ? 'All' : TYPE_LABELS[t]}
+            </button>`).join('')}
+        </div>
+
+        <!-- Sort row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.75rem;
+                    border-bottom:1px solid #e5e7eb;flex-shrink:0;font-size:0.75rem;color:#6b7280;">
+          <span>Sort:</span>
+          <select id="mut-sort" style="font-size:0.75rem;border:1px solid #e5e7eb;border-radius:0.375rem;
+                  padding:0.1875rem 0.375rem;color:#374151;background:#fff;cursor:pointer;">
+            <option value="mutant_id">Mutant ID</option>
+            <option value="name">Name</option>
+          </select>
+          <button id="mut-sort-dir" title="Toggle sort direction"
+            style="border:1px solid #e5e7eb;border-radius:0.375rem;padding:0.1875rem 0.5rem;
+                   background:#fff;cursor:pointer;font-size:0.75rem;">
+            ${_sortAsc ? 'A→Z' : 'Z→A'}
+          </button>
+        </div>
+
+        <!-- List -->
+        <div id="mut-list" style="flex:1;overflow-y:auto;"></div>
+
+        <!-- Pagination -->
+        <div id="mut-pg" style="padding:0.5rem 0.75rem;border-top:1px solid #e5e7eb;
+             flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+             font-size:0.75rem;color:#9ca3af;"></div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="mut-detail-panel" id="mut-right">
+        <div class="mut-placeholder" id="mut-placeholder">
+          <img class="mut-placeholder-icon" src="${col.icon}" alt="">
+          <span>Select a mutant from the list</span>
+        </div>
+      </div>
+
     </div>`;
 
-  container.querySelectorAll('[data-collection]').forEach(btn => {
+  // Mobile: stack panels
+  if (isMobile) {
+    document.getElementById('mut-panels').style.gridTemplateColumns = '1fr';
+    document.getElementById('mut-panels').style.gridTemplateRows = '1fr';
+  }
+
+  wireControls();
+  fetchList();
+}
+
+// ─── Controls wiring ──────────────────────────────────────
+
+function wireControls() {
+  // Switch collection button
+  document.getElementById('mut-switch-btn').addEventListener('click', (e) => {
+    showCollectionDropdown(e.currentTarget);
+  });
+
+  // Search
+  document.getElementById('mut-search').addEventListener('input', (e) => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => {
+      _searchTerm = e.target.value.trim();
+      _page = 0;
+      fetchList();
+    }, 300);
+  });
+
+  // Type filter pills
+  document.getElementById('mut-left').querySelectorAll('.mut-type-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      _typeFilter = pill.dataset.type;
+      _page = 0;
+      document.querySelectorAll('.mut-type-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      fetchList();
+    });
+  });
+
+  // Sort select
+  document.getElementById('mut-sort').addEventListener('change', (e) => {
+    _sortCol = e.target.value;
+    _page = 0;
+    fetchList();
+  });
+
+  // Sort direction toggle
+  document.getElementById('mut-sort-dir').addEventListener('click', (btn) => {
+    _sortAsc = !_sortAsc;
+    btn.currentTarget.textContent = _sortAsc ? 'A→Z' : 'Z→A';
+    _page = 0;
+    fetchList();
+  });
+}
+
+function showCollectionDropdown(anchor) {
+  const existing = document.getElementById('mut-coll-dd');
+  if (existing) { existing.remove(); return; }
+
+  const dd = document.createElement('div');
+  dd.id = 'mut-coll-dd';
+  dd.className = 'mut-nav-dropdown';
+  dd.style.cssText = 'position:absolute;top:auto;left:0.75rem;z-index:300;min-width:14rem;';
+  dd.innerHTML = `
+    <div class="mut-nav-dropdown-header">Collections</div>
+    ${COLLECTIONS.map(c => `
+      <button class="mut-nav-row" data-collection="${c.id}">
+        <img class="mut-nav-icon" src="${c.icon}" alt="">
+        <span class="mut-nav-label" style="font-style:italic;">${c.label}</span>
+      </button>`).join('')}
+  `;
+
+  const strip = document.querySelector('.mut-strip');
+  strip.style.position = 'relative';
+  strip.appendChild(dd);
+
+  dd.querySelectorAll('[data-collection]').forEach(btn => {
     btn.addEventListener('click', () => {
       _collection = btn.dataset.collection;
+      window.__mutantCollection = _collection;
+      dd.remove();
       _page = 0;
-      showMutantList(container);
+      _selectedId = null;
+      renderMutants(_container);
+    });
+  });
+
+  const dismiss = (e) => {
+    if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', dismiss); }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss), 0);
+}
+
+// ─── Fetch + render list ──────────────────────────────────
+
+async function fetchList() {
+  const listEl = document.getElementById('mut-list');
+  if (!listEl) return;
+  listEl.innerHTML = skeletonRows(8);
+
+  let query = sb
+    .from('mutants')
+    .select('id,mutant_id,name,mutation_type,is_published', { count: 'exact' })
+    .eq('collection', _collection)
+    .order(_sortCol, { ascending: _sortAsc })
+    .range(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE - 1);
+
+  if (_typeFilter !== 'all') query = query.eq('mutation_type', _typeFilter);
+  if (_searchTerm) query = query.or(`mutant_id.ilike.%${_searchTerm}%,name.ilike.%${_searchTerm}%`);
+
+  const { data: rows, count, error } = await query;
+
+  _total = count ?? 0;
+  const col = COLLECTIONS.find(c => c.id === _collection);
+  const countEl = document.getElementById('strip-count');
+  if (countEl) countEl.textContent = `${_total.toLocaleString()} mutants`;
+
+  if (error) {
+    listEl.innerHTML = `<div style="padding:1rem;color:#ef4444;font-size:0.8125rem;">${error.message}</div>`;
+    return;
+  }
+  if (!rows?.length) {
+    listEl.innerHTML = `<div style="padding:2rem;text-align:center;color:#9ca3af;font-size:0.875rem;">No mutants found.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = rows.map(m => mutantRowHTML(m)).join('');
+  listEl.querySelectorAll('.mut-row').forEach(row => {
+    row.addEventListener('click', () => {
+      document.querySelectorAll('.mut-row').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+      _selectedId = row.dataset.id;
+      loadDetail(row.dataset.id);
+    });
+  });
+
+  renderPagination();
+
+  // Auto-select first row on initial load
+  if (!_selectedId && rows.length) {
+    const first = listEl.querySelector('.mut-row');
+    if (first) { first.classList.add('selected'); _selectedId = first.dataset.id; loadDetail(first.dataset.id); }
+  } else if (_selectedId) {
+    const sel = listEl.querySelector(`[data-id="${_selectedId}"]`);
+    if (sel) sel.classList.add('selected');
+  }
+}
+
+function mutantRowHTML(m) {
+  const displayName = m.name || m.mutant_id;
+  const showId = m.name ? `<div class="mut-row-id">${m.mutant_id}</div>` : '';
+  const unpub = !m.is_published ? `<span class="mut-unpub">unpub</span>` : '';
+  return `
+    <button class="mut-row" data-id="${m.id}">
+      ${showId}
+      <div class="mut-row-name">${displayName}${unpub}</div>
+    </button>`;
+}
+
+function renderPagination() {
+  const pgEl = document.getElementById('mut-pg');
+  if (!pgEl) return;
+  const totalPages = Math.ceil(_total / PAGE_SIZE);
+  if (totalPages <= 1) { pgEl.innerHTML = ''; return; }
+  const from = _page * PAGE_SIZE + 1;
+  const to = Math.min((_page + 1) * PAGE_SIZE, _total);
+  pgEl.innerHTML = `
+    <button id="mpg-prev" ${_page === 0 ? 'disabled' : ''}
+      style="padding:0.25rem 0.5rem;border:1px solid #e5e7eb;border-radius:0.375rem;
+             background:#fff;cursor:pointer;font-size:0.75rem;opacity:${_page === 0 ? 0.4 : 1};">‹</button>
+    <span>${from}–${to} of ${_total.toLocaleString()}</span>
+    <button id="mpg-next" ${_page >= totalPages - 1 ? 'disabled' : ''}
+      style="padding:0.25rem 0.5rem;border:1px solid #e5e7eb;border-radius:0.375rem;
+             background:#fff;cursor:pointer;font-size:0.75rem;opacity:${_page >= totalPages - 1 ? 0.4 : 1};">›</button>`;
+  pgEl.querySelector('#mpg-prev')?.addEventListener('click', () => { if (_page > 0) { _page--; fetchList(); } });
+  pgEl.querySelector('#mpg-next')?.addEventListener('click', () => { if (_page < totalPages - 1) { _page++; fetchList(); } });
+}
+
+// ─── Detail panel ─────────────────────────────────────────
+
+async function loadDetail(mutantUUID) {
+  const rightEl = document.getElementById('mut-right');
+  if (!rightEl) return;
+  rightEl.innerHTML = `<div style="padding:1.25rem;">${skeletonRows(5)}</div>`;
+
+  // Parallel: main mutant record + pipeline + phenotypes
+  const [mutantRes, pipeRes, phenoRes] = await Promise.all([
+    sb.from('mutants')
+      .select(`id,mutant_id,name,mutation_type,mutation_method,plasmid_used,marker,
+               is_published,notes,
+               strains!background_strain_id(common_name,species),
+               users!creator(display_name)`)
+      .eq('id', mutantUUID)
+      .single(),
+    sb.from('mutant_pipeline')
+      .select('*')
+      .eq('mutant_id', mutantUUID)
+      .maybeSingle(),
+    sb.from('mutant_phenotypes')
+      .select('*')
+      .eq('mutant_id', mutantUUID),
+  ]);
+
+  const m = mutantRes.data;
+  if (!m) {
+    rightEl.innerHTML = `<div style="padding:1.5rem;color:#ef4444;font-size:0.875rem;">Mutant not found.</div>`;
+    return;
+  }
+
+  const pipe = pipeRes.data ?? null;
+  const phenos = phenoRes.data ?? [];
+  const isLabMember = state.userRole === 'lab_member' || state.userRole === 'admin';
+
+  // Resolve target genes
+  let genes = [];
+  if (m.target_gene_ids?.length) {
+    const { data: geneData } = await sb
+      .from('genes')
+      .select(`id,locus_tag,gene_name,protein_product,is_characterized,
+               proteins(id,localization,
+                 alphafold_results(thumbnail_path))`)
+      .in('id', m.target_gene_ids);
+    genes = geneData ?? [];
+  }
+
+  const isMobile = window.innerWidth < 768;
+
+  rightEl.innerHTML = `
+    ${isMobile ? `<div class="mut-mobile-back"><button class="back-btn" id="mut-back-btn">‹ Back</button></div>` : ''}
+
+    ${heroHTML(m)}
+    ${geneCardsHTML(genes)}
+    ${recombInfoHTML(m)}
+    ${pipe || isLabMember ? pipelineHTML(pipe, isLabMember) : ''}
+    ${phenoHTML(phenos)}
+    ${isLabMember && pipe ? stocksHTML(pipe) : ''}
+    <div style="height:2rem;"></div>
+  `;
+
+  if (isMobile) {
+    document.getElementById('mut-back-btn')?.addEventListener('click', () => {
+      rightEl.style.display = 'none';
+      document.getElementById('mut-left').style.display = '';
+    });
+  }
+
+  // Wire "View in Genomes →" buttons
+  rightEl.querySelectorAll('[data-gene-nav]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const geneId = btn.dataset.geneNav;
+      window.__geneDetailId = geneId;
+      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
     });
   });
 }
 
-// ─── Mutant list ──────────────────────────────────────────
+// ─── Detail section builders ──────────────────────────────
 
-function showMutantList(container) {
-  const col = COLLECTIONS.find(c => c.id === _collection);
-  container.innerHTML = `
-    <div class="back-btn mt-3" id="mut-back">‹ Collections</div>
-    <div class="flex items-center gap-3 mb-4">
-      <img src="${col.icon}" alt="" class="w-10 h-10 rounded-full object-cover" />
-      <div>
-        <div class="font-semibold text-gray-900">${col.name}</div>
-        <div class="text-xs text-gray-400">${col.sub}</div>
-      </div>
-    </div>
-    <div id="mutant-list" class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm"></div>
-    <div id="mutant-pg" class="flex justify-between items-center mt-3 text-sm text-gray-500 px-1"></div>
-    <div id="mutant-detail"></div>
-  `;
-  container.querySelector('#mut-back').addEventListener('click', () => showCollectionSelector(container));
-  fetchMutants(container);
-}
-
-async function fetchMutants(container) {
-  const list = container.querySelector('#mutant-list');
-  list.innerHTML = skeletonRows(6);
-
-  const from = _page * PAGE_SIZE;
-  const to   = from + PAGE_SIZE - 1;
-
-  const { data: mutants, count, error } = await sb
-    .from('mutants')
-    .select('mutant_id,mutant_name,target_genes,mutation_type,status,is_published,invitro_phenotype,invivo_phenotype,strain_id', { count: 'exact' })
-    .eq('category', _collection)
-    .eq('is_archived', false)
-    .order('mutant_id', { ascending: true })
-    .range(from, to);
-
-  _total = count ?? 0;
-  if (error) { list.innerHTML = `<div class="p-6 text-red-500 text-sm">${error.message}</div>`; return; }
-  if (!mutants?.length) { list.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm">No mutants found.</div>`; return; }
-
-  list.innerHTML = mutants.map(mutantRow).join('');
-  list.querySelectorAll('.mutant-row').forEach(row =>
-    row.addEventListener('click', () => showMutantDetail(row.dataset.id, container))
-  );
-  renderPg(container);
-}
-
-function mutantRow(m) {
-  const dots = [
-    m.invitro_phenotype === true  ? `<span class="w-2 h-2 rounded-full bg-green-500 inline-block" title="In vitro +"></span>` : '',
-    m.invitro_phenotype === false ? `<span class="w-2 h-2 rounded-full bg-gray-300 inline-block" title="In vitro –"></span>` : '',
-    m.invivo_phenotype  === true  ? `<span class="w-2 h-2 rounded-full bg-blue-500 inline-block" title="In vivo +"></span>` : '',
-  ].filter(Boolean).join('');
-
-  const genes = (m.target_genes || []).slice(0, 3).join(', ') + (m.target_genes?.length > 3 ? '…' : '');
+function heroHTML(m) {
+  const displayName = m.name || m.mutant_id;
+  const idLine = m.name ? `<div class="mut-hero-id">${m.mutant_id}</div>` : '';
+  const strainLabel = m.strains?.common_name ?? m.strains?.species ?? '';
+  const typeLabel = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
+  const pubBadge = m.is_published
+    ? `<span class="mut-badge mut-badge-pub">Published</span>`
+    : `<span class="mut-badge mut-badge-unpub">Unpublished</span>`;
 
   return `
-    <div class="mutant-row" data-id="${m.mutant_id}">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-900 text-sm">${m.mutant_id}</span>
-          ${m.mutant_name ? `<span class="text-xs text-gray-400">${m.mutant_name}</span>` : ''}
-        </div>
-        ${genes ? `<div class="text-xs text-gray-400 font-mono mt-0.5">${genes}</div>` : ''}
-      </div>
-      <div class="flex items-center gap-2 flex-shrink-0">
-        ${dots}
-        ${m.is_published ? '' : `<span class="text-[10px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5">Unpub.</span>`}
-        <span class="text-gray-300">›</span>
+    <div class="mut-hero">
+      <div class="mut-hero-name">${displayName}</div>
+      ${idLine}
+      <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.75rem;">
+        ${strainLabel ? `<span class="mut-badge mut-badge-strain">${strainLabel}</span>` : ''}
+        ${typeLabel  ? `<span class="mut-badge mut-badge-type">${typeLabel}</span>` : ''}
+        ${pubBadge}
       </div>
     </div>`;
 }
 
-function renderPg(container) {
-  const pg = container.querySelector('#mutant-pg');
-  const totalPages = Math.ceil(_total / PAGE_SIZE);
-  const from = _page * PAGE_SIZE + 1;
-  const to   = Math.min((_page + 1) * PAGE_SIZE, _total);
-  pg.innerHTML = `
-    <button id="mpg-prev" ${_page === 0 ? 'disabled' : ''}
-      class="px-3 py-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50 transition text-sm">← Prev</button>
-    <span class="text-xs text-gray-400">${from}–${to} of ${_total.toLocaleString()}</span>
-    <button id="mpg-next" ${_page >= totalPages - 1 ? 'disabled' : ''}
-      class="px-3 py-1.5 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50 transition text-sm">Next →</button>`;
-  pg.querySelector('#mpg-prev')?.addEventListener('click', () => { _page--; fetchMutants(container); window.scrollTo(0,0); });
-  pg.querySelector('#mpg-next')?.addEventListener('click', () => { _page++; fetchMutants(container); window.scrollTo(0,0); });
+function geneCardsHTML(genes) {
+  if (!genes.length) return '';
+  const cards = genes.map(g => {
+    const af = g.proteins?.[0]?.alphafold_results?.[0];
+    const thumb = af?.thumbnail_path
+      ? `<img class="mut-gene-thumb" src="${af.thumbnail_path}" alt="">`
+      : `<div class="mut-gene-thumb-placeholder">${(g.locus_tag || '?').slice(-2)}</div>`;
+
+    const funcBadge = g.is_characterized
+      ? `<span class="func-badge func-badge-char">Characterized</span>`
+      : `<span class="func-badge func-badge-hypo">Hypothetical</span>`;
+
+    return `
+      <div class="mut-gene-card">
+        ${thumb}
+        <div style="flex:1;min-width:0;">
+          <div class="mut-gene-tag">${g.locus_tag}</div>
+          ${g.protein_product ? `<div class="mut-gene-desc">${g.protein_product}</div>` : ''}
+          ${funcBadge}
+          <button class="mut-gene-link" data-gene-nav="${g.id}">View in Genomes →</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="mut-card">
+      <div class="mut-card-title">Target Gene${genes.length > 1 ? 's' : ''}</div>
+      ${cards}
+    </div>`;
 }
 
-// ─── Mutant detail ────────────────────────────────────────
+function recombInfoHTML(m) {
+  const creator = m.users?.display_name ?? '—';
+  const plasmid = m.plasmid_used ?? '—';
+  const markers = m.marker?.join(', ') ?? '—';
+  const method = m.mutation_method ?? null;
 
-async function showMutantDetail(mutantId, container) {
-  // Make sure there's a detail container
-  let detail = container.querySelector('#mutant-detail');
-  if (!detail) {
-    container.innerHTML += `<div id="mutant-detail"></div>`;
-    detail = container.querySelector('#mutant-detail');
+  return `
+    <div class="mut-card">
+      <div class="mut-card-title">Recombinant Info</div>
+      <div class="mut-info-grid">
+        <div>
+          <div class="mut-info-row"><span class="mut-info-label">Creator</span><span class="mut-info-value">${creator}</span></div>
+          <div class="mut-info-row" style="margin-top:0.5rem;"><span class="mut-info-label">Plasmid</span><span class="mut-info-value">${plasmid}</span></div>
+          <div class="mut-info-row" style="margin-top:0.5rem;"><span class="mut-info-label">Marker</span><span class="mut-info-value">${markers}</span></div>
+          ${method ? `<div class="mut-info-row" style="margin-top:0.5rem;"><span class="mut-info-label">Method</span><span class="mut-info-value">${method.replace('_',' ')}</span></div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function pipelineHTML(pipe, isLabMember) {
+  if (!isLabMember) return '';
+  if (!pipe) {
+    return `
+      <div class="mut-card">
+        <div class="mut-card-title">Pipeline</div>
+        <div style="font-size:0.8125rem;color:#9ca3af;">No pipeline record.</div>
+      </div>`;
   }
-  detail.innerHTML = skeletonRows(6);
-  detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const [{ data: m }, { data: pipe }] = await Promise.all([
-    sb.from('mutants').select('*').eq('mutant_id', mutantId).single(),
-    sb.from('mutant_pipeline').select('*').eq('mutant_id', mutantId).single(),
-  ]);
+  const plasmidDone = !!pipe.transformed_date;
 
-  if (!m) { detail.innerHTML = '<p class="text-red-500 p-4 text-sm">Not found.</p>'; return; }
-
-  const STAGES = [
-    { key: 'plasmid_complete',        label: 'Plasmid' },
-    { key: 'transformation_complete', label: 'Transform' },
-    { key: 'cloning_complete',        label: 'Cloning' },
-    { key: 'genotyping_complete',     label: 'Genotyping' },
-    { key: 'invitro_test_complete',   label: 'In vitro' },
-    { key: 'invivo_test_complete',    label: 'In vivo' },
+  const stages = [
+    { label: 'Plasmid',   done: plasmidDone,             date: plasmidDone ? '✓' : null },
+    { label: 'Transform', done: !!pipe.transformed_date,  date: fmtDate(pipe.transformed_date) },
+    { label: 'Cloning',   done: !!pipe.plaque_cloned_date,date: fmtDate(pipe.plaque_cloned_date) },
+    { label: 'Genotype',  done: !!pipe.genotyped_date,    date: fmtDate(pipe.genotyped_date) },
+    { label: 'In vitro',  done: !!pipe.in_vitro_date,     date: fmtDate(pipe.in_vitro_date) },
+    { label: 'In vivo',   done: !!pipe.in_vivo_date,      date: fmtDate(pipe.in_vivo_date) },
+    { label: 'Sequenced', done: !!pipe.sequenced_date,    date: fmtDate(pipe.sequenced_date) },
   ];
 
-  const pipeDots = pipe
-    ? STAGES.map(s => `
-        <div class="flex flex-col items-center gap-1">
-          <div class="pdot ${pipe[s.key] ? 'pdot-done' : 'pdot-pending'}"></div>
-          <span class="text-[9px] text-gray-400 text-center leading-tight">${s.label}</span>
-        </div>`).join('')
-    : '';
+  const bars = stages.map(s => `
+    <div class="mut-stage">
+      <div class="mut-stage-bar ${s.done ? 'done' : 'pending'}"></div>
+      <div class="mut-stage-name ${s.done ? 'done' : 'pending'}">${s.label}</div>
+      <div class="mut-stage-date">${s.date ?? '—'}</div>
+    </div>`).join('');
 
-  // Image URLs — stored as comma-separated or single URL
-  const invitroImgs = (m.invitro_data || '').split(/,|\n/).map(s => s.trim()).filter(s => s.startsWith('http'));
-  const invivoImgs  = (m.invivo_data  || '').split(/,|\n/).map(s => s.trim()).filter(s => s.startsWith('http'));
+  return `
+    <div class="mut-card">
+      <div class="mut-card-title">Pipeline</div>
+      <div class="mut-pipeline">${bars}</div>
+    </div>`;
+}
 
-  detail.innerHTML = `
-    <div class="back-btn mt-4" id="mut-detail-back">‹ ${_collection ?? 'Mutants'}</div>
+function phenoHTML(phenos) {
+  const vitro = phenos.find(p => p.phenotype_type === 'in_vitro') ?? null;
+  const vivo  = phenos.find(p => p.phenotype_type === 'in_vivo')  ?? null;
 
-    <!-- Title -->
-    <h2 class="text-2xl font-bold text-gray-900 mb-0.5">${m.mutant_id}${m.mutant_name ? ` <span class="text-lg font-normal text-gray-500">${m.mutant_name}</span>` : ''}</h2>
+  const card = (label, p) => {
+    if (!p) return `
+      <div class="mut-pheno-card">
+        <div class="mut-pheno-label">${label}</div>
+        <div class="mut-pheno-status untested">Not yet tested</div>
+      </div>`;
 
-    <!-- Top fields -->
-    ${row('Target Genes', (m.target_genes || []).join(', ') || null)}
-    ${row('Background Strain', m.strain_id)}
-    ${row('Type', m.mutation_type)}
+    const statusClass = p.has_phenotype === true ? 'positive' : p.has_phenotype === false ? 'none' : 'untested';
+    const statusText  = p.has_phenotype === true ? '✓ Phenotype observed'
+                      : p.has_phenotype === false ? 'No phenotype recorded'
+                      : 'Not tested';
+    const imgs = p.image_paths?.length
+      ? `<div class="mut-pheno-imgs">${p.image_paths.map(u => `<img src="${u}" class="phenotype-img" alt="">`).join('')}</div>`
+      : '';
 
-    <!-- 🎯 Targeted Genes (linked) -->
-    ${m.target_genes?.length ? `
-      <div class="section-head">🎯 Targeted Genes <span class="text-sm font-normal text-gray-400 ml-1">${m.target_genes.length}</span></div>
-      <div id="target-gene-list">
-        ${m.target_genes.map(lt => `
-          <div class="detail-row target-gene-btn cursor-pointer hover:bg-gray-50 rounded px-1 -mx-1" data-locus="${lt}" data-strain="${m.strain_id}">
-            <div class="detail-value text-blue-500 font-medium">${lt}</div>
-            <span class="text-gray-300">›</span>
-          </div>`).join('')}
+    return `
+      <div class="mut-pheno-card">
+        <div class="mut-pheno-label">${label}</div>
+        <div class="mut-pheno-status ${statusClass}">${statusText}</div>
+        ${p.description ? `<div class="mut-pheno-desc">${p.description}</div>` : ''}
+        ${imgs}
+      </div>`;
+  };
+
+  return `
+    <div class="mut-card">
+      <div class="mut-card-title">Phenotypes</div>
+      <div class="mut-pheno-grid">
+        ${card('In vitro', vitro)}
+        ${card('In vivo', vivo)}
       </div>
-    ` : ''}
+    </div>`;
+}
 
-    <!-- ℹ️ Recombinant info -->
-    <div class="section-head">ℹ️ Recombinant info</div>
-    ${row('MutantID', m.mutant_id)}
-    ${row('Creator', m.creator)}
-    ${row('Plasmid used', m.plasmid_used)}
-    ${row('Marker(s)', m.selection_markers)}
-    ${row('Tn insert positions', m.tn_insert_positions)}
-    ${m.recombined_start_gene ? row('Recombined region', `${m.recombined_start_gene} → ${m.recombined_end_gene}`) : ''}
+function stocksHTML(pipe) {
+  const labs = [
+    { key: 'stocks_uw_hybiske', name: 'UW Hybiske' },
+    { key: 'stocks_uw_bob',     name: 'UW Bob' },
+    { key: 'stocks_osu_rockey', name: 'OSU Rockey' },
+    { key: 'stocks_ku_hefty',   name: 'KU Hefty' },
+  ];
+  const items = labs.map(l => `
+    <div class="mut-stock-item">
+      <div class="mut-stock-dot ${pipe[l.key] ? 'yes' : 'no'}"></div>
+      <span class="mut-stock-name">${l.name}</span>
+    </div>`).join('');
 
-    <!-- ⚙️ Pipeline -->
-    ${pipe ? `
-      <div class="section-head">⚙️ Pipeline</div>
-      <div class="py-3 border-b border-gray-100">
-        <div class="flex items-end gap-5">${pipeDots}</div>
-        ${m.status ? `<div class="text-xs text-gray-400 mt-2">Current stage: ${m.status}</div>` : ''}
-      </div>
-      ${row('Plasmid made', pipe.plasmid_complete ? 'Complete' : 'Pending')}
-    ` : ''}
-
-    <!-- 🧬 Genotyping -->
-    <div class="section-head">🧬 Genotyping</div>
-    ${checkRow('Sequenced', m.sequenced)}
-    ${row('Method', m.sequencing_type)}
-
-    <!-- 🔬 In vitro testing -->
-    <div class="section-head">🔬 In vitro testing</div>
-    ${checkRow('In vitro phenotype?', m.invitro_phenotype)}
-    ${invitroImgs.length ? `
-      <div class="py-3 border-b border-gray-100">
-        <div class="text-gray-400 text-sm mb-2">In vitro data</div>
-        <div class="flex gap-2 flex-wrap">
-          ${invitroImgs.map(u => `<img src="${u}" class="phenotype-img" />`).join('')}
-        </div>
-      </div>` : ''}
-    ${row('In vitro Notes', m.invitro_notes)}
-
-    <!-- 🐭 In vivo testing -->
-    <div class="section-head">🐭 In vivo testing</div>
-    ${checkRow('In vivo phenotype?', m.invivo_phenotype)}
-    ${invivoImgs.length ? `
-      <div class="py-3 border-b border-gray-100">
-        <div class="text-gray-400 text-sm mb-2">In vivo data</div>
-        <div class="flex gap-2 flex-wrap">
-          ${invivoImgs.map(u => `<img src="${u}" class="phenotype-img" />`).join('')}
-        </div>
-      </div>` : ''}
-    ${row('In vivo Notes', m.invivo_notes)}
-
-    <!-- 📝 Other notes -->
-    <div class="section-head">📝 Other notes</div>
-    ${row('Stocks available at', m.stock_locations ?? (m.stock_locations === null ? '❌ No stocks recorded' : null))}
-    ${row('Publicly available', m.is_published ? 'Yes' : 'No')}
-    ${row('Shared with', m.shared_with)}
-    ${state.userRole !== 'public' && m.notes ? row('Lab notes', m.notes) : ''}
-    ${row('Edited by', m.last_edited_by)}
-
-    <div class="h-16"></div>
-  `;
-
-  detail.querySelector('#mut-detail-back').addEventListener('click', () => {
-    detail.innerHTML = '';
-    container.querySelector('#mutant-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-
-  // Wire target gene links → Genomes tab
-  detail.querySelectorAll('.target-gene-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { data } = await sb.from('genes')
-        .select('id')
-        .eq('locus_tag', btn.dataset.locus)
-        .eq('strain_id', btn.dataset.strain)
-        .single();
-      if (data) {
-        window.__geneDetailId = data.id;
-        window.__preferredStrain = btn.dataset.strain;
-        document.querySelector('[data-tab="genomes"]').click();
-      }
-    });
-  });
+  return `
+    <div class="mut-card">
+      <div class="mut-card-title">Stocks</div>
+      <div class="mut-stocks-grid">${items}</div>
+    </div>`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────
 
-function row(label, value) {
-  if (value === null || value === undefined || value === '') return '';
-  return `
-    <div class="detail-row">
-      <div class="detail-label">${label}</div>
-      <div class="detail-value">${value}</div>
-    </div>`;
-}
-
-function checkRow(label, value) {
-  if (value === null || value === undefined) return row(label, '—');
-  return `
-    <div class="detail-row">
-      <div class="detail-label">${label}</div>
-      <div class="detail-value ${value ? 'text-green-600 font-medium' : 'text-gray-500'}">
-        ${value ? '✅ Yes' : 'No'}
-      </div>
-    </div>`;
+function fmtDate(d) {
+  if (!d) return null;
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 function skeletonRows(n) {
-  return `<div>${Array.from({length:n}, () => `
-    <div class="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
-      <div class="flex-1 space-y-2"><div class="skeleton h-3 w-24 rounded"></div><div class="skeleton h-2.5 w-40 rounded"></div></div>
-    </div>`).join('')}</div>`;
+  return Array.from({ length: n }, () => `
+    <div style="display:flex;gap:0.75rem;padding:0.75rem 1rem;border-bottom:1px solid #f3f4f6;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:0.375rem;">
+        <div class="skeleton" style="height:0.625rem;width:4rem;border-radius:0.25rem;"></div>
+        <div class="skeleton" style="height:0.75rem;width:8rem;border-radius:0.25rem;"></div>
+      </div>
+    </div>`).join('');
 }
