@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=49';
-import { renderHome } from './views/home.js?v=49';
-import { renderGenomes } from './views/genomes.js?v=49';
-import { renderMutants } from './views/mutants.js?v=49';
-import { renderPipeline } from './views/pipeline.js?v=49';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=50';
+import { renderHome } from './views/home.js?v=50';
+import { renderGenomes } from './views/genomes.js?v=50';
+import { renderMutants } from './views/mutants.js?v=50';
+import { renderPipeline } from './views/pipeline.js?v=50';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -76,6 +76,11 @@ async function refreshRole() {
 // (including any lock contention); this is more reliable than getSession() which
 // can throw in Safari when the storage lock is contested at page load.
 sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    // User clicked a password-reset email link — show the set-new-password panel.
+    showAuthModal('reset');
+    return;
+  }
   if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
     if (session?.user) {
       state.user = session.user;
@@ -225,32 +230,37 @@ function updateNavVisibility() {
 function showAuthModal(panel = 'signin') {
   document.getElementById('auth-modal').classList.remove('hidden');
   switchAuthTab(panel);
-  const focusEl = panel === 'signin'
-    ? document.getElementById('auth-email')
-    : document.getElementById('signup-email');
-  focusEl?.focus();
+  const focusMap = { signin: 'auth-email', signup: 'signup-email', forgot: 'forgot-email', reset: 'reset-password' };
+  document.getElementById(focusMap[panel] || 'auth-email')?.focus();
 }
 
 function hideAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
-  document.getElementById('auth-error').classList.add('hidden');
-  document.getElementById('signup-error').classList.add('hidden');
-  document.getElementById('signup-success').classList.add('hidden');
+  ['auth-error','signup-error','signup-success','forgot-error','forgot-success','reset-error']
+    .forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  document.getElementById('auth-form-forgot')?.reset();
+  document.getElementById('auth-form-reset')?.reset();
 }
 
 function switchAuthTab(panel) {
-  const isSignin = panel === 'signin';
-  document.getElementById('auth-panel-signin').classList.toggle('hidden', !isSignin);
-  document.getElementById('auth-panel-signup').classList.toggle('hidden', isSignin);
+  ['signin','signup','forgot','reset'].forEach(p => {
+    document.getElementById(`auth-panel-${p}`)?.classList.toggle('hidden', p !== panel);
+  });
 
-  const signinBtn = document.getElementById('auth-tab-signin');
-  const signupBtn = document.getElementById('auth-tab-signup');
-  signinBtn.style.color       = isSignin ? '#0f4530' : '#9ca3af';
-  signinBtn.style.borderColor = isSignin ? '#0f4530' : 'transparent';
-  signinBtn.style.fontWeight  = isSignin ? '600' : '500';
-  signupBtn.style.color       = !isSignin ? '#0f4530' : '#9ca3af';
-  signupBtn.style.borderColor = !isSignin ? '#0f4530' : 'transparent';
-  signupBtn.style.fontWeight  = !isSignin ? '600' : '500';
+  const isForgotOrReset = panel === 'forgot' || panel === 'reset';
+  document.getElementById('auth-tab-bar').classList.toggle('hidden', isForgotOrReset);
+
+  if (!isForgotOrReset) {
+    const isSignin = panel === 'signin';
+    const signinBtn = document.getElementById('auth-tab-signin');
+    const signupBtn = document.getElementById('auth-tab-signup');
+    signinBtn.style.color       = isSignin ? '#0f4530' : '#9ca3af';
+    signinBtn.style.borderColor = isSignin ? '#0f4530' : 'transparent';
+    signinBtn.style.fontWeight  = isSignin ? '600' : '500';
+    signupBtn.style.color       = !isSignin ? '#0f4530' : '#9ca3af';
+    signupBtn.style.borderColor = !isSignin ? '#0f4530' : 'transparent';
+    signupBtn.style.fontWeight  = !isSignin ? '600' : '500';
+  }
 }
 
 document.getElementById('auth-tab-signin').addEventListener('click', () => switchAuthTab('signin'));
@@ -310,6 +320,58 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
   okEl.textContent = 'Account created! Check your email for a verification link.';
   okEl.classList.remove('hidden');
   document.getElementById('auth-form-signup').reset();
+});
+
+// ─── Forgot password ───────────────────────────────────────
+document.getElementById('auth-forgot-link').addEventListener('click', () => switchAuthTab('forgot'));
+document.getElementById('auth-back-signin').addEventListener('click', () => switchAuthTab('signin'));
+
+document.getElementById('auth-form-forgot').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('forgot-error');
+  const okEl  = document.getElementById('forgot-success');
+  errEl.classList.add('hidden');
+  okEl.classList.add('hidden');
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  okEl.textContent = 'Check your email for a reset link.';
+  okEl.classList.remove('hidden');
+  document.getElementById('auth-form-forgot').reset();
+});
+
+// ─── Set new password (after clicking reset email link) ────
+document.getElementById('auth-form-reset').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw1   = document.getElementById('reset-password').value;
+  const pw2   = document.getElementById('reset-password2').value;
+  const errEl = document.getElementById('reset-error');
+  errEl.classList.add('hidden');
+
+  if (pw1 !== pw2) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const { error } = await sb.auth.updateUser({ password: pw1 });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  hideAuthModal();
+  activateTab(state.currentTab);
 });
 
 // ─── Sign-out ──────────────────────────────────────────────

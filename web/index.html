@@ -129,8 +129,8 @@
         <p class="text-white/60 text-xs mt-0.5">Research data for <em>Chlamydia</em></p>
       </div>
       <div class="p-6">
-        <!-- Tab bar -->
-        <div class="flex mb-5 border-b border-gray-100">
+        <!-- Tab bar (hidden during forgot/reset flows) -->
+        <div id="auth-tab-bar" class="flex mb-5 border-b border-gray-100">
           <button id="auth-tab-signin"
             class="text-sm font-semibold pb-2 mr-5 border-b-2 transition-colors"
             style="color:#0f4530;border-color:#0f4530;">Sign in</button>
@@ -143,8 +143,12 @@
           <form id="auth-form-signin" class="flex flex-col gap-3">
             <input id="auth-email" type="email" placeholder="Email" required
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-            <input id="auth-password" type="password" placeholder="Password" required
-              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <div class="flex flex-col gap-1">
+              <input id="auth-password" type="password" placeholder="Password" required
+                class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+              <button type="button" id="auth-forgot-link"
+                class="text-xs self-end transition-colors" style="color:#0f4530;">Forgot password?</button>
+            </div>
             <p id="auth-error" class="text-red-500 text-xs hidden"></p>
             <button type="submit"
               class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition mt-1" style="background:#0f4530;">
@@ -175,6 +179,38 @@
           </form>
         </div>
 
+        <!-- Forgot password panel -->
+        <div id="auth-panel-forgot" class="hidden">
+          <p class="text-sm text-gray-600 mb-4">Enter your email and we'll send you a reset link.</p>
+          <form id="auth-form-forgot" class="flex flex-col gap-3">
+            <input id="forgot-email" type="email" placeholder="Email" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <p id="forgot-error" class="text-red-500 text-xs hidden"></p>
+            <p id="forgot-success" class="text-green-700 text-xs hidden"></p>
+            <button type="submit"
+              class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition" style="background:#0f4530;">
+              Send reset link
+            </button>
+          </form>
+          <button id="auth-back-signin" class="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Back to sign in</button>
+        </div>
+
+        <!-- Set new password panel (shown after user clicks email reset link) -->
+        <div id="auth-panel-reset" class="hidden">
+          <p class="text-sm text-gray-600 mb-4">Choose a new password for your account.</p>
+          <form id="auth-form-reset" class="flex flex-col gap-3">
+            <input id="reset-password" type="password" placeholder="New password (min 8 characters)" required minlength="8"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <input id="reset-password2" type="password" placeholder="Confirm new password" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <p id="reset-error" class="text-red-500 text-xs hidden"></p>
+            <button type="submit"
+              class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition" style="background:#0f4530;">
+              Set new password
+            </button>
+          </form>
+        </div>
+
         <button id="auth-modal-close" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
       </div>
     </div>
@@ -194,6 +230,6 @@
   </div>
 
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=49"></script>
+  <script type="module" src="/web/js/app.js?v=50"></script>
 </body>
 </html>
