@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=51';
-import { renderHome } from './views/home.js?v=51';
-import { renderGenomes } from './views/genomes.js?v=51';
-import { renderMutants } from './views/mutants.js?v=51';
-import { renderPipeline } from './views/pipeline.js?v=51';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=52';
+import { renderHome } from './views/home.js?v=52';
+import { renderGenomes } from './views/genomes.js?v=52';
+import { renderMutants } from './views/mutants.js?v=52';
+import { renderPipeline } from './views/pipeline.js?v=52';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -15,7 +15,8 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export const state = {
   user:        null,
   userRole:    'guest',
-  userProfile: null,   // { display_name, lab_affiliation, role, role_request }
+  userProfile: null,   // { display_name, lab_affiliation, city, role, role_request }
+  accessToken: null,   // cached from onAuthStateChange — avoids re-acquiring auth lock
   currentTab:  'home',
 };
 
@@ -69,7 +70,7 @@ async function refreshRole(accessToken) {
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(state.user.id)}` +
-      `&select=role,display_name,lab_affiliation,role_request,created_at`,
+      `&select=role,display_name,lab_affiliation,city,role_request,created_at`,
       {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -99,18 +100,21 @@ sb.auth.onAuthStateChange(async (event, session) => {
   }
   if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
     if (session?.user) {
-      state.user = session.user;
+      state.user        = session.user;
+      state.accessToken = session.access_token;
       await refreshRole(session.access_token);
     }
     updateNavVisibility();
     renderAuthArea();
   } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-    state.user = session.user;
+    state.user        = session.user;
+    state.accessToken = session.access_token;
     await refreshRole(session.access_token);
   } else if (event === 'SIGNED_OUT') {
     state.user        = null;
     state.userRole    = 'guest';
     state.userProfile = null;
+    state.accessToken = null;
     updateNavVisibility();
     renderAuthArea();
   }
@@ -328,6 +332,7 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
   const pw2    = document.getElementById('signup-password2').value;
   const name   = document.getElementById('signup-name').value.trim();
   const affil  = document.getElementById('signup-affil').value.trim();
+  const city   = document.getElementById('signup-city').value.trim();
   const errEl  = document.getElementById('signup-error');
   const okEl   = document.getElementById('signup-success');
   errEl.classList.add('hidden');
@@ -345,7 +350,7 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
   const { data, error } = await sb.auth.signUp({
     email,
     password: pw1,
-    options: { data: { display_name: name || null, lab_affiliation: affil || null } },
+    options: { data: { display_name: name || null, lab_affiliation: affil || null, city: city || null } },
   });
 
   btn.disabled = false;
@@ -462,8 +467,9 @@ function showAccountModal() {
     </span>`;
 
   // Pre-fill edit fields with current profile values
-  document.getElementById('acct-display-name').value  = profile?.display_name  ?? '';
+  document.getElementById('acct-display-name').value  = profile?.display_name   ?? '';
   document.getElementById('acct-affiliation').value   = profile?.lab_affiliation ?? '';
+  document.getElementById('acct-city').value          = profile?.city            ?? '';
 
   // Member since
   const since = profile?.created_at
@@ -510,20 +516,24 @@ document.getElementById('acct-save-btn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  const { data: { session } } = await sb.auth.getSession();
+  const newCity = document.getElementById('acct-city').value.trim();
   const saveRes = await fetch(
     `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(state.user.id)}`,
     {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${session?.access_token}`,
+        'Authorization': `Bearer ${state.accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ display_name: newName || null, lab_affiliation: newAffl || null }),
+      body: JSON.stringify({
+        display_name:    newName || null,
+        lab_affiliation: newAffl || null,
+        city:            newCity || null,
+      }),
     }
   );
-  const error = saveRes.ok ? null : await saveRes.json();
+  const error = saveRes.ok ? null : { message: `Save failed (${saveRes.status}) — try signing out and back in.` };
   btn.disabled = false;
   btn.textContent = 'Save changes';
 
