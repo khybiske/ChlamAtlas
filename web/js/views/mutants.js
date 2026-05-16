@@ -274,9 +274,8 @@ async function loadDetail(mutantUUID) {
   const [mutantRes, pipeRes, phenoRes] = await Promise.all([
     sb.from('mutants')
       .select(`id,mutant_id,name,mutation_type,mutation_method,plasmid_used,marker,
-               is_published,notes,
-               strains!background_strain_id(common_name,species),
-               users!creator(display_name)`)
+               creator_name,is_published,notes,
+               strains!background_strain_id(common_name,species)`)
       .eq('id', mutantUUID)
       .single(),
     sb.from('mutant_pipeline')
@@ -317,7 +316,7 @@ async function loadDetail(mutantUUID) {
 
     ${heroHTML(m)}
     ${geneCardsHTML(genes)}
-    ${recombInfoHTML(m)}
+    ${recombInfoHTML(m, pipe)}
     ${pipe || isLabMember ? pipelineHTML(pipe, isLabMember) : ''}
     ${phenoHTML(phenos)}
     ${isLabMember && pipe ? stocksHTML(pipe) : ''}
@@ -395,21 +394,34 @@ function geneCardsHTML(genes) {
     </div>`;
 }
 
-function recombInfoHTML(m) {
-  const creator = m.users?.display_name ?? '—';
-  const plasmid = m.plasmid_used ?? '—';
-  const markers = m.marker?.join(', ') ?? '—';
-  const method = m.mutation_method ?? null;
+function recombInfoHTML(m, pipe) {
+  const creator = m.creator_name || '—';
+  const plasmid = m.plasmid_used || '—';
+  const markers = m.marker?.join(', ') || '—';
+  const method  = m.mutation_method ? m.mutation_method.replace(/_/g, ' ') : null;
+
+  const sequenced     = pipe?.sequenced;
+  const seqMethod     = pipe?.genotyping_method || null;
+  const genotypedDate = pipe?.genotyped_date ? fmtDate(pipe.genotyped_date) : null;
+
+  const seqText = sequenced === true  ? '✓ WGS'
+                : sequenced === false ? 'No'
+                : '—';
 
   return `
     <div class="mut-card">
-      <div class="mut-card-title">Recombinant Info</div>
+      <div class="mut-card-title">Recombinant Info &amp; Genotyping</div>
       <div class="mut-info-grid">
-        <div>
+        <div style="display:flex;flex-direction:column;gap:0.625rem;">
           <div class="mut-info-row"><span class="mut-info-label">Creator</span><span class="mut-info-value">${creator}</span></div>
-          <div class="mut-info-row" style="margin-top:0.5rem;"><span class="mut-info-label">Plasmid</span><span class="mut-info-value">${plasmid}</span></div>
-          <div class="mut-info-row" style="margin-top:0.5rem;"><span class="mut-info-label">Marker</span><span class="mut-info-value">${markers}</span></div>
-          ${method ? `<div class="mut-info-row" style="margin-top:0.5rem;"><span class="mut-info-label">Method</span><span class="mut-info-value">${method.replace('_',' ')}</span></div>` : ''}
+          <div class="mut-info-row"><span class="mut-info-label">Plasmid</span><span class="mut-info-value">${plasmid}</span></div>
+          <div class="mut-info-row"><span class="mut-info-label">Marker</span><span class="mut-info-value">${markers}</span></div>
+          ${method ? `<div class="mut-info-row"><span class="mut-info-label">Method</span><span class="mut-info-value">${method}</span></div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.625rem;">
+          <div class="mut-info-row"><span class="mut-info-label">Sequenced</span><span class="mut-info-value" style="${sequenced ? 'color:#16a34a;font-weight:600;' : ''}">${seqText}</span></div>
+          ${seqMethod     ? `<div class="mut-info-row"><span class="mut-info-label">Method</span><span class="mut-info-value">${seqMethod}</span></div>` : ''}
+          ${genotypedDate ? `<div class="mut-info-row"><span class="mut-info-label">Genotyped</span><span class="mut-info-value">${genotypedDate}</span></div>` : ''}
         </div>
       </div>
     </div>`;

@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=57';
-import { renderHome } from './views/home.js?v=57';
-import { renderGenomes } from './views/genomes.js?v=57';
-import { renderMutants } from './views/mutants.js?v=57';
-import { renderPipeline } from './views/pipeline.js?v=57';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=58';
+import { renderHome } from './views/home.js?v=58';
+import { renderGenomes } from './views/genomes.js?v=58';
+import { renderMutants } from './views/mutants.js?v=58';
+import { renderPipeline } from './views/pipeline.js?v=58';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;

@@ -281,6 +281,7 @@ def import_main_csv(gene_lookup, strains, users):
             'plasmid_used':         row.get('Plasmid Used', '').strip() or None,
             'marker':               markers if markers else None,
             'creator':              creator_id,
+            'creator_name':         creator_name or None,
             'is_published':         is_published,
             'notes':                row.get('Notes', '').strip() or None,
         }
