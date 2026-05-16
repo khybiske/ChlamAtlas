@@ -10,7 +10,7 @@ const COLLECTIONS = [
   { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
 ];
 
-const TYPE_LABELS = { transposon: 'Transposon', deletion: 'Deletion', chemical: 'Chemical' };
+const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical' };
 const FUNC_CLASSES = ['Hypothetical', 'Inc protein', 'T3 secreted', 'Characterized'];
 
 // Module state
@@ -69,7 +69,7 @@ export function renderMutants(container) {
 
         <!-- Type filter pills -->
         <div style="display:flex;flex-wrap:wrap;gap:0.375rem;padding:0.5rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
-          ${['all','transposon','deletion','chemical'].map(t => `
+          ${['all','transposon','chimera','deletion','chemical'].map(t => `
             <button class="mut-type-pill ${t === _typeFilter ? 'active' : ''}" data-type="${t}">
               ${t === 'all' ? 'All' : TYPE_LABELS[t]}
             </button>`).join('')}
@@ -93,11 +93,6 @@ export function renderMutants(container) {
 
         <!-- List -->
         <div id="mut-list" style="flex:1;overflow-y:auto;"></div>
-
-        <!-- Pagination -->
-        <div id="mut-pg" style="padding:0.5rem 0.75rem;border-top:1px solid #e5e7eb;
-             flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
-             font-size:0.75rem;color:#9ca3af;"></div>
       </div>
 
       <!-- RIGHT PANEL -->
@@ -215,7 +210,7 @@ async function fetchList() {
     .select('id,mutant_id,name,mutation_type,is_published', { count: 'exact' })
     .eq('collection', _collection)
     .order(_sortCol, { ascending: _sortAsc })
-    .range(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE - 1);
+    .limit(1000);
 
   if (_typeFilter !== 'all') query = query.eq('mutation_type', _typeFilter);
   if (_searchTerm) query = query.or(`mutant_id.ilike.%${_searchTerm}%,name.ilike.%${_searchTerm}%`);
@@ -246,8 +241,6 @@ async function fetchList() {
     });
   });
 
-  renderPagination();
-
   // Auto-select first row on initial load
   if (!_selectedId && rows.length) {
     const first = listEl.querySelector('.mut-row');
@@ -269,24 +262,6 @@ function mutantRowHTML(m) {
     </button>`;
 }
 
-function renderPagination() {
-  const pgEl = document.getElementById('mut-pg');
-  if (!pgEl) return;
-  const totalPages = Math.ceil(_total / PAGE_SIZE);
-  if (totalPages <= 1) { pgEl.innerHTML = ''; return; }
-  const from = _page * PAGE_SIZE + 1;
-  const to = Math.min((_page + 1) * PAGE_SIZE, _total);
-  pgEl.innerHTML = `
-    <button id="mpg-prev" ${_page === 0 ? 'disabled' : ''}
-      style="padding:0.25rem 0.5rem;border:1px solid #e5e7eb;border-radius:0.375rem;
-             background:#fff;cursor:pointer;font-size:0.75rem;opacity:${_page === 0 ? 0.4 : 1};">‹</button>
-    <span>${from}–${to} of ${_total.toLocaleString()}</span>
-    <button id="mpg-next" ${_page >= totalPages - 1 ? 'disabled' : ''}
-      style="padding:0.25rem 0.5rem;border:1px solid #e5e7eb;border-radius:0.375rem;
-             background:#fff;cursor:pointer;font-size:0.75rem;opacity:${_page >= totalPages - 1 ? 0.4 : 1};">›</button>`;
-  pgEl.querySelector('#mpg-prev')?.addEventListener('click', () => { if (_page > 0) { _page--; fetchList(); } });
-  pgEl.querySelector('#mpg-next')?.addEventListener('click', () => { if (_page < totalPages - 1) { _page++; fetchList(); } });
-}
 
 // ─── Detail panel ─────────────────────────────────────────
 
@@ -378,7 +353,7 @@ function heroHTML(m) {
     : `<span class="mut-badge mut-badge-unpub">Unpublished</span>`;
 
   return `
-    <div class="mut-hero">
+    <div style="padding:1.75rem 1.5rem 1.25rem;background:#fff;border-bottom:1px solid #e5e7eb;">
       <div class="mut-hero-name">${displayName}</div>
       ${idLine}
       <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.75rem;">
