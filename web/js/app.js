@@ -63,12 +63,19 @@ async function refreshRole() {
     state.userProfile = null;
     return;
   }
-  const { data } = await sb.from('users')
+  const { data, error } = await sb.from('users')
     .select('role, display_name, lab_affiliation, role_request')
     .eq('id', state.user.id)
-    .single();
-  state.userRole    = data?.role    ?? 'community';
-  state.userProfile = data ?? null;
+    .maybeSingle();
+
+  if (data) {
+    state.userRole    = data.role;
+    state.userProfile = data;
+  } else if (!error) {
+    // No matching row — user was deleted from the DB while a session token was
+    // still cached in localStorage (common in Safari). Sign out to clear it.
+    await sb.auth.signOut();
+  }
 }
 
 // Auth state listener — single source of truth for session state.
