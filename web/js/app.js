@@ -1,9 +1,9 @@
 // ChlamAtlas — main application entry point
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=50';
-import { renderHome } from './views/home.js?v=50';
-import { renderGenomes } from './views/genomes.js?v=50';
-import { renderMutants } from './views/mutants.js?v=50';
-import { renderPipeline } from './views/pipeline.js?v=50';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=51';
+import { renderHome } from './views/home.js?v=51';
+import { renderGenomes } from './views/genomes.js?v=51';
+import { renderMutants } from './views/mutants.js?v=51';
+import { renderPipeline } from './views/pipeline.js?v=51';
 
 // Supabase loaded via UMD script tag in index.html → window.supabase
 const { createClient } = window.supabase;
@@ -64,7 +64,7 @@ async function refreshRole() {
     return;
   }
   const { data } = await sb.from('users')
-    .select('role, display_name, lab_affiliation, role_request')
+    .select('role, display_name, lab_affiliation, role_request, created_at')
     .eq('id', state.user.id)
     .maybeSingle();
   state.userRole    = data?.role    ?? 'community';
@@ -123,7 +123,7 @@ function renderAuthArea() {
       <button id="btn-user-menu"
         style="display:flex;align-items:center;font-size:13px;font-weight:500;color:rgba(255,255,255,0.85);
                background:none;border:none;cursor:pointer;padding:4px 2px;gap:4px;line-height:1.2;">
-        ${name}${roleBadge}
+        <span style="opacity:0.7;font-weight:400;">Hello,&nbsp;</span>${name}${roleBadge}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           style="opacity:0.6;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
       </button>`;
@@ -190,6 +190,11 @@ function showUserDropdown() {
       ${affil}
       ${email}
     </div>
+    <button id="dd-my-account"
+      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+      onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+      My account
+    </button>
     ${requestBtn}
     ${adminBtn}
     <button id="dd-sign-out"
@@ -200,6 +205,7 @@ function showUserDropdown() {
 
   document.body.appendChild(_dropdownEl);
 
+  document.getElementById('dd-my-account').addEventListener('click', () => { hideUserDropdown(); showAccountModal(); });
   document.getElementById('dd-sign-out').addEventListener('click', () => { hideUserDropdown(); signOut(); });
   document.getElementById('dd-request-access')?.addEventListener('click', () => { hideUserDropdown(); requestLabAccess(); });
   document.getElementById('dd-admin-panel')?.addEventListener('click', () => { hideUserDropdown(); showAdminPanel(); });
@@ -417,6 +423,117 @@ document.getElementById('auth-form-reset').addEventListener('submit', async (e) 
 
   hideAuthModal();
   activateTab(state.currentTab);
+});
+
+// ─── Account modal ─────────────────────────────────────────
+function showAccountModal() {
+  const modal   = document.getElementById('account-modal');
+  const profile = state.userProfile;
+  const name    = profile?.display_name || (state.user.email ?? '').split('@')[0];
+  const initial = name.charAt(0).toUpperCase();
+
+  // Avatar + identity
+  document.getElementById('acct-avatar').textContent        = initial;
+  document.getElementById('acct-name-display').textContent  = name;
+  document.getElementById('acct-email-display').textContent = state.user.email ?? '';
+
+  const roleLabels = { admin: 'Admin', lab_member: 'Lab member', community: 'Community' };
+  const roleColors = { admin: '#0f4530', lab_member: '#1d6f4a', community: '#6b7280' };
+  const role = state.userRole;
+  document.getElementById('acct-role-display').innerHTML = `
+    <span style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;
+                 color:white;background:${roleColors[role] ?? '#6b7280'};border-radius:4px;padding:2px 7px;">
+      ${roleLabels[role] ?? role}
+    </span>`;
+
+  // Pre-fill edit fields with current profile values
+  document.getElementById('acct-display-name').value  = profile?.display_name  ?? '';
+  document.getElementById('acct-affiliation').value   = profile?.lab_affiliation ?? '';
+
+  // Member since
+  const since = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '—';
+  document.getElementById('acct-member-since').textContent = since;
+
+  // Annotation count (async)
+  document.getElementById('acct-annotation-count').textContent = '…';
+  sb.from('annotations').select('*', { count: 'exact', head: true }).eq('curator_id', state.user.id)
+    .then(({ count }) => {
+      document.getElementById('acct-annotation-count').textContent = count ?? 0;
+    });
+
+  // Clear messages
+  ['acct-save-error','acct-save-success'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.add('hidden');
+    el.textContent = '';
+  });
+
+  modal.classList.remove('hidden');
+  document.getElementById('acct-display-name').focus();
+}
+
+function hideAccountModal() {
+  document.getElementById('account-modal').classList.add('hidden');
+}
+
+document.getElementById('account-modal-close').addEventListener('click', hideAccountModal);
+document.getElementById('account-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('account-modal')) hideAccountModal();
+});
+
+document.getElementById('acct-save-btn').addEventListener('click', async () => {
+  const btn     = document.getElementById('acct-save-btn');
+  const errEl   = document.getElementById('acct-save-error');
+  const okEl    = document.getElementById('acct-save-success');
+  const newName = document.getElementById('acct-display-name').value.trim();
+  const newAffl = document.getElementById('acct-affiliation').value.trim();
+
+  errEl.classList.add('hidden');
+  okEl.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const { data, error } = await sb.from('users')
+    .update({ display_name: newName || null, lab_affiliation: newAffl || null })
+    .eq('id', state.user.id)
+    .select('role, display_name, lab_affiliation, role_request, created_at')
+    .maybeSingle();
+
+  btn.disabled = false;
+  btn.textContent = 'Save changes';
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  if (!data) {
+    errEl.textContent = 'Profile not found — contact an admin to fix your account.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // Update local state and refresh nav
+  state.userProfile = data;
+  state.userRole    = data.role;
+  renderAuthArea();
+
+  // Update displayed name in the modal header
+  const displayName = data.display_name || (state.user.email ?? '').split('@')[0];
+  document.getElementById('acct-avatar').textContent       = displayName.charAt(0).toUpperCase();
+  document.getElementById('acct-name-display').textContent = displayName;
+
+  okEl.textContent = 'Saved!';
+  okEl.classList.remove('hidden');
+  setTimeout(() => okEl.classList.add('hidden'), 2500);
+});
+
+document.getElementById('acct-change-password').addEventListener('click', () => {
+  hideAccountModal();
+  showAuthModal('forgot');
 });
 
 // ─── Sign-out ──────────────────────────────────────────────

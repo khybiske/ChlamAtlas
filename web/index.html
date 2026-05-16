@@ -229,7 +229,71 @@
     </div>
   </div>
 
+  <!-- ─── ACCOUNT MODAL ──────────────────────────────────────── -->
+  <div id="account-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+      <!-- Header -->
+      <div class="px-6 py-4 flex items-center justify-between" style="background:#0f4530;">
+        <h2 class="font-display font-bold text-white text-xl">My Account</h2>
+        <button id="account-modal-close" class="text-white/60 hover:text-white text-2xl leading-none transition-colors">✕</button>
+      </div>
+      <!-- Avatar + identity -->
+      <div class="px-6 pt-5 pb-4 flex items-center gap-4">
+        <div id="acct-avatar"
+          style="width:52px;height:52px;border-radius:50%;background:#0f4530;display:flex;align-items:center;
+                 justify-content:center;font-size:22px;font-weight:700;color:white;flex-shrink:0;letter-spacing:-1px;"></div>
+        <div class="min-w-0">
+          <div id="acct-name-display" style="font-size:16px;font-weight:600;color:#111;"></div>
+          <div id="acct-email-display" style="font-size:11.5px;color:#9ca3af;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+          <div id="acct-role-display" style="margin-top:5px;"></div>
+        </div>
+      </div>
+      <div style="height:1px;background:#f3f4f6;"></div>
+      <!-- Edit fields -->
+      <div class="px-6 py-4 flex flex-col gap-3">
+        <div>
+          <label class="block" style="font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;">Display name</label>
+          <input id="acct-display-name" type="text" placeholder="Your name"
+            class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+        </div>
+        <div>
+          <label class="block" style="font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;">Lab / Institution</label>
+          <input id="acct-affiliation" type="text" placeholder="Your lab or institution"
+            class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+        </div>
+        <p id="acct-save-error" class="text-red-500 text-xs hidden"></p>
+        <p id="acct-save-success" class="text-green-700 text-xs hidden"></p>
+        <button id="acct-save-btn"
+          class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition" style="background:#0f4530;">
+          Save changes
+        </button>
+      </div>
+      <div style="height:1px;background:#f3f4f6;"></div>
+      <!-- Stats -->
+      <div class="px-6 py-4">
+        <div style="font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Account info</div>
+        <div class="flex gap-8">
+          <div>
+            <div id="acct-member-since" style="font-size:14px;font-weight:600;color:#111;">—</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px;">Member since</div>
+          </div>
+          <div>
+            <div id="acct-annotation-count" style="font-size:14px;font-weight:600;color:#111;">—</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px;">Annotations</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:1px;background:#f3f4f6;"></div>
+      <!-- Footer actions -->
+      <div class="px-6 py-4">
+        <button id="acct-change-password" class="text-sm font-medium transition-colors" style="color:#0f4530;">
+          Change password →
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=50"></script>
+  <script type="module" src="/web/js/app.js?v=51"></script>
 </body>
 </html>
