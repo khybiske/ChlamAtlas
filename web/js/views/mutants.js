@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state } from '../client.js?v=63';
+import { sb, state } from '../client.js?v=64';
 
 const PAGE_SIZE = 50;
 
@@ -12,6 +12,28 @@ const COLLECTIONS = [
 
 const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical' };
 const FUNC_CLASSES = ['Hypothetical', 'Inc protein', 'T3 secreted', 'Characterized'];
+
+// Functional category fill colors — matches Genomes tab exactly
+const CATEGORY_COLORS = {
+  'Amino acid metabolism':      '#E66729',
+  'Cell envelope':              '#00A69D',
+  'Cell processes':             '#0052A3',
+  'Cofactor metabolism':        '#838FC7',
+  'Energy metabolism':          '#EC1C24',
+  'Inclusion membrane protein': '#E4B47E',
+  'Inermediary metabolism':     '#9D270E',
+  'Lipid metabolism':           '#6F2D90',
+  'Membrane transport':         '#6DCFF5',
+  'Nucleotide metabolism':      '#F497AE',
+  'Other':                      '#EBEBEB',
+  'Replication':                '#FFF100',
+  'Secreted effector':          '#00A551',
+  'Transcription':              '#FCB814',
+  'Translation':                '#BED630',
+  'Type III secretion':         '#8A5D3B',
+  'Unknown':                    '#AAAAAA',
+};
+const CATEGORY_COLOR_DEFAULT = '#E5E7EB';
 
 // Module state
 let _collection  = 'CT_L2';
@@ -323,7 +345,7 @@ async function loadDetail(mutantUUID) {
         const hi = isPlasmid ? 878 : maxIdx + 6;
         const { data: nbData } = await sb
           .from('genes')
-          .select('id,locus_tag,gene_name,is_characterized,sort_index')
+          .select('id,locus_tag,gene_name,functional_category,end_bp,sort_index')
           .eq('strain_id', strainId)
           .gte('sort_index', lo)
           .lte('sort_index', hi)
@@ -450,89 +472,96 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
 
   const targetIds = new Set(genes.map(g => g.id));
 
-  // Color per mutation type for target gene highlight
-  const typeColors = {
-    transposon: { fill: '#059669', border: '#047857' },
-    deletion:   { fill: '#ef4444', border: '#dc2626' },
-    chemical:   { fill: '#8b5cf6', border: '#7c3aed' },
-    chimera:    { fill: '#0891b2', border: '#0e7490' },
+  // Stroke color for target gene outline, by mutation type
+  const typeStroke = {
+    transposon: '#047857',
+    deletion:   '#b91c1c',
+    chemical:   '#6d28d9',
+    chimera:    '#0e7490',
   };
-  const hitColor = typeColors[mutationType] ?? typeColors.deletion;
+  const hitStroke = typeStroke[mutationType] ?? typeStroke.deletion;
 
-  // Gene block dimensions
-  const BLOCK_W  = 56;  // px per gene
-  const BLOCK_H  = 28;
-  const GAP      = 6;
-  const LABEL_H  = 16;
-  const TRACK_H  = BLOCK_H + LABEL_H + 8; // total row height
-  const totalW   = neighborhood.length * (BLOCK_W + GAP) - GAP;
-  const svgH     = TRACK_H + 4;
+  // ── Layout constants (mirrors genomes.js renderDetailGeneMap) ──────────
+  const VB_W   = 600;
+  const VB_H   = 72;
+  const SPINE_Y = 38;          // chromosome backbone y
+  const TOP    = 24; const BOT = 38; // normal gene block row
+  const TGT_TOP = 20; const TGT_BOT = 42; // target gene: slightly taller
+  const TIP    = 9;            // chevron tip width
+  const MIN_W  = 26;           // minimum gene width so tiny genes stay visible
 
-  const svgParts = neighborhood.map((g, i) => {
+  // Scale proportionally to fit viewBox width
+  const totalBp = neighborhood.reduce((s, g) => s + Math.max(g.end_bp ?? 600, 1), 0);
+  const scale   = (VB_W - 20) / Math.max(totalBp, 1);
+
+  let cx = 10;
+  const defs = neighborhood.map(g => {
+    const w   = Math.max(Math.round((g.end_bp ?? 600) * scale), MIN_W);
+    const def = { g, x: cx, w };
+    cx += w + 2;
+    return def;
+  });
+  const actualVbW = cx + 8;
+
+  const backbone = `<line x1="10" y1="${SPINE_Y}" x2="${actualVbW - 10}" y2="${SPINE_Y}" stroke="#d9d9d9" stroke-width="1.2"/>`;
+
+  const arrows = defs.map(({ g, x, w }, idx) => {
     const isTarget = targetIds.has(g.id);
-    const x = i * (BLOCK_W + GAP);
-    const y = 0;
+    const top = isTarget ? TGT_TOP : TOP;
+    const bot = isTarget ? TGT_BOT : BOT;
+    const mid = (top + bot) / 2;
+    const fill   = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const opacity = isTarget ? '1' : '0.82';
 
-    const fill   = isTarget ? hitColor.fill
-                 : g.is_characterized ? '#16a34a'
-                 : '#d1d5db';
-    const stroke = isTarget ? hitColor.border : 'none';
-    const sw     = isTarget ? 2 : 0;
+    // All arrows point right (strand direction deferred until start_bp imported)
+    const pts = `${x},${top} ${x + w - TIP},${top} ${x + w},${mid} ${x + w - TIP},${bot} ${x},${bot}`;
+    const strokeEl = isTarget
+      ? `<polygon points="${pts}" fill="none" stroke="${hitStroke}" stroke-width="1.5"/>`
+      : '';
 
-    // Arrow-chevron shape: slightly pointed on right (placeholder for strand direction)
-    const pt = `${x},${y} ${x + BLOCK_W - 7},${y} ${x + BLOCK_W},${y + BLOCK_H / 2} ${x + BLOCK_W - 7},${y + BLOCK_H} ${x},${y + BLOCK_H}`;
+    const midX = x + w / 2;
+    const isNamed = g.gene_name && g.gene_name !== g.locus_tag;
+    // Stagger name labels on alternating genes to reduce crowding for narrow genes
+    const nameStagger = (!isTarget && idx % 2 !== 0) ? -9 : 0;
+    const nameY  = top - 4 + nameStagger;
+    const locusY = bot + 9;
 
-    const labelColor = isTarget ? '#111827' : '#6b7280';
-    const labelWeight = isTarget ? '700' : '400';
-    const labelY = BLOCK_H + 12;
-    const label = g.locus_tag.length > 8 ? g.locus_tag.slice(-6) : g.locus_tag;
+    const nameEl = isNamed
+      ? `<text x="${midX}" y="${nameY}" text-anchor="middle"
+               font-family="DM Sans,sans-serif" font-size="${isTarget ? 9 : 7.5}"
+               font-weight="600" fill="${isTarget ? '#222' : '#888'}">${g.gene_name}</text>`
+      : '';
 
-    // Tooltip via <title>
-    const tip = `${g.locus_tag}${g.gene_name && g.gene_name !== g.locus_tag ? ': ' + g.gene_name : ''}`;
+    const locusEl = `<text x="${midX}" y="${locusY}" text-anchor="middle"
+                          font-family="DM Mono,monospace" font-size="${isTarget ? 8 : 7}"
+                          font-weight="${isTarget ? '700' : '400'}"
+                          fill="${isTarget ? '#111' : '#bbb'}">${g.locus_tag}</text>`;
+
+    const tip = `${g.locus_tag}${isNamed ? ' · ' + g.gene_name : ''}`;
 
     return `
-      <g class="gene-block" style="cursor:default;" data-locus="${g.locus_tag}">
+      <g style="cursor:default;">
         <title>${tip}</title>
-        <polygon points="${pt}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" rx="3"/>
-        <text x="${x + BLOCK_W / 2 - 3}" y="${labelY}"
-              text-anchor="middle" font-size="8" font-family="ui-monospace,monospace"
-              fill="${labelColor}" font-weight="${labelWeight}">${label}</text>
+        <polygon points="${pts}" fill="${fill}" opacity="${opacity}"/>
+        ${strokeEl}
+        ${nameEl}
+        ${locusEl}
       </g>`;
   }).join('');
 
-  // Connecting track line at mid-block
-  const trackLine = `<line x1="0" y1="${BLOCK_H / 2}" x2="${totalW}" y2="${BLOCK_H / 2}"
-                           stroke="#e5e7eb" stroke-width="2" stroke-dasharray="none"/>`;
-
-  // Legend items
-  const typeLabel = TYPE_LABELS[mutationType] ?? (mutationType ?? 'Target');
-  const legend = `
-    <div style="margin-top:0.625rem;display:flex;gap:1rem;flex-wrap:wrap;font-size:0.6875rem;color:#6b7280;align-items:center;">
-      <span style="display:flex;align-items:center;gap:4px;">
-        <svg width="12" height="12"><polygon points="0,0 9,0 12,6 9,12 0,12" fill="${hitColor.fill}"/></svg>
-        ${typeLabel}
-      </span>
-      <span style="display:flex;align-items:center;gap:4px;">
-        <svg width="12" height="12"><polygon points="0,0 9,0 12,6 9,12 0,12" fill="#16a34a"/></svg>
-        Characterized
-      </span>
-      <span style="display:flex;align-items:center;gap:4px;">
-        <svg width="12" height="12"><polygon points="0,0 9,0 12,6 9,12 0,12" fill="#d1d5db"/></svg>
-        Hypothetical
-      </span>
-      <span style="margin-left:auto;font-style:italic;color:#9ca3af;">↑ genomic order · strand direction pending coordinate import</span>
-    </div>`;
-
   return `
     <div class="mut-card">
-      <div class="mut-card-title">Genomic Locus</div>
-      <div style="overflow-x:auto;padding-bottom:0.25rem;">
-        <svg width="${totalW}" height="${svgH}" style="overflow:visible;display:block;">
-          ${trackLine}
-          ${svgParts}
+      <div class="mut-card-title">Chromosome Context</div>
+      <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;overflow:hidden;">
+        <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
+             style="width:100%;height:auto;display:block;overflow:visible;">
+          ${backbone}
+          ${arrows}
         </svg>
       </div>
-      ${legend}
+      <div style="margin-top:0.5rem;font-size:0.6875rem;color:#9ca3af;font-style:italic;">
+        Colors match functional category · same scheme as Genomes tab · strand direction pending coordinate import
+      </div>
     </div>`;
 }
 
