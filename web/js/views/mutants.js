@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=67';
+import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=68';
 
 const PAGE_SIZE = 50;
 
@@ -276,7 +276,7 @@ async function fetchList() {
 
   let query = sb
     .from('mutants')
-    .select('id,mutant_id,name,mutation_type,is_published', { count: 'exact' })
+    .select('id,mutant_id,name,mutation_type,is_published,target_gene_ids', { count: 'exact' })
     .eq('collection', _collection)
     .order(_sortCol, { ascending: _sortAsc })
     .limit(1000);
@@ -311,7 +311,15 @@ async function fetchList() {
     }
   }
 
-  listEl.innerHTML = displayRows.map(m => mutantRowHTML(m)).join('');
+  // Bulk-fetch locus tags for all target genes in one query
+  const allGeneIds = [...new Set(displayRows.flatMap(m => m.target_gene_ids ?? []))];
+  const geneTagMap = new Map();
+  if (allGeneIds.length) {
+    const { data: geneData } = await sb.from('genes').select('id,locus_tag').in('id', allGeneIds);
+    (geneData ?? []).forEach(g => geneTagMap.set(g.id, g.locus_tag));
+  }
+
+  listEl.innerHTML = displayRows.map(m => mutantRowHTML(m, formatLocusTags(m.target_gene_ids, geneTagMap))).join('');
   listEl.querySelectorAll('.mut-row').forEach(row => {
     row.addEventListener('click', () => {
       document.querySelectorAll('.mut-row').forEach(r => r.classList.remove('selected'));
@@ -331,9 +339,12 @@ async function fetchList() {
   }
 }
 
-function mutantRowHTML(m) {
+function mutantRowHTML(m, locusTagStr = '') {
   const displayName = m.name || m.mutant_id;
   const showId = m.name ? `<div class="mut-row-id">${m.mutant_id}</div>` : '';
+  const locusLabel = locusTagStr
+    ? `<div style="font-size:0.625rem;font-family:'DM Mono',ui-monospace,monospace;color:#9ca3af;margin-top:1px;">${locusTagStr}</div>`
+    : '';
   const labPill = !m.is_published
     ? `<span class="mut-lab-pill" style="margin-left:auto;flex-shrink:0;">🔒 Lab</span>`
     : '';
@@ -342,6 +353,7 @@ function mutantRowHTML(m) {
       <div style="flex:1;min-width:0;">
         ${showId}
         <div class="mut-row-name">${displayName}</div>
+        ${locusLabel}
       </div>
       ${labPill}
     </button>`;
@@ -449,6 +461,9 @@ async function loadDetail(mutantUUID) {
     });
   });
 
+  // Edit button — placeholder until edit modal is built
+  rightEl.querySelector('#mut-edit-btn')?.addEventListener('click', () => {});
+
   // Wire favorites star
   rightEl.querySelector('#mut-fav-btn')?.addEventListener('click', e => {
     const id     = e.currentTarget.dataset.id;
@@ -468,11 +483,15 @@ function heroHTML(m) {
   const accent       = TYPE_ACCENT[m.mutation_type] ?? DEFAULT_ACCENT;
   const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
   const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
-  const isFav = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
+  const isFav        = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
+  const isLabOrAdmin = state.userRole === 'lab_member' || state.userRole === 'admin';
 
   const pubBadge = m.is_published
     ? heroBadge('Published',   '#059669', 'rgba(5,150,105,0.3)')
     : heroBadge('Unpublished', '#b45309', 'rgba(180,83,9,0.3)');
+
+  const pencilSvg = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>`;
+  const btnBase   = 'background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;padding-top:2px;';
 
   return `
     <div style="padding:16px 20px 14px;border-bottom:3px solid ${accent.color};background:linear-gradient(150deg,${accent.heroBg} 0%,#ffffff 65%);">
@@ -481,9 +500,12 @@ function heroHTML(m) {
           <div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${displayName}</div>
           ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:4px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
         </div>
-        <button id="mut-fav-btn" data-id="${m.id}"
-          style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
-          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:2px;">
+          ${isLabOrAdmin ? `<button id="mut-edit-btn" style="${btnBase}color:#9ca3af;" title="Edit">${pencilSvg}</button>` : ''}
+          <button id="mut-fav-btn" data-id="${m.id}"
+            style="font-size:16px;${btnBase}color:${isFav ? '#f59e0b' : '#d1d5db'};"
+            title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
+        </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
         ${strainLabel ? heroBadge(strainLabel, '#16a34a', 'rgba(22,163,74,0.35)') : ''}
@@ -564,10 +586,10 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
 
   // ── Layout constants ──────────────────────────────────────────────────
   const VB_W    = 600;
-  const VB_H    = 74;
-  const SPINE_Y = 38;
-  const P_TOP   = 26; const P_BOT = 38;   // + strand row
-  const N_TOP   = 40; const N_BOT = 52;   // − strand row (below spine)
+  const VB_H    = 94;
+  const SPINE_Y = 46;
+  const P_TOP   = 34; const P_BOT = 46;   // + strand row
+  const N_TOP   = 48; const N_BOT = 60;   // − strand row (below spine)
   const TGT_PAD = 3;                       // target genes extend this far beyond normal row
   const TIP     = 9;
   const MIN_W   = 26;
@@ -620,9 +642,14 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
 
     const midX = x + w / 2;
     const isNamed = g.gene_name && g.gene_name !== g.locus_tag;
-    const nameStagger = idx % 2 !== 0 ? -10 : 0;
-    const nameY  = isPlus ? ktop - 4 + nameStagger : kbot + 9;
-    const locusY = isPlus ? kbot + 9 : ktop - 4 + nameStagger;
+    // Density-aware stagger: narrow genes (< 35px) use 4 levels; wider use 2.
+    // Both the above-axis and below-axis labels are staggered to prevent collision.
+    const staggerLevels = w < 35 ? 4 : 2;
+    const level         = idx % staggerLevels;
+    const aboveStagger  = -(level * 8);   // 0, -8, -16, -24
+    const belowStagger  =   level * 8;    // 0,  8,  16,  24
+    const nameY  = isPlus ? ktop - 4 + aboveStagger : kbot + 9 + belowStagger;
+    const locusY = isPlus ? kbot + 9 + belowStagger : ktop - 4 + aboveStagger;
 
     const nameEl = isNamed
       ? `<text x="${midX}" y="${nameY}" text-anchor="middle"
@@ -804,6 +831,21 @@ function stocksHTML(pipe) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────
+
+// Returns a compact locus-tag label: single tag, range (CTL0370–CTL0374), or CSV.
+function formatLocusTags(targetGeneIds, geneTagMap) {
+  if (!targetGeneIds?.length) return '';
+  const tags = targetGeneIds
+    .map(id => geneTagMap.get(id))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  if (!tags.length) return '';
+  if (tags.length === 1) return tags[0];
+  // Check if all numeric suffixes are consecutive
+  const nums = tags.map(t => parseInt(t.replace(/\D/g, ''), 10));
+  const isRange = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+  return isRange ? `${tags[0]}–${tags[tags.length - 1]}` : tags.join(', ');
+}
 
 function fmtDate(d) {
   if (!d) return null;
