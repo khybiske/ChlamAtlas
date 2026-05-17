@@ -1,5 +1,5 @@
 // ChlamAtlas — Pipeline tab
-import { sb } from '../client.js?v=61';
+import { sb } from '../client.js?v=62';
 
 const STAGES = [
   { key: 'plasmid_complete',        label: 'Plasmid made',   short: 'Plasmid'    },

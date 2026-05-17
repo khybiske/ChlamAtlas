@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state } from '../client.js?v=61';
+import { sb, state } from '../client.js?v=62';
 
 const PAGE_SIZE = 50;
 
