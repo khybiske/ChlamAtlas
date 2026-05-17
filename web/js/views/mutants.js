@@ -494,10 +494,12 @@ function geneCardsHTML(genes) {
     }).join('');
 
     return `
-      <div class="mut-card">
-        <div class="mut-card-title">${title}</div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">${cards}</div>
-      </div>`;
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead(title)}
+    <div style="padding:10px 16px 14px;">
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">${cards}</div>
+    </div>
+  </div>`;
   }
 
   // 3+ genes: compact scrollable list
@@ -515,10 +517,12 @@ function geneCardsHTML(genes) {
   }).join('');
 
   return `
-    <div class="mut-card">
-      <div class="mut-card-title">${title}</div>
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead(title)}
+    <div style="padding:10px 16px 14px;">
       <div style="max-height:12rem;overflow-y:auto;">${rows}</div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 // ─── Genomic locus map ────────────────────────────────────
@@ -627,8 +631,9 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
     : 'Colors match functional category · strand direction pending coordinate import';
 
   return `
-    <div class="mut-card">
-      <div class="mut-card-title">Chromosome Context</div>
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Chromosome Context')}
+    <div style="padding:10px 16px 14px;">
       <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;overflow:hidden;">
         <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
              style="width:100%;height:auto;display:block;overflow:visible;">
@@ -638,7 +643,8 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
         </svg>
       </div>
       <div style="margin-top:0.5rem;font-size:0.6875rem;color:#9ca3af;font-style:italic;">${note}</div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 function recombInfoHTML(m, pipe, isLabMember) {
@@ -669,22 +675,26 @@ function recombInfoHTML(m, pipe, isLabMember) {
       </div>`;
   }
 
-  const gridStyle = rightCol ? 'class="mut-info-grid"' : 'style="display:block;"';
+  const gridStyle    = rightCol ? 'class="mut-info-grid"' : 'style="display:block;"';
+  const sectionLabel = `Recombinant Info${isLabMember && pipe ? ' &amp; Genotyping' : ''}`;
+  const right        = isLabMember && pipe ? LAB_PILL : '';
   return `
-    <div class="mut-card">
-      <div class="mut-card-title">Recombinant Info${isLabMember && pipe ? ' &amp; Genotyping' : ''}</div>
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead(sectionLabel, right)}
+    <div style="padding:10px 16px 14px;">
       <div ${gridStyle}>${leftCol}${rightCol}</div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 function pipelineHTML(pipe, isLabMember) {
   if (!isLabMember) return '';
   if (!pipe) {
     return `
-      <div class="mut-card">
-        <div class="mut-card-title">Pipeline</div>
-        <div style="font-size:0.8125rem;color:#9ca3af;">No pipeline record.</div>
-      </div>`;
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Pipeline', LAB_PILL)}
+    <div style="padding:10px 16px 14px;font-size:0.8125rem;color:#9ca3af;">No pipeline record.</div>
+  </div>`;
   }
 
   const plasmidDone = !!pipe.transformed_date;
@@ -707,10 +717,12 @@ function pipelineHTML(pipe, isLabMember) {
     </div>`).join('');
 
   return `
-    <div class="mut-card">
-      <div class="mut-card-title">Pipeline</div>
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Pipeline', LAB_PILL)}
+    <div style="padding:10px 16px 14px;">
       <div class="mut-pipeline">${bars}</div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 function phenoHTML(phenos) {
@@ -742,13 +754,15 @@ function phenoHTML(phenos) {
   };
 
   return `
-    <div class="mut-card">
-      <div class="mut-card-title">Phenotypes</div>
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Phenotypes')}
+    <div style="padding:10px 16px 14px;">
       <div class="mut-pheno-grid">
         ${card('In vitro', vitro)}
         ${card('In vivo', vivo)}
       </div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 function stocksHTML(pipe) {
@@ -765,10 +779,12 @@ function stocksHTML(pipe) {
     </div>`).join('');
 
   return `
-    <div class="mut-card">
-      <div class="mut-card-title">Stocks</div>
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Stocks', LAB_PILL)}
+    <div style="padding:10px 16px 14px;">
       <div class="mut-stocks-grid">${items}</div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────
