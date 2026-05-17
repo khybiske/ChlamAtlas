@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state } from '../client.js?v=65';
+import { sb, state, loadFavorites, toggleFavorite } from '../client.js?v=66';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -89,7 +89,6 @@ const POPULAR_FILTERS = [
 ];
 
 const PAGE_SIZE = 50;
-const FAVORITES_KEY = 'chlamatlas_favorites';
 
 // ── Module-level state (reset on each renderGenomes call) ──
 let _strain         = null;
@@ -842,20 +841,6 @@ function skeletonRows(n) {
     </div>`).join('');
 }
 
-function loadFavorites() {
-  try {
-    const raw = localStorage.getItem(FAVORITES_KEY);
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch { return new Set(); }
-}
-
-function toggleFavorite(geneId) {
-  const favs = loadFavorites();
-  const key  = String(geneId);
-  if (favs.has(key)) { favs.delete(key); } else { favs.add(key); }
-  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs])); } catch {}
-  return favs.has(key);
-}
 
 // Returns a section header div: green accent bar + all-caps label.
 // rightContent: optional HTML string rendered right-aligned in the header.

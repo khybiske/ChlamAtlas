@@ -13,3 +13,20 @@ export const state = {
   accessToken: null,
   currentTab:  'home',
 };
+
+export const FAVORITES_KEY = 'chlamatlas_favorites';
+
+export function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+
+export function toggleFavorite(id) {
+  const favs = loadFavorites();
+  const key  = String(id);
+  if (favs.has(key)) { favs.delete(key); } else { favs.add(key); }
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs])); } catch {}
+  return favs.has(key);
+}
