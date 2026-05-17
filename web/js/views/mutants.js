@@ -303,11 +303,16 @@ async function fetchList() {
 function mutantRowHTML(m) {
   const displayName = m.name || m.mutant_id;
   const showId = m.name ? `<div class="mut-row-id">${m.mutant_id}</div>` : '';
-  const unpub = !m.is_published ? `<span class="mut-unpub">unpub</span>` : '';
+  const labPill = !m.is_published
+    ? `<span class="mut-lab-pill" style="margin-left:auto;flex-shrink:0;">🔒 Lab</span>`
+    : '';
   return `
     <button class="mut-row" data-id="${m.id}">
-      ${showId}
-      <div class="mut-row-name">${displayName}${unpub}</div>
+      <div style="flex:1;min-width:0;">
+        ${showId}
+        <div class="mut-row-name">${displayName}</div>
+      </div>
+      ${labPill}
     </button>`;
 }
 
