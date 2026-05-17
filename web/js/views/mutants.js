@@ -14,13 +14,13 @@ const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'D
 
 // Accent color per mutation type — drives hero gradient and type badge color
 const TYPE_ACCENT = {
-  transposon: { color: '#059669', badgeBg: 'rgba(209,250,229,0.5)',  badgeText: '#059669', badgeBorder: 'rgba(5,150,105,0.35)'   },
-  deletion:   { color: '#dc2626', badgeBg: 'rgba(254,226,226,0.5)',  badgeText: '#dc2626', badgeBorder: 'rgba(220,38,38,0.3)'    },
-  chimera:    { color: '#7c3aed', badgeBg: 'rgba(237,233,254,0.5)',  badgeText: '#7c3aed', badgeBorder: 'rgba(124,58,237,0.3)'   },
-  chemical:   { color: '#2563eb', badgeBg: 'rgba(219,234,254,0.5)',  badgeText: '#2563eb', badgeBorder: 'rgba(37,99,235,0.3)'    },
-  intron:     { color: '#ca8a04', badgeBg: 'rgba(254,249,195,0.6)',  badgeText: '#ca8a04', badgeBorder: 'rgba(202,138,4,0.35)'   },
+  transposon: { color: '#059669', heroBg: 'rgba(5,150,105,0.08)',   badgeBg: 'rgba(209,250,229,0.5)',  badgeText: '#059669', badgeBorder: 'rgba(5,150,105,0.35)'   },
+  deletion:   { color: '#dc2626', heroBg: 'rgba(220,38,38,0.08)',   badgeBg: 'rgba(254,226,226,0.5)',  badgeText: '#dc2626', badgeBorder: 'rgba(220,38,38,0.3)'    },
+  chimera:    { color: '#7c3aed', heroBg: 'rgba(124,58,237,0.08)',  badgeBg: 'rgba(237,233,254,0.5)',  badgeText: '#7c3aed', badgeBorder: 'rgba(124,58,237,0.3)'   },
+  chemical:   { color: '#2563eb', heroBg: 'rgba(37,99,235,0.08)',   badgeBg: 'rgba(219,234,254,0.5)',  badgeText: '#2563eb', badgeBorder: 'rgba(37,99,235,0.3)'    },
+  intron:     { color: '#ca8a04', heroBg: 'rgba(202,138,4,0.08)',   badgeBg: 'rgba(254,249,195,0.6)',  badgeText: '#ca8a04', badgeBorder: 'rgba(202,138,4,0.35)'   },
 };
-const DEFAULT_ACCENT = { color: '#6b7280', badgeBg: 'rgba(243,244,246,0.6)', badgeText: '#6b7280', badgeBorder: 'rgba(107,114,128,0.3)' };
+const DEFAULT_ACCENT = { color: '#6b7280', heroBg: 'rgba(107,114,128,0.06)', badgeBg: 'rgba(243,244,246,0.6)', badgeText: '#6b7280', badgeBorder: 'rgba(107,114,128,0.3)' };
 const FUNC_CLASSES = ['Hypothetical', 'Inc protein', 'T3 secreted', 'Characterized'];
 
 // Functional category fill colors — matches Genomes tab exactly
@@ -437,6 +437,7 @@ function heroHTML(m) {
   const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
   const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
   const isFav        = loadFavorites().has(String(m.id));
+  const isLabOrAdmin = state.userRole === 'lab_member' || state.userRole === 'admin';
 
   const pubBadge = m.is_published
     ? heroBadge('Published',   '#059669', 'rgba(5,150,105,0.3)')
@@ -446,14 +447,14 @@ function heroHTML(m) {
   const btnStyle  = 'background:rgba(255,255,255,0.55);border:1px solid rgba(0,0,0,0.08);border-radius:6px;padding:4px 5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;';
 
   return `
-    <div style="padding:16px 20px 14px;border-bottom:3px solid ${accent.color};background:linear-gradient(150deg,color-mix(in srgb,${accent.color} 10%,white) 0%,#ffffff 65%);">
+    <div style="padding:16px 20px 14px;border-bottom:3px solid ${accent.color};background:linear-gradient(150deg,${accent.heroBg} 0%,#ffffff 65%);">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${displayName}</div>
           ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:4px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
         </div>
         <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;padding-top:2px;">
-          <button id="mut-edit-btn" style="${btnStyle}color:#9ca3af;" title="Edit">${pencilSvg}</button>
+          ${isLabOrAdmin ? `<button id="mut-edit-btn" style="${btnStyle}color:#9ca3af;" title="Edit">${pencilSvg}</button>` : ''}
           <button id="mut-fav-btn" data-id="${m.id}" style="${btnStyle}color:${isFav ? '#f59e0b' : '#d1d5db'};" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
         </div>
       </div>
