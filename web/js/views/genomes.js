@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state, loadFavorites, toggleFavorite } from '../client.js?v=66';
+import { sb, state, loadFavorites, toggleFavorite, GENE_FAVORITES_KEY } from '../client.js?v=66';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -257,7 +257,7 @@ function showGeneList(container) {
     if (!favBtn) return;
     e.stopPropagation(); // prevent triggering the row click
     const geneId = favBtn.dataset.id;
-    const nowFav = toggleFavorite(geneId);
+    const nowFav = toggleFavorite(geneId, GENE_FAVORITES_KEY);
     favBtn.textContent = nowFav ? '★' : '☆';
     favBtn.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
     // If filtering by favorites, remove unfavorited row from view
@@ -638,7 +638,7 @@ async function fetchGenes(container, reset = false) {
   // Apply favorites filter client-side (localStorage)
   let rows = genes;
   if (_filters.favorites) {
-    const favs = loadFavorites();
+    const favs = loadFavorites(GENE_FAVORITES_KEY);
     rows = genes.filter(g => favs.has(String(g.id)));
   }
 
@@ -702,7 +702,7 @@ function setupInfiniteScroll(container) {
 
 function geneRow(g) {
   const color = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
-  const favs  = loadFavorites();
+  const favs  = loadFavorites(GENE_FAVORITES_KEY);
   const isFav = favs.has(String(g.id));
 
   const thumbUrl = g.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path ?? null;
@@ -2144,7 +2144,7 @@ function showGeneDetailDesktop(gene, container) {
     });
   }
 
-  const favs   = loadFavorites();
+  const favs   = loadFavorites(GENE_FAVORITES_KEY);
   const isFav  = favs.has(String(gene.id));
   const strain = gene.strains?.common_name ?? _strain;
 
@@ -2241,7 +2241,7 @@ function showGeneDetailDesktop(gene, container) {
   // Wire favorite button in detail panel
   detail.querySelector('#detail-fav-btn').addEventListener('click', e => {
     const id    = e.currentTarget.dataset.id;
-    const nowFav = toggleFavorite(id);
+    const nowFav = toggleFavorite(id, GENE_FAVORITES_KEY);
     e.currentTarget.textContent = nowFav ? '★' : '☆';
     e.currentTarget.style.color  = nowFav ? '#f59e0b' : '#d1d5db';
     // Sync star in list panel

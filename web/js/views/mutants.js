@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, loadFavorites, toggleFavorite } from '../client.js?v=66';
+import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=66';
 
 const PAGE_SIZE = 50;
 
@@ -421,7 +421,7 @@ async function loadDetail(mutantUUID) {
   // Wire favorites star
   rightEl.querySelector('#mut-fav-btn')?.addEventListener('click', e => {
     const id     = e.currentTarget.dataset.id;
-    const nowFav = toggleFavorite(id);
+    const nowFav = toggleFavorite(id, MUTANT_FAVORITES_KEY);
     e.currentTarget.style.color = nowFav ? '#f59e0b' : '#d1d5db';
     e.currentTarget.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
     e.currentTarget.textContent = nowFav ? '★' : '☆';
@@ -441,7 +441,7 @@ function heroHTML(m) {
   const accent       = TYPE_ACCENT[m.mutation_type] ?? DEFAULT_ACCENT;
   const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
   const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
-  const isFav        = loadFavorites().has(String(m.id));
+  const isFav        = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
   const isLabOrAdmin = state.userRole === 'lab_member' || state.userRole === 'admin';
 
   const pubBadge = m.is_published

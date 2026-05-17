@@ -14,19 +14,20 @@ export const state = {
   currentTab:  'home',
 };
 
-export const FAVORITES_KEY = 'chlamatlas_favorites';
+export const GENE_FAVORITES_KEY   = 'chlamatlas_gene_favorites';
+export const MUTANT_FAVORITES_KEY = 'chlamatlas_mutant_favorites';
 
-export function loadFavorites() {
+export function loadFavorites(storageKey) {
   try {
-    const raw = localStorage.getItem(FAVORITES_KEY);
+    const raw = localStorage.getItem(storageKey);
     return raw ? new Set(JSON.parse(raw)) : new Set();
   } catch { return new Set(); }
 }
 
-export function toggleFavorite(id) {
-  const favs = loadFavorites();
-  const key  = String(id);
-  if (favs.has(key)) { favs.delete(key); } else { favs.add(key); }
-  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs])); } catch {}
-  return favs.has(key);
+export function toggleFavorite(id, storageKey) {
+  const favs = loadFavorites(storageKey);
+  const k    = String(id);
+  if (favs.has(k)) { favs.delete(k); } else { favs.add(k); }
+  try { localStorage.setItem(storageKey, JSON.stringify([...favs])); } catch {}
+  return favs.has(k);
 }
