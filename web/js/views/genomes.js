@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state } from '../client.js?v=64';
+import { sb, state } from '../client.js?v=65';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -885,8 +885,11 @@ function renderDetailGeneInfo(detail, gene) {
 
   const strandRaw   = gene.strand === '+' ? '+ (sense)' : gene.strand === '-' ? '− (antisense)' : '—';
   const strandLabel = esc(strandRaw);
-  const lengthLabel = gene.end_bp ? `${gene.end_bp.toLocaleString()} bp` : '—';
-  const posLabel    = (gene.start_bp && gene.end_bp)
+  const geneLen     = (gene.start_bp != null && gene.end_bp != null)
+    ? gene.end_bp - gene.start_bp
+    : null;
+  const lengthLabel = geneLen != null ? `${geneLen.toLocaleString()} bp` : '—';
+  const posLabel    = (gene.start_bp != null && gene.end_bp != null)
     ? `${gene.start_bp.toLocaleString()}–${gene.end_bp.toLocaleString()}`
     : null;
 
@@ -945,7 +948,7 @@ async function loadDetailAsync(detail, gene) {
 
     gene.sort_index != null
       ? sb.from('genes')
-          .select('id,locus_tag,gene_name,functional_category,strand,end_bp,sort_index')
+          .select('id,locus_tag,gene_name,functional_category,strand,start_bp,end_bp,sort_index')
           .eq('strain_id', gene.strain_id)
           .gte('sort_index', gene.sort_index - 4)
           .lte('sort_index', gene.sort_index + 4)
@@ -1072,12 +1075,16 @@ function renderDetailGeneMap(detail, gene, neighbors) {
   const MIN_W   = 28;
 
   // ── Scale arrows to fit viewBox ───────────────────────────────
-  const totalBp = neighbors.reduce((s, g) => s + Math.max(g.end_bp ?? 600, 1), 0);
+  // Use (end_bp - start_bp) when coordinates available; fall back to end_bp*3 (aa→bp approx).
+  const gLen    = g => (g.start_bp != null && g.end_bp != null)
+    ? g.end_bp - g.start_bp
+    : (g.end_bp ?? 600) * 3;
+  const totalBp = neighbors.reduce((s, g) => s + Math.max(gLen(g), 1), 0);
   const scale   = (VB_W - 20) / Math.max(totalBp, 1);
 
   let x = 10;
   const arrowDefs = neighbors.map(g => {
-    const w   = Math.max(Math.round((g.end_bp ?? 600) * scale), MIN_W);
+    const w   = Math.max(Math.round(gLen(g) * scale), MIN_W);
     const def = { g, x, w };
     x += w + 2;
     return def;

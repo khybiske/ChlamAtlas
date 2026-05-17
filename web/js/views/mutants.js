@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state } from '../client.js?v=64';
+import { sb, state } from '../client.js?v=65';
 
 const PAGE_SIZE = 50;
 
@@ -345,7 +345,7 @@ async function loadDetail(mutantUUID) {
         const hi = isPlasmid ? 878 : maxIdx + 6;
         const { data: nbData } = await sb
           .from('genes')
-          .select('id,locus_tag,gene_name,functional_category,end_bp,sort_index')
+          .select('id,locus_tag,gene_name,functional_category,start_bp,end_bp,strand,sort_index')
           .eq('strain_id', strainId)
           .gte('sort_index', lo)
           .lte('sort_index', hi)
@@ -481,22 +481,29 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
   };
   const hitStroke = typeStroke[mutationType] ?? typeStroke.deletion;
 
-  // ── Layout constants (mirrors genomes.js renderDetailGeneMap) ──────────
-  const VB_W   = 600;
-  const VB_H   = 72;
-  const SPINE_Y = 38;          // chromosome backbone y
-  const TOP    = 24; const BOT = 38; // normal gene block row
-  const TGT_TOP = 20; const TGT_BOT = 42; // target gene: slightly taller
-  const TIP    = 9;            // chevron tip width
-  const MIN_W  = 26;           // minimum gene width so tiny genes stay visible
+  // ── Layout constants ──────────────────────────────────────────────────
+  const VB_W    = 600;
+  const VB_H    = 74;
+  const SPINE_Y = 38;
+  const P_TOP   = 26; const P_BOT = 38;   // + strand row
+  const N_TOP   = 40; const N_BOT = 52;   // − strand row (below spine)
+  const TGT_PAD = 3;                       // target genes extend this far beyond normal row
+  const TIP     = 9;
+  const MIN_W   = 26;
 
-  // Scale proportionally to fit viewBox width
-  const totalBp = neighborhood.reduce((s, g) => s + Math.max(g.end_bp ?? 600, 1), 0);
+  const hasStrand = neighborhood.some(g => g.strand);
+
+  // Gene length helper: prefer real bp coords, fall back to aa * 3
+  const gLen = g => (g.start_bp != null && g.end_bp != null)
+    ? g.end_bp - g.start_bp
+    : (g.end_bp ?? 600) * 3;
+
+  const totalBp = neighborhood.reduce((s, g) => s + Math.max(gLen(g), 1), 0);
   const scale   = (VB_W - 20) / Math.max(totalBp, 1);
 
   let cx = 10;
   const defs = neighborhood.map(g => {
-    const w   = Math.max(Math.round((g.end_bp ?? 600) * scale), MIN_W);
+    const w   = Math.max(Math.round(gLen(g) * scale), MIN_W);
     const def = { g, x: cx, w };
     cx += w + 2;
     return def;
@@ -505,26 +512,36 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
 
   const backbone = `<line x1="10" y1="${SPINE_Y}" x2="${actualVbW - 10}" y2="${SPINE_Y}" stroke="#d9d9d9" stroke-width="1.2"/>`;
 
-  const arrows = defs.map(({ g, x, w }, idx) => {
-    const isTarget = targetIds.has(g.id);
-    const top = isTarget ? TGT_TOP : TOP;
-    const bot = isTarget ? TGT_BOT : BOT;
-    const mid = (top + bot) / 2;
-    const fill   = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
-    const opacity = isTarget ? '1' : '0.82';
+  // Strand labels if we have strand data
+  const strandLabels = hasStrand ? `
+    <text x="5" y="${(P_TOP + P_BOT) / 2 + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">+</text>
+    <text x="5" y="${(N_TOP + N_BOT) / 2 + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">−</text>` : '';
 
-    // All arrows point right (strand direction deferred until start_bp imported)
-    const pts = `${x},${top} ${x + w - TIP},${top} ${x + w},${mid} ${x + w - TIP},${bot} ${x},${bot}`;
+  const arrows = defs.map(({ g, x, w }, idx) => {
+    const isTarget  = targetIds.has(g.id);
+    const isPlus    = !hasStrand || g.strand !== '-';
+    const top       = isPlus ? P_TOP : N_TOP;
+    const bot       = isPlus ? P_BOT : N_BOT;
+    const ktop      = isTarget ? top - TGT_PAD : top;
+    const kbot      = isTarget ? bot + TGT_PAD : bot;
+    const mid       = (ktop + kbot) / 2;
+    const fill      = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const opacity   = isTarget ? '1' : '0.82';
+
+    // Chevron points right for + strand, left for − strand
+    const pts = isPlus
+      ? `${x},${ktop} ${x + w - TIP},${ktop} ${x + w},${mid} ${x + w - TIP},${kbot} ${x},${kbot}`
+      : `${x + w},${ktop} ${x + TIP},${ktop} ${x},${mid} ${x + TIP},${kbot} ${x + w},${kbot}`;
+
     const strokeEl = isTarget
       ? `<polygon points="${pts}" fill="none" stroke="${hitStroke}" stroke-width="1.5"/>`
       : '';
 
     const midX = x + w / 2;
     const isNamed = g.gene_name && g.gene_name !== g.locus_tag;
-    // Stagger name labels on alternating genes to reduce crowding for narrow genes
     const nameStagger = (!isTarget && idx % 2 !== 0) ? -9 : 0;
-    const nameY  = top - 4 + nameStagger;
-    const locusY = bot + 9;
+    const nameY  = isPlus ? ktop - 4 + nameStagger : kbot + 9;
+    const locusY = isPlus ? kbot + 9 : ktop - 4 + nameStagger;
 
     const nameEl = isNamed
       ? `<text x="${midX}" y="${nameY}" text-anchor="middle"
@@ -537,7 +554,7 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
                           font-weight="${isTarget ? '700' : '400'}"
                           fill="${isTarget ? '#111' : '#bbb'}">${g.locus_tag}</text>`;
 
-    const tip = `${g.locus_tag}${isNamed ? ' · ' + g.gene_name : ''}`;
+    const tip = `${g.locus_tag}${isNamed ? ' · ' + g.gene_name : ''}${g.strand ? ' (' + g.strand + ')' : ''}`;
 
     return `
       <g style="cursor:default;">
@@ -549,6 +566,10 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
       </g>`;
   }).join('');
 
+  const note = hasStrand
+    ? 'Colors match functional category · same scheme as Genomes tab'
+    : 'Colors match functional category · strand direction pending coordinate import';
+
   return `
     <div class="mut-card">
       <div class="mut-card-title">Chromosome Context</div>
@@ -556,12 +577,11 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
         <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
              style="width:100%;height:auto;display:block;overflow:visible;">
           ${backbone}
+          ${strandLabels}
           ${arrows}
         </svg>
       </div>
-      <div style="margin-top:0.5rem;font-size:0.6875rem;color:#9ca3af;font-style:italic;">
-        Colors match functional category · same scheme as Genomes tab · strand direction pending coordinate import
-      </div>
+      <div style="margin-top:0.5rem;font-size:0.6875rem;color:#9ca3af;font-style:italic;">${note}</div>
     </div>`;
 }
 
