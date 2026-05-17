@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=66';
+import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=67';
 
 const PAGE_SIZE = 50;
 
@@ -62,18 +62,28 @@ function heroBadge(text, textColor, border, bg = 'rgba(255,255,255,0.75)') {
   return `<span style="display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${bg};color:${textColor};border:1px solid ${border};">${text}</span>`;
 }
 
+// Functional category pill for gene lists — colored by category using existing CATEGORY_COLORS map.
+const LIGHT_CATS = new Set(['#FFF100','#EBEBEB','#BED630','#F497AE','#AAAAAA']);
+function funcCategoryPill(category) {
+  if (!category) return '';
+  const bg   = CATEGORY_COLORS[category] ?? CATEGORY_COLOR_DEFAULT;
+  const text = LIGHT_CATS.has(bg) ? '#555' : '#fff';
+  return `<span style="display:inline-block;font-size:0.5rem;font-weight:600;padding:1px 5px;border-radius:4px;background:${bg};color:${text};white-space:nowrap;flex-shrink:0;">${category}</span>`;
+}
+
 // Module state
-let _collection  = 'CT_L2';
-let _typeFilter  = 'all';
-let _sortCol     = 'mutant_id';
-let _sortAsc     = true;
-let _page        = 0;
-let _total       = 0;
-let _searchTerm  = '';
-let _selectedId  = null;
-let _container   = null;
-let _searchTimer = null;
-let _activeFilters = {};
+let _collection       = 'CT_L2';
+let _typeFilter       = 'all';
+let _sortCol          = 'mutant_id';
+let _sortAsc          = true;
+let _page             = 0;
+let _total            = 0;
+let _searchTerm       = '';
+let _selectedId       = null;
+let _container        = null;
+let _searchTimer      = null;
+let _activeFilters    = {};
+let _showFavoritesOnly = false;
 
 // ─── Entry point ──────────────────────────────────────────
 
@@ -88,6 +98,7 @@ export function renderMutants(container) {
   _searchTerm = '';
   _selectedId = null;
   _activeFilters = {};
+  _showFavoritesOnly = false;
 
   const col = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
   const isMobile = window.innerWidth < 768;
@@ -122,6 +133,7 @@ export function renderMutants(container) {
             <button class="mut-type-pill ${t === _typeFilter ? 'active' : ''}" data-type="${t}">
               ${t === 'all' ? 'All' : TYPE_LABELS[t]}
             </button>`).join('')}
+          <button id="mut-fav-filter" class="mut-type-pill${_showFavoritesOnly ? ' active' : ''}">★ Favorites</button>
         </div>
 
         <!-- Sort row -->
@@ -130,7 +142,7 @@ export function renderMutants(container) {
           <span>Sort:</span>
           <select id="mut-sort" style="font-size:0.75rem;border:1px solid #e5e7eb;border-radius:0.375rem;
                   padding:0.1875rem 0.375rem;color:#374151;background:#fff;cursor:pointer;">
-            <option value="mutant_id">Mutant ID</option>
+            <option value="mutant_id">Locus Tag</option>
             <option value="name">Name</option>
           </select>
           <button id="mut-sort-dir" title="Toggle sort direction"
@@ -191,6 +203,14 @@ function wireControls() {
       pill.classList.add('active');
       fetchList();
     });
+  });
+
+  // Favorites filter
+  document.getElementById('mut-fav-filter').addEventListener('click', (e) => {
+    _showFavoritesOnly = !_showFavoritesOnly;
+    e.currentTarget.classList.toggle('active', _showFavoritesOnly);
+    _page = 0;
+    fetchList();
   });
 
   // Sort select
@@ -280,7 +300,18 @@ async function fetchList() {
     return;
   }
 
-  listEl.innerHTML = rows.map(m => mutantRowHTML(m)).join('');
+  // Favorites filter (client-side, additive)
+  let displayRows = rows;
+  if (_showFavoritesOnly) {
+    const favs = loadFavorites(MUTANT_FAVORITES_KEY);
+    displayRows = rows.filter(m => favs.has(String(m.id)));
+    if (!displayRows.length) {
+      listEl.innerHTML = `<div style="padding:2rem;text-align:center;color:#9ca3af;font-size:0.875rem;">No favorited mutants in this collection.</div>`;
+      return;
+    }
+  }
+
+  listEl.innerHTML = displayRows.map(m => mutantRowHTML(m)).join('');
   listEl.querySelectorAll('.mut-row').forEach(row => {
     row.addEventListener('click', () => {
       document.querySelectorAll('.mut-row').forEach(r => r.classList.remove('selected'));
@@ -291,7 +322,7 @@ async function fetchList() {
   });
 
   // Auto-select first row on initial load
-  if (!_selectedId && rows.length) {
+  if (!_selectedId && displayRows.length) {
     const first = listEl.querySelector('.mut-row');
     if (first) { first.classList.add('selected'); _selectedId = first.dataset.id; loadDetail(first.dataset.id); }
   } else if (_selectedId) {
@@ -358,11 +389,11 @@ async function loadDetail(mutantUUID) {
   if (m.target_gene_ids?.length) {
     const { data: geneData } = await sb
       .from('genes')
-      .select(`id,locus_tag,gene_name,product,is_characterized,sort_index,strain_id,
+      .select(`id,locus_tag,gene_name,product,functional_category,is_characterized,sort_index,strain_id,
                proteins(id,localization,
                  alphafold_results(thumbnail_path))`)
       .in('id', m.target_gene_ids);
-    genes = geneData ?? [];
+    genes = (geneData ?? []).sort((a, b) => (a.locus_tag ?? '').localeCompare(b.locus_tag ?? ''));
 
     // Fetch genomic neighborhood (±6 flanking) for the locus map
     if (genes.length) {
@@ -373,8 +404,8 @@ async function loadDetail(mutantUUID) {
         const maxIdx = Math.max(...validIdx);
         // Plasmid genes cluster at high sort_index — show all 8; chromosome: ±6
         const isPlasmid  = minIdx >= 871;
-        const lo = isPlasmid ? 871 : Math.max(0, minIdx - 6);
-        const hi = isPlasmid ? 878 : maxIdx + 6;
+        const lo = isPlasmid ? 871 : Math.max(0, minIdx - 4);
+        const hi = isPlasmid ? 878 : maxIdx + 4;
         const { data: nbData } = await sb
           .from('genes')
           .select('id,locus_tag,gene_name,functional_category,start_bp,end_bp,strand,sort_index')
@@ -427,10 +458,6 @@ async function loadDetail(mutantUUID) {
     e.currentTarget.textContent = nowFav ? '★' : '☆';
   });
 
-  // Edit button — placeholder until edit modals are built
-  rightEl.querySelector('#mut-edit-btn')?.addEventListener('click', () => {
-    // TODO: open edit modal
-  });
 }
 
 // ─── Detail section builders ──────────────────────────────
@@ -441,15 +468,11 @@ function heroHTML(m) {
   const accent       = TYPE_ACCENT[m.mutation_type] ?? DEFAULT_ACCENT;
   const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
   const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
-  const isFav        = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
-  const isLabOrAdmin = state.userRole === 'lab_member' || state.userRole === 'admin';
+  const isFav = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
 
   const pubBadge = m.is_published
     ? heroBadge('Published',   '#059669', 'rgba(5,150,105,0.3)')
     : heroBadge('Unpublished', '#b45309', 'rgba(180,83,9,0.3)');
-
-  const pencilSvg = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>`;
-  const btnStyle  = 'background:rgba(255,255,255,0.55);border:1px solid rgba(0,0,0,0.08);border-radius:6px;padding:4px 5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;';
 
   return `
     <div style="padding:16px 20px 14px;border-bottom:3px solid ${accent.color};background:linear-gradient(150deg,${accent.heroBg} 0%,#ffffff 65%);">
@@ -458,10 +481,9 @@ function heroHTML(m) {
           <div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${displayName}</div>
           ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:4px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
         </div>
-        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;padding-top:2px;">
-          ${isLabOrAdmin ? `<button id="mut-edit-btn" style="${btnStyle}color:#9ca3af;" title="Edit">${pencilSvg}</button>` : ''}
-          <button id="mut-fav-btn" data-id="${m.id}" style="${btnStyle}color:${isFav ? '#f59e0b' : '#d1d5db'};" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
-        </div>
+        <button id="mut-fav-btn" data-id="${m.id}"
+          style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
+          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
         ${strainLabel ? heroBadge(strainLabel, '#16a34a', 'rgba(22,163,74,0.35)') : ''}
@@ -483,16 +505,13 @@ function geneCardsHTML(genes) {
       const thumb = af?.thumbnail_path
         ? `<img class="mut-gene-thumb" src="${af.thumbnail_path}" alt="">`
         : `<div class="mut-gene-thumb-placeholder">${(g.locus_tag || '?').slice(-2)}</div>`;
-      const funcBadge = g.is_characterized
-        ? `<span class="func-badge func-badge-char">Characterized</span>`
-        : `<span class="func-badge func-badge-hypo">Hypothetical</span>`;
       return `
         <div class="mut-gene-card" style="flex:1;min-width:0;">
           ${thumb}
           <div style="flex:1;min-width:0;">
             <div class="mut-gene-tag">${g.locus_tag}</div>
             ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
-            ${funcBadge}
+            ${funcCategoryPill(g.functional_category)}
             <button class="mut-gene-link" data-gene-nav="${g.id}">View in Genomes →</button>
           </div>
         </div>`;
@@ -508,18 +527,15 @@ function geneCardsHTML(genes) {
   }
 
   // 3+ genes: compact scrollable list
-  const rows = genes.map(g => {
-    const funcBadge = g.is_characterized
-      ? `<span class="func-badge func-badge-char" style="font-size:0.5625rem;">Characterized</span>`
-      : `<span class="func-badge func-badge-hypo" style="font-size:0.5625rem;">Hypothetical</span>`;
-    return `
-      <div style="display:flex;align-items:center;gap:0.625rem;padding:0.375rem 0;border-bottom:1px solid #f3f4f6;">
-        <span class="mut-gene-tag" style="min-width:5.5rem;flex-shrink:0;">${g.locus_tag}</span>
-        <span style="flex:1;min-width:0;font-size:0.75rem;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${g.product ?? ''}</span>
-        ${funcBadge}
-        <button class="mut-gene-link" style="flex-shrink:0;font-size:0.6875rem;" data-gene-nav="${g.id}">→</button>
-      </div>`;
-  }).join('');
+  const rows = genes.map(g => `
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0;border-bottom:1px solid #f3f4f6;">
+      <span class="mut-gene-tag" style="min-width:5.5rem;flex-shrink:0;">${g.locus_tag}</span>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:0.375rem;overflow:hidden;">
+        <span style="font-size:0.75rem;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${g.product ?? ''}</span>
+        ${funcCategoryPill(g.functional_category)}
+      </div>
+      <button class="mut-gene-link" style="flex-shrink:0;font-size:0.6875rem;" data-gene-nav="${g.id}">→</button>
+    </div>`).join('');
 
   return `
   <div style="background:white;border-bottom:1px solid #f0f0f0;">
@@ -604,7 +620,7 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
 
     const midX = x + w / 2;
     const isNamed = g.gene_name && g.gene_name !== g.locus_tag;
-    const nameStagger = (!isTarget && idx % 2 !== 0) ? -9 : 0;
+    const nameStagger = idx % 2 !== 0 ? -10 : 0;
     const nameY  = isPlus ? ktop - 4 + nameStagger : kbot + 9;
     const locusY = isPlus ? kbot + 9 : ktop - 4 + nameStagger;
 
@@ -631,10 +647,6 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
       </g>`;
   }).join('');
 
-  const note = hasStrand
-    ? 'Colors match functional category · same scheme as Genomes tab'
-    : 'Colors match functional category · strand direction pending coordinate import';
-
   return `
   <div style="background:white;border-bottom:1px solid #f0f0f0;">
     ${mutSectionHead('Chromosome Context')}
@@ -647,7 +659,6 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
           ${arrows}
         </svg>
       </div>
-      <div style="margin-top:0.5rem;font-size:0.6875rem;color:#9ca3af;font-style:italic;">${note}</div>
     </div>
   </div>`;
 }
