@@ -1,5 +1,5 @@
 // Shared Supabase client and app state — imported by view modules to avoid circular deps with app.js
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=62';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js?v=63';
 export { SUPABASE_URL, SUPABASE_ANON_KEY };
 
 const { createClient } = window.supabase;

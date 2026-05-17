@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state } from '../client.js?v=62';
+import { sb, state } from '../client.js?v=63';
 
 const PAGE_SIZE = 50;
 
@@ -298,16 +298,39 @@ async function loadDetail(mutantUUID) {
   const phenos = phenoRes.data ?? [];
   const isLabMember = state.userRole === 'lab_member' || state.userRole === 'admin';
 
-  // Resolve target genes
+  // Resolve target genes (with sort_index + strain_id for the locus map)
   let genes = [];
+  let neighborhood = [];
   if (m.target_gene_ids?.length) {
     const { data: geneData } = await sb
       .from('genes')
-      .select(`id,locus_tag,gene_name,product,is_characterized,
+      .select(`id,locus_tag,gene_name,product,is_characterized,sort_index,strain_id,
                proteins(id,localization,
                  alphafold_results(thumbnail_path))`)
       .in('id', m.target_gene_ids);
     genes = geneData ?? [];
+
+    // Fetch genomic neighborhood (±6 flanking) for the locus map
+    if (genes.length) {
+      const strainId  = genes[0].strain_id;
+      const validIdx  = genes.map(g => g.sort_index).filter(i => i != null);
+      if (validIdx.length && strainId) {
+        const minIdx = Math.min(...validIdx);
+        const maxIdx = Math.max(...validIdx);
+        // Plasmid genes cluster at high sort_index — show all 8; chromosome: ±6
+        const isPlasmid  = minIdx >= 871;
+        const lo = isPlasmid ? 871 : Math.max(0, minIdx - 6);
+        const hi = isPlasmid ? 878 : maxIdx + 6;
+        const { data: nbData } = await sb
+          .from('genes')
+          .select('id,locus_tag,gene_name,is_characterized,sort_index')
+          .eq('strain_id', strainId)
+          .gte('sort_index', lo)
+          .lte('sort_index', hi)
+          .order('sort_index');
+        neighborhood = nbData ?? [];
+      }
+    }
   }
 
   const isMobile = window.innerWidth < 768;
@@ -317,6 +340,7 @@ async function loadDetail(mutantUUID) {
 
     ${heroHTML(m)}
     ${geneCardsHTML(genes)}
+    ${geneLociMapHTML(genes, neighborhood, m.mutation_type)}
     ${recombInfoHTML(m, pipe, isLabMember)}
     ${pipe || isLabMember ? pipelineHTML(pipe, isLabMember) : ''}
     ${phenoHTML(phenos)}
@@ -416,6 +440,99 @@ function geneCardsHTML(genes) {
     <div class="mut-card">
       <div class="mut-card-title">${title}</div>
       <div style="max-height:12rem;overflow-y:auto;">${rows}</div>
+    </div>`;
+}
+
+// ─── Genomic locus map ────────────────────────────────────
+
+function geneLociMapHTML(genes, neighborhood, mutationType) {
+  if (!neighborhood.length) return '';
+
+  const targetIds = new Set(genes.map(g => g.id));
+
+  // Color per mutation type for target gene highlight
+  const typeColors = {
+    transposon: { fill: '#059669', border: '#047857' },
+    deletion:   { fill: '#ef4444', border: '#dc2626' },
+    chemical:   { fill: '#8b5cf6', border: '#7c3aed' },
+    chimera:    { fill: '#0891b2', border: '#0e7490' },
+  };
+  const hitColor = typeColors[mutationType] ?? typeColors.deletion;
+
+  // Gene block dimensions
+  const BLOCK_W  = 56;  // px per gene
+  const BLOCK_H  = 28;
+  const GAP      = 6;
+  const LABEL_H  = 16;
+  const TRACK_H  = BLOCK_H + LABEL_H + 8; // total row height
+  const totalW   = neighborhood.length * (BLOCK_W + GAP) - GAP;
+  const svgH     = TRACK_H + 4;
+
+  const svgParts = neighborhood.map((g, i) => {
+    const isTarget = targetIds.has(g.id);
+    const x = i * (BLOCK_W + GAP);
+    const y = 0;
+
+    const fill   = isTarget ? hitColor.fill
+                 : g.is_characterized ? '#16a34a'
+                 : '#d1d5db';
+    const stroke = isTarget ? hitColor.border : 'none';
+    const sw     = isTarget ? 2 : 0;
+
+    // Arrow-chevron shape: slightly pointed on right (placeholder for strand direction)
+    const pt = `${x},${y} ${x + BLOCK_W - 7},${y} ${x + BLOCK_W},${y + BLOCK_H / 2} ${x + BLOCK_W - 7},${y + BLOCK_H} ${x},${y + BLOCK_H}`;
+
+    const labelColor = isTarget ? '#111827' : '#6b7280';
+    const labelWeight = isTarget ? '700' : '400';
+    const labelY = BLOCK_H + 12;
+    const label = g.locus_tag.length > 8 ? g.locus_tag.slice(-6) : g.locus_tag;
+
+    // Tooltip via <title>
+    const tip = `${g.locus_tag}${g.gene_name && g.gene_name !== g.locus_tag ? ': ' + g.gene_name : ''}`;
+
+    return `
+      <g class="gene-block" style="cursor:default;" data-locus="${g.locus_tag}">
+        <title>${tip}</title>
+        <polygon points="${pt}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" rx="3"/>
+        <text x="${x + BLOCK_W / 2 - 3}" y="${labelY}"
+              text-anchor="middle" font-size="8" font-family="ui-monospace,monospace"
+              fill="${labelColor}" font-weight="${labelWeight}">${label}</text>
+      </g>`;
+  }).join('');
+
+  // Connecting track line at mid-block
+  const trackLine = `<line x1="0" y1="${BLOCK_H / 2}" x2="${totalW}" y2="${BLOCK_H / 2}"
+                           stroke="#e5e7eb" stroke-width="2" stroke-dasharray="none"/>`;
+
+  // Legend items
+  const typeLabel = TYPE_LABELS[mutationType] ?? (mutationType ?? 'Target');
+  const legend = `
+    <div style="margin-top:0.625rem;display:flex;gap:1rem;flex-wrap:wrap;font-size:0.6875rem;color:#6b7280;align-items:center;">
+      <span style="display:flex;align-items:center;gap:4px;">
+        <svg width="12" height="12"><polygon points="0,0 9,0 12,6 9,12 0,12" fill="${hitColor.fill}"/></svg>
+        ${typeLabel}
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <svg width="12" height="12"><polygon points="0,0 9,0 12,6 9,12 0,12" fill="#16a34a"/></svg>
+        Characterized
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <svg width="12" height="12"><polygon points="0,0 9,0 12,6 9,12 0,12" fill="#d1d5db"/></svg>
+        Hypothetical
+      </span>
+      <span style="margin-left:auto;font-style:italic;color:#9ca3af;">↑ genomic order · strand direction pending coordinate import</span>
+    </div>`;
+
+  return `
+    <div class="mut-card">
+      <div class="mut-card-title">Genomic Locus</div>
+      <div style="overflow-x:auto;padding-bottom:0.25rem;">
+        <svg width="${totalW}" height="${svgH}" style="overflow:visible;display:block;">
+          ${trackLine}
+          ${svgParts}
+        </svg>
+      </div>
+      ${legend}
     </div>`;
 }
 
