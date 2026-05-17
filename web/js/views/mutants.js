@@ -1,7 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=68';
-
-const PAGE_SIZE = 50;
+import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=69';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -10,7 +8,47 @@ const COLLECTIONS = [
   { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
 ];
 
-const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical' };
+const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical', intron: 'Intron' };
+
+const SORT_OPTIONS = [
+  { field: 'locus_tag', asc: true, label: 'Locus tag' },
+  { field: 'gene_name', asc: true, label: 'Gene name' },
+  { field: 'mutant_id', asc: true, label: 'Mutant ID' },
+];
+
+const FUNC_LABELS = {
+  'Amino acid metabolism':      'Amino acid',
+  'Cell envelope':              'Cell envelope',
+  'Cell processes':             'Cell processes',
+  'Cofactor metabolism':        'Cofactor',
+  'Energy metabolism':          'Energy',
+  'Inclusion membrane protein': 'Inc',
+  'Inermediary metabolism':     'Intermediary',
+  'Lipid metabolism':           'Lipid',
+  'Membrane transport':         'Transport',
+  'Nucleotide metabolism':      'Nucleotide',
+  'Replication':                'Replication',
+  'Secreted effector':          'Secreted effector',
+  'Transcription':              'Transcription',
+  'Translation':                'Translation',
+  'Type III secretion':         'T3SS',
+};
+
+// Type filter options per collection (Lucky17 + Chimeras have no type dimension)
+const COLLECTION_TYPES = {
+  CT_L2:    ['transposon', 'deletion', 'intron', 'chemical'],
+  CM:       ['transposon', 'deletion'],
+  Lucky17:  [],
+  Chimeras: [],
+};
+
+// Strain filter options per collection (value = DB common_name, label = display)
+const COLLECTION_STRAINS = {
+  CT_L2:    [{ value: 'CT-L2', label: 'CT L2/434' }, { value: 'CT-D', label: 'D/UW-3' }],
+  CM:       [],
+  Lucky17:  [],
+  Chimeras: [{ value: 'CT-L2', label: 'CT L2/434' }, { value: 'CM', label: 'C. muridarum' }],
+};
 
 // Accent color per mutation type — drives hero gradient and type badge color
 const TYPE_ACCENT = {
@@ -73,32 +111,32 @@ function funcCategoryPill(category) {
 
 // Module state
 let _collection       = 'CT_L2';
-let _typeFilter       = 'all';
-let _sortCol          = 'mutant_id';
+let _sortField        = 'locus_tag';
 let _sortAsc          = true;
-let _page             = 0;
 let _total            = 0;
 let _searchTerm       = '';
 let _selectedId       = null;
 let _container        = null;
 let _searchTimer      = null;
-let _activeFilters    = {};
-let _showFavoritesOnly = false;
+let _filters          = { favorites: false, type: null, strain: null, category: null };
+let _moreOpen         = false;
+let _expandedSections = { type: false, strain: false, function: false };
+let _geneDataMap      = new Map();
 
 // ─── Entry point ──────────────────────────────────────────
 
 export function renderMutants(container) {
   _container = container;
   _collection = window.__mutantCollection ?? 'CT_L2';
-  _typeFilter = 'all';
-  _sortCol = 'mutant_id';
+  _sortField = 'locus_tag';
   _sortAsc = true;
-  _page = 0;
   _total = 0;
   _searchTerm = '';
   _selectedId = null;
-  _activeFilters = {};
-  _showFavoritesOnly = false;
+  _filters = { favorites: false, type: null, strain: null, category: null };
+  _moreOpen = false;
+  _expandedSections = { type: false, strain: false, function: false };
+  _geneDataMap = new Map();
 
   const col = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
   const isMobile = window.innerWidth < 768;
@@ -121,36 +159,14 @@ export function renderMutants(container) {
         </div>
 
         <!-- Search -->
-        <div style="padding:0.625rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+        <div style="padding:6px 10px;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
           <input id="mut-search" type="search" placeholder="Search mutants…"
-            style="width:100%;padding:0.375rem 0.625rem;border:1px solid #e5e7eb;border-radius:0.5rem;
-                   font-size:0.8125rem;outline:none;background:#f9fafb;" />
+            style="width:100%;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;
+                   font-size:12px;outline:none;background:#f9fafb;" />
         </div>
 
-        <!-- Type filter pills -->
-        <div style="display:flex;flex-wrap:wrap;gap:0.375rem;padding:0.5rem 0.75rem;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
-          ${['all','transposon','deletion','chemical'].map(t => `
-            <button class="mut-type-pill ${t === _typeFilter ? 'active' : ''}" data-type="${t}">
-              ${t === 'all' ? 'All' : TYPE_LABELS[t]}
-            </button>`).join('')}
-          <button id="mut-fav-filter" class="mut-type-pill${_showFavoritesOnly ? ' active' : ''}">★ Favorites</button>
-        </div>
-
-        <!-- Sort row -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.75rem;
-                    border-bottom:1px solid #e5e7eb;flex-shrink:0;font-size:0.75rem;color:#6b7280;">
-          <span>Sort:</span>
-          <select id="mut-sort" style="font-size:0.75rem;border:1px solid #e5e7eb;border-radius:0.375rem;
-                  padding:0.1875rem 0.375rem;color:#374151;background:#fff;cursor:pointer;">
-            <option value="mutant_id">Locus Tag</option>
-            <option value="name">Name</option>
-          </select>
-          <button id="mut-sort-dir" title="Toggle sort direction"
-            style="border:1px solid #e5e7eb;border-radius:0.375rem;padding:0.1875rem 0.5rem;
-                   background:#fff;cursor:pointer;font-size:0.75rem;">
-            ${_sortAsc ? 'A→Z' : 'Z→A'}
-          </button>
-        </div>
+        <!-- Filter bar (sort, favorites, more) -->
+        <div id="filter-bar" style="flex-shrink:0;"></div>
 
         <!-- List -->
         <div id="mut-list" style="flex:1;overflow-y:auto;"></div>
@@ -173,59 +189,22 @@ export function renderMutants(container) {
   }
 
   wireControls();
+  renderFilterBar();
   fetchList();
 }
 
 // ─── Controls wiring ──────────────────────────────────────
 
 function wireControls() {
-  // Switch collection button
   document.getElementById('mut-switch-btn').addEventListener('click', (e) => {
     showCollectionDropdown(e.currentTarget);
   });
-
-  // Search
   document.getElementById('mut-search').addEventListener('input', (e) => {
     clearTimeout(_searchTimer);
     _searchTimer = setTimeout(() => {
       _searchTerm = e.target.value.trim();
-      _page = 0;
       fetchList();
     }, 300);
-  });
-
-  // Type filter pills
-  document.getElementById('mut-left').querySelectorAll('.mut-type-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      _typeFilter = pill.dataset.type;
-      _page = 0;
-      document.querySelectorAll('.mut-type-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      fetchList();
-    });
-  });
-
-  // Favorites filter
-  document.getElementById('mut-fav-filter').addEventListener('click', (e) => {
-    _showFavoritesOnly = !_showFavoritesOnly;
-    e.currentTarget.classList.toggle('active', _showFavoritesOnly);
-    _page = 0;
-    fetchList();
-  });
-
-  // Sort select
-  document.getElementById('mut-sort').addEventListener('change', (e) => {
-    _sortCol = e.target.value;
-    _page = 0;
-    fetchList();
-  });
-
-  // Sort direction toggle
-  document.getElementById('mut-sort-dir').addEventListener('click', (btn) => {
-    _sortAsc = !_sortAsc;
-    btn.currentTarget.textContent = _sortAsc ? 'A→Z' : 'Z→A';
-    _page = 0;
-    fetchList();
   });
 }
 
@@ -255,7 +234,6 @@ function showCollectionDropdown(anchor) {
       _collection = btn.dataset.collection;
       window.__mutantCollection = _collection;
       dd.remove();
-      _page = 0;
       _selectedId = null;
       renderMutants(_container);
     });
@@ -267,6 +245,190 @@ function showCollectionDropdown(anchor) {
   setTimeout(() => document.addEventListener('click', dismiss), 0);
 }
 
+// ─── Filter bar ───────────────────────────────────────────
+
+function renderFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  if (!bar) return;
+
+  const sortLabel    = SORT_OPTIONS.find(o => o.field === _sortField)?.label ?? 'Locus tag';
+  const typeOptions  = COLLECTION_TYPES[_collection]   ?? [];
+  const strainOpts   = COLLECTION_STRAINS[_collection] ?? [];
+  const funcOptions  = Object.entries(FUNC_LABELS).map(([cat, label]) => ({ value: cat, label }));
+  const hasMore      = typeOptions.length > 0 || strainOpts.length > 0 || funcOptions.length > 0;
+  const secOpen      = { ..._expandedSections };
+  const strainObj    = strainOpts.find(s => s.value === _filters.strain);
+  const catLabel     = _filters.category ? (FUNC_LABELS[_filters.category] ?? _filters.category) : null;
+  const typelabel    = _filters.type ? (TYPE_LABELS[_filters.type] ?? _filters.type) : null;
+
+  const chip = (id, label, active) => `
+    <button data-filter="${id}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
+             background:${active ? '#f0fdf4' : 'white'};color:${active ? '#16a34a' : '#9ca3af'};">
+      ${label}${active ? ' ×' : ''}
+    </button>`;
+
+  const typeChip = v => {
+    const a = _filters.type === v;
+    return `<button data-type-filter="${v}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+      ${TYPE_LABELS[v] ?? v}${a ? ' ×' : ''}
+    </button>`;
+  };
+
+  const strainChip = s => {
+    const a = _filters.strain === s.value;
+    return `<button data-strain-filter="${s.value}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+      ${s.label}${a ? ' ×' : ''}
+    </button>`;
+  };
+
+  const catChip = (value, label) => {
+    const a = _filters.category === value;
+    return `<button data-cat-filter="${value}"
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${a ? '#fde68a' : '#e5e7eb'};background:${a ? '#fefce8' : 'white'};color:${a ? '#92400e' : '#9ca3af'};">
+      ${a ? '⚙️ ' : ''}${label}${a ? ' ×' : ''}
+    </button>`;
+  };
+
+  const groupHead = (id, icon, label, isOpen) => `
+    <button data-section="${id}"
+      style="display:flex;align-items:center;gap:4px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;
+             color:#888;width:100%;margin-top:6px;border-top:1px solid #efefef;padding-top:7px;
+             padding-bottom:${isOpen ? '4px' : '2px'};background:none;border-left:none;border-right:none;border-bottom:none;
+             cursor:pointer;text-align:left;font-family:inherit;">
+      ${icon ? `<span>${icon}</span>` : ''}<span>${label}</span>
+      <span style="margin-left:auto;font-size:9px;color:#ccc;">${isOpen ? '▾' : '▸'}</span>
+    </button>`;
+
+  bar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
+      <div style="position:relative;">
+        <button id="mut-sort-btn"
+          style="font-size:11px;font-weight:500;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;">
+          ⇅ ${sortLabel}
+        </button>
+        <div id="mut-sort-drop" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:120px;overflow:hidden;">
+          ${SORT_OPTIONS.map(o => `
+            <button data-sort-field="${o.field}"
+              style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:11.5px;border:none;cursor:pointer;font-family:inherit;
+                     font-weight:${o.field === _sortField ? '600' : '400'};
+                     color:${o.field === _sortField ? '#16a34a' : '#333'};
+                     background:${o.field === _sortField ? '#f0fdf4' : 'none'};">
+              ${o.label}
+            </button>`).join('')}
+        </div>
+      </div>
+      ${chip('favorites', '★ Favorites', _filters.favorites)}
+      ${typelabel   ? `<button data-clear-type     style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${typelabel} ×</button>`  : ''}
+      ${strainObj   ? `<button data-clear-strain   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">${strainObj.label} ×</button>` : ''}
+      ${catLabel    ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${catLabel} ×</button>` : ''}
+      ${hasMore ? `<button id="mut-more-btn"
+        style="font-size:10.5px;font-weight:600;cursor:pointer;margin-left:auto;font-family:inherit;
+               color:${_moreOpen ? '#16a34a' : '#9ca3af'};background:white;
+               border:1px solid ${_moreOpen ? '#bbf7d0' : '#e5e7eb'};border-radius:6px;padding:3px 9px;">
+        ${_moreOpen ? '− Less' : '+ More'}
+      </button>` : ''}
+    </div>
+    <div id="mut-more-panel" style="display:${_moreOpen ? 'block' : 'none'};padding:4px 12px 8px;background:#fafafa;border-bottom:1px solid #f0f0f0;overflow-y:auto;max-height:40vh;">
+      ${typeOptions.length ? `
+        ${groupHead('type', '', 'Type', secOpen.type)}
+        <div style="display:${secOpen.type ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+          ${typeOptions.map(t => typeChip(t)).join('')}
+        </div>` : ''}
+      ${strainOpts.length ? `
+        ${groupHead('strain', '', 'Strain', secOpen.strain)}
+        <div style="display:${secOpen.strain ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+          ${strainOpts.map(s => strainChip(s)).join('')}
+        </div>` : ''}
+      ${groupHead('function', '⚙️', 'Function', secOpen.function)}
+      <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+        ${funcOptions.map(f => catChip(f.value, f.label)).join('')}
+      </div>
+    </div>
+  `;
+
+  // Sort dropdown
+  const sortBtn  = bar.querySelector('#mut-sort-btn');
+  const sortDrop = bar.querySelector('#mut-sort-drop');
+  sortBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = sortDrop.style.display === 'none';
+    sortDrop.style.display = open ? 'block' : 'none';
+    if (open) setTimeout(() => document.addEventListener('click', () => { sortDrop.style.display = 'none'; }, { once: true }), 0);
+  });
+  bar.querySelectorAll('[data-sort-field]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _sortField = btn.dataset.sortField;
+      sortDrop.style.display = 'none';
+      renderFilterBar();
+      fetchList();
+    });
+  });
+
+  // Favorites chip
+  bar.querySelector('[data-filter="favorites"]')?.addEventListener('click', () => {
+    _filters.favorites = !_filters.favorites;
+    renderFilterBar();
+    fetchList();
+  });
+
+  // Active filter clear buttons
+  bar.querySelector('[data-clear-type]')?.addEventListener('click', ()     => { _filters.type = null;     renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-strain]')?.addEventListener('click', ()   => { _filters.strain = null;   renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-category]')?.addEventListener('click', () => { _filters.category = null; renderFilterBar(); fetchList(); });
+
+  // More/Less toggle
+  bar.querySelector('#mut-more-btn')?.addEventListener('click', () => {
+    _moreOpen = !_moreOpen;
+    renderFilterBar();
+  });
+
+  // Section expand/collapse
+  bar.querySelectorAll('[data-section]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.section;
+      if (id in _expandedSections) _expandedSections[id] = !_expandedSections[id];
+      renderFilterBar();
+    });
+  });
+
+  // Type filter chips
+  bar.querySelectorAll('[data-type-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.typeFilter;
+      _filters.type = _filters.type === val ? null : val;
+      renderFilterBar();
+      fetchList();
+    });
+  });
+
+  // Strain filter chips
+  bar.querySelectorAll('[data-strain-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.strainFilter;
+      _filters.strain = _filters.strain === val ? null : val;
+      renderFilterBar();
+      fetchList();
+    });
+  });
+
+  // Category filter chips
+  bar.querySelectorAll('[data-cat-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.catFilter;
+      _filters.category = _filters.category === val ? null : val;
+      renderFilterBar();
+      fetchList();
+    });
+  });
+}
+
 // ─── Fetch + render list ──────────────────────────────────
 
 async function fetchList() {
@@ -274,22 +436,16 @@ async function fetchList() {
   if (!listEl) return;
   listEl.innerHTML = skeletonRows(8);
 
+  // Fetch all records for this collection (no server-side sort — we sort client-side)
   let query = sb
     .from('mutants')
-    .select('id,mutant_id,name,mutation_type,is_published,target_gene_ids', { count: 'exact' })
+    .select('id,mutant_id,name,mutation_type,is_published,target_gene_ids,strains!background_strain_id(common_name)')
     .eq('collection', _collection)
-    .order(_sortCol, { ascending: _sortAsc })
     .limit(1000);
 
-  if (_typeFilter !== 'all') query = query.eq('mutation_type', _typeFilter);
   if (_searchTerm) query = query.or(`mutant_id.ilike.%${_searchTerm}%,name.ilike.%${_searchTerm}%`);
 
-  const { data: rows, count, error } = await query;
-
-  _total = count ?? 0;
-  const col = COLLECTIONS.find(c => c.id === _collection);
-  const countEl = document.getElementById('strip-count');
-  if (countEl) countEl.textContent = `${_total.toLocaleString()} mutants`;
+  const { data: rows, error } = await query;
 
   if (error) {
     listEl.innerHTML = `<div style="padding:1rem;color:#ef4444;font-size:0.8125rem;">${error.message}</div>`;
@@ -300,26 +456,77 @@ async function fetchList() {
     return;
   }
 
-  // Favorites filter (client-side, additive)
-  let displayRows = rows;
-  if (_showFavoritesOnly) {
-    const favs = loadFavorites(MUTANT_FAVORITES_KEY);
-    displayRows = rows.filter(m => favs.has(String(m.id)));
-    if (!displayRows.length) {
-      listEl.innerHTML = `<div style="padding:2rem;text-align:center;color:#9ca3af;font-size:0.875rem;">No favorited mutants in this collection.</div>`;
-      return;
-    }
-  }
-
-  // Bulk-fetch locus tags for all target genes in one query
-  const allGeneIds = [...new Set(displayRows.flatMap(m => m.target_gene_ids ?? []))];
-  const geneTagMap = new Map();
+  // Bulk-fetch gene data (locus_tag, gene_name, functional_category) for all target genes
+  const allGeneIds = [...new Set(rows.flatMap(m => m.target_gene_ids ?? []))];
+  _geneDataMap = new Map();
   if (allGeneIds.length) {
-    const { data: geneData } = await sb.from('genes').select('id,locus_tag').in('id', allGeneIds);
-    (geneData ?? []).forEach(g => geneTagMap.set(g.id, g.locus_tag));
+    const { data: geneData } = await sb
+      .from('genes')
+      .select('id,locus_tag,gene_name,functional_category')
+      .in('id', allGeneIds);
+    (geneData ?? []).forEach(g => _geneDataMap.set(g.id, g));
   }
 
-  listEl.innerHTML = displayRows.map(m => mutantRowHTML(m, formatLocusTags(m.target_gene_ids, geneTagMap))).join('');
+  // Client-side filters
+  let displayRows = rows;
+
+  if (_filters.favorites) {
+    const favs = loadFavorites(MUTANT_FAVORITES_KEY);
+    displayRows = displayRows.filter(m => favs.has(String(m.id)));
+  }
+  if (_filters.type) {
+    displayRows = displayRows.filter(m => m.mutation_type === _filters.type);
+  }
+  if (_filters.strain) {
+    displayRows = displayRows.filter(m => m.strains?.common_name === _filters.strain);
+  }
+  if (_filters.category) {
+    displayRows = displayRows.filter(m =>
+      (m.target_gene_ids ?? []).some(id => _geneDataMap.get(id)?.functional_category === _filters.category)
+    );
+  }
+
+  // Update count display (after filters)
+  _total = displayRows.length;
+  const countEl = document.getElementById('strip-count');
+  if (countEl) countEl.textContent = `${_total.toLocaleString()} mutant${_total !== 1 ? 's' : ''}`;
+
+  if (!displayRows.length) {
+    listEl.innerHTML = `<div style="padding:2rem;text-align:center;color:#9ca3af;font-size:0.875rem;">No mutants found.</div>`;
+    return;
+  }
+
+  // Client-side sort
+  const getFirstLocusTag = m => {
+    const ids = m.target_gene_ids ?? [];
+    const tags = ids.map(id => _geneDataMap.get(id)?.locus_tag).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return tags[0] ?? '￿';
+  };
+  const getFirstGeneName = m => {
+    const ids = m.target_gene_ids ?? [];
+    const names = ids.map(id => _geneDataMap.get(id)?.gene_name).filter(Boolean).sort();
+    return names[0] ?? '￿';
+  };
+
+  displayRows = [...displayRows].sort((a, b) => {
+    let va, vb;
+    if (_sortField === 'locus_tag') {
+      va = getFirstLocusTag(a); vb = getFirstLocusTag(b);
+    } else if (_sortField === 'gene_name') {
+      va = getFirstGeneName(a); vb = getFirstGeneName(b);
+    } else {
+      va = a.mutant_id ?? ''; vb = b.mutant_id ?? '';
+    }
+    const cmp = va.localeCompare(vb, undefined, { numeric: true });
+    return _sortAsc ? cmp : -cmp;
+  });
+
+  // Build locus-tag strings from _geneDataMap and render rows
+  listEl.innerHTML = displayRows.map(m => {
+    const tagMap = new Map([..._geneDataMap].map(([id, g]) => [id, g.locus_tag]));
+    return mutantRowHTML(m, formatLocusTags(m.target_gene_ids, tagMap));
+  }).join('');
+
   listEl.querySelectorAll('.mut-row').forEach(row => {
     row.addEventListener('click', () => {
       document.querySelectorAll('.mut-row').forEach(r => r.classList.remove('selected'));
@@ -435,7 +642,7 @@ async function loadDetail(mutantUUID) {
   rightEl.innerHTML = `
     ${isMobile ? `<div class="mut-mobile-back"><button class="back-btn" id="mut-back-btn">‹ Back</button></div>` : ''}
 
-    ${heroHTML(m)}
+    ${heroHTML(m, genes)}
     ${geneCardsHTML(genes)}
     ${geneLociMapHTML(genes, neighborhood, m.mutation_type)}
     ${recombInfoHTML(m, pipe, isLabMember)}
@@ -477,14 +684,26 @@ async function loadDetail(mutantUUID) {
 
 // ─── Detail section builders ──────────────────────────────
 
-function heroHTML(m) {
+function heroHTML(m, genes = []) {
   const displayName  = m.name || m.mutant_id;
   const hasName      = !!m.name;
   const accent       = TYPE_ACCENT[m.mutation_type] ?? DEFAULT_ACCENT;
   const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
   const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
   const isFav        = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
-  const isLabOrAdmin = state.userRole === 'lab_member' || state.userRole === 'admin';
+  const col          = COLLECTIONS.find(c => c.id === _collection);
+
+  // Locus tag line derived from the resolved genes array
+  const locusTagStr  = (() => {
+    if (!genes.length) return '';
+    const tags = genes.map(g => g.locus_tag).filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (!tags.length) return '';
+    if (tags.length === 1) return tags[0];
+    const nums = tags.map(t => parseInt(t.replace(/\D/g, ''), 10));
+    const isRange = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+    return isRange ? `${tags[0]}–${tags[tags.length - 1]}` : tags.join(', ');
+  })();
 
   const pubBadge = m.is_published
     ? heroBadge('Published',   '#059669', 'rgba(5,150,105,0.3)')
@@ -493,15 +712,21 @@ function heroHTML(m) {
   const pencilSvg = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>`;
   const btnBase   = 'background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;padding-top:2px;';
 
+  const collIcon = col?.icon
+    ? `<img src="${col.icon}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">`
+    : '';
+
   return `
     <div style="padding:16px 20px 14px;border-bottom:3px solid ${accent.color};background:linear-gradient(150deg,${accent.heroBg} 0%,#ffffff 65%);">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        ${collIcon}
         <div style="flex:1;min-width:0;">
           <div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${displayName}</div>
-          ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:4px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
+          ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:2px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
+          ${locusTagStr ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#aaa;margin-top:1px;letter-spacing:0.02em;">${locusTagStr}</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:2px;">
-          ${isLabOrAdmin ? `<button id="mut-edit-btn" style="${btnBase}color:#9ca3af;" title="Edit">${pencilSvg}</button>` : ''}
+          <button id="mut-edit-btn" style="${btnBase}color:#9ca3af;" title="Edit">${pencilSvg}</button>
           <button id="mut-fav-btn" data-id="${m.id}"
             style="font-size:16px;${btnBase}color:${isFav ? '#f59e0b' : '#d1d5db'};"
             title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
