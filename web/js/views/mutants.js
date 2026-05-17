@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state } from '../client.js?v=65';
+import { sb, state, loadFavorites, toggleFavorite } from '../client.js?v=66';
 
 const PAGE_SIZE = 50;
 
@@ -11,6 +11,16 @@ const COLLECTIONS = [
 ];
 
 const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical' };
+
+// Accent color per mutation type — drives hero gradient and type badge color
+const TYPE_ACCENT = {
+  transposon: { color: '#059669', badgeBg: 'rgba(209,250,229,0.5)',  badgeText: '#059669', badgeBorder: 'rgba(5,150,105,0.35)'   },
+  deletion:   { color: '#dc2626', badgeBg: 'rgba(254,226,226,0.5)',  badgeText: '#dc2626', badgeBorder: 'rgba(220,38,38,0.3)'    },
+  chimera:    { color: '#7c3aed', badgeBg: 'rgba(237,233,254,0.5)',  badgeText: '#7c3aed', badgeBorder: 'rgba(124,58,237,0.3)'   },
+  chemical:   { color: '#2563eb', badgeBg: 'rgba(219,234,254,0.5)',  badgeText: '#2563eb', badgeBorder: 'rgba(37,99,235,0.3)'    },
+  intron:     { color: '#ca8a04', badgeBg: 'rgba(254,249,195,0.6)',  badgeText: '#ca8a04', badgeBorder: 'rgba(202,138,4,0.35)'   },
+};
+const DEFAULT_ACCENT = { color: '#6b7280', badgeBg: 'rgba(243,244,246,0.6)', badgeText: '#6b7280', badgeBorder: 'rgba(107,114,128,0.3)' };
 const FUNC_CLASSES = ['Hypothetical', 'Inc protein', 'T3 secreted', 'Characterized'];
 
 // Functional category fill colors — matches Genomes tab exactly
@@ -34,6 +44,23 @@ const CATEGORY_COLORS = {
   'Unknown':                    '#AAAAAA',
 };
 const CATEGORY_COLOR_DEFAULT = '#E5E7EB';
+
+// Section header matching gene detail sectionHead() pattern.
+// rightContent: optional HTML rendered right-aligned (e.g. LAB_PILL).
+function mutSectionHead(label, rightContent = '') {
+  return `
+    <div style="display:flex;align-items:center;padding:10px 16px 8px;border-bottom:1px solid #f5f5f5;">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#1a6b4a;">${label}</span>
+      ${rightContent ? `<span style="margin-left:auto;">${rightContent}</span>` : ''}
+    </div>`;
+}
+
+const LAB_PILL = `<span class="mut-lab-pill">🔒 Lab</span>`;
+
+// Shared outline badge for the hero row.
+function heroBadge(text, textColor, border, bg = 'rgba(255,255,255,0.75)') {
+  return `<span style="display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${bg};color:${textColor};border:1px solid ${border};">${text}</span>`;
+}
 
 // Module state
 let _collection  = 'CT_L2';
@@ -385,26 +412,54 @@ async function loadDetail(mutantUUID) {
       window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
     });
   });
+
+  // Wire favorites star
+  rightEl.querySelector('#mut-fav-btn')?.addEventListener('click', e => {
+    const id     = e.currentTarget.dataset.id;
+    const nowFav = toggleFavorite(id);
+    e.currentTarget.style.color = nowFav ? '#f59e0b' : '#d1d5db';
+    e.currentTarget.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
+    e.currentTarget.textContent = nowFav ? '★' : '☆';
+  });
+
+  // Edit button — placeholder until edit modals are built
+  rightEl.querySelector('#mut-edit-btn')?.addEventListener('click', () => {
+    // TODO: open edit modal
+  });
 }
 
 // ─── Detail section builders ──────────────────────────────
 
 function heroHTML(m) {
-  const displayName = m.name || m.mutant_id;
-  const idLine = m.name ? `<div class="mut-hero-id">${m.mutant_id}</div>` : '';
-  const strainLabel = m.strains?.common_name ?? m.strains?.species ?? '';
-  const typeLabel = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
+  const displayName  = m.name || m.mutant_id;
+  const hasName      = !!m.name;
+  const accent       = TYPE_ACCENT[m.mutation_type] ?? DEFAULT_ACCENT;
+  const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
+  const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
+  const isFav        = loadFavorites().has(String(m.id));
+
   const pubBadge = m.is_published
-    ? `<span class="mut-badge mut-badge-pub">Published</span>`
-    : `<span class="mut-badge mut-badge-unpub">Unpublished</span>`;
+    ? heroBadge('Published',   '#059669', 'rgba(5,150,105,0.3)')
+    : heroBadge('Unpublished', '#b45309', 'rgba(180,83,9,0.3)');
+
+  const pencilSvg = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>`;
+  const btnStyle  = 'background:rgba(255,255,255,0.55);border:1px solid rgba(0,0,0,0.08);border-radius:6px;padding:4px 5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;';
 
   return `
-    <div style="padding:1.75rem 1.5rem 1.25rem;background:#fff;border-bottom:1px solid #e5e7eb;">
-      <div class="mut-hero-name">${displayName}</div>
-      ${idLine}
-      <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.75rem;">
-        ${strainLabel ? `<span class="mut-badge mut-badge-strain">${strainLabel}</span>` : ''}
-        ${typeLabel  ? `<span class="mut-badge mut-badge-type">${typeLabel}</span>` : ''}
+    <div style="padding:16px 20px 14px;border-bottom:3px solid ${accent.color};background:linear-gradient(150deg,color-mix(in srgb,${accent.color} 10%,white) 0%,#ffffff 65%);">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${displayName}</div>
+          ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:4px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;padding-top:2px;">
+          <button id="mut-edit-btn" style="${btnStyle}color:#9ca3af;" title="Edit">${pencilSvg}</button>
+          <button id="mut-fav-btn" data-id="${m.id}" style="${btnStyle}color:${isFav ? '#f59e0b' : '#d1d5db'};" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+        ${strainLabel ? heroBadge(strainLabel, '#16a34a', 'rgba(22,163,74,0.35)') : ''}
+        ${typeLabel   ? heroBadge(typeLabel, accent.badgeText, accent.badgeBorder, accent.badgeBg) : ''}
         ${pubBadge}
       </div>
     </div>`;
