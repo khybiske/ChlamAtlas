@@ -32,7 +32,8 @@ const COLLECTIONS = [
   { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', icon: '/design/Chimeraicon.jpg' },
 ];
 
-// Equirectangular projection: x% = (lng+180)/360*100, y% = (90-lat)/180*100
+// SVG world map: viewBox "0 0 360 180", equirectangular projection
+// x = lng + 180  (0–360),  y = 90 - lat  (0–180)
 const COUNTRY_CENTROIDS = {
   'united states': [38, -97], 'usa': [38, -97], 'us': [38, -97],
   'united kingdom': [54, -2], 'uk': [54, -2], 'england': [52, -1],
@@ -50,6 +51,11 @@ const COUNTRY_CENTROIDS = {
   'south africa': [-29, 25], 'kenya': [1, 38], 'nigeria': [10, 8],
   'egypt': [27, 30], 'saudi arabia': [24, 45], 'turkey': [39, 35],
   'russia': [60, 100], 'ukraine': [49, 31], 'greece': [39, 22],
+  'iran': [32, 53], 'pakistan': [30, 69], 'bangladesh': [24, 90],
+  'thailand': [15, 101], 'vietnam': [16, 108], 'indonesia': [-5, 120],
+  'philippines': [13, 122], 'malaysia': [4, 109], 'ethiopia': [9, 40],
+  'tanzania': [-6, 35], 'ghana': [8, -1], 'morocco': [32, -5],
+  'chile': [-35, -71], 'colombia': [4, -72], 'peru': [-10, -76],
 };
 
 function countryToXY(country) {
@@ -58,10 +64,8 @@ function countryToXY(country) {
   const coords = COUNTRY_CENTROIDS[key];
   if (!coords) return null;
   const [lat, lng] = coords;
-  return {
-    x: ((lng + 180) / 360) * 100,
-    y: ((90 - lat) / 180) * 100,
-  };
+  // SVG coordinate space: 360×180, equirectangular
+  return { x: Math.round(lng + 180), y: Math.round(90 - lat) };
 }
 
 export async function renderHome(container) {
@@ -265,17 +269,32 @@ function renderCommunityColumn(container) {
       🌍 Community
     </div>
 
-    <!-- Map placeholder -->
+    <!-- World map -->
     <div style="background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:14px;margin-bottom:10px;">
-      <div style="height:110px;border-radius:5px;background:#e8f2ff;position:relative;overflow:hidden;">
-        <svg width="100%" height="100%" viewBox="0 0 300 110" style="position:absolute;inset:0;opacity:0.18;" preserveAspectRatio="xMidYMid meet">
-          <path d="M28,32 Q52,18 72,34 Q82,46 66,57 Q44,62 28,52 Z" fill="#1d4ed8"/>
-          <path d="M88,24 Q132,12 153,29 Q163,41 157,57 Q140,67 108,61 Q83,51 88,24 Z" fill="#1d4ed8"/>
-          <path d="M163,29 Q186,20 202,34 Q208,49 197,60 Q174,65 158,52 Z" fill="#1d4ed8"/>
-          <path d="M214,27 Q242,18 262,31 Q270,45 257,56 Q236,62 213,51 Z" fill="#1d4ed8"/>
-          <path d="M93,66 Q117,59 128,73 Q123,84 101,82 Q87,76 93,66 Z" fill="#1d4ed8"/>
+      <div style="height:110px;border-radius:5px;background:#e8f2ff;overflow:hidden;">
+        <!-- viewBox 360×180 = equirectangular; x=lng+180, y=90-lat -->
+        <svg id="world-map-svg" width="100%" height="110" viewBox="0 0 360 180"
+             style="display:block;" preserveAspectRatio="none">
+          <!-- Continent polygons -->
+          <g fill="#93c5fd" opacity="0.55">
+            <!-- North America -->
+            <polygon points="15,30 85,18 127,43 100,65 88,75 70,67 55,42"/>
+            <!-- Greenland -->
+            <polygon points="110,13 158,17 136,30"/>
+            <!-- South America -->
+            <polygon points="107,80 145,95 142,105 137,113 110,145 107,130 99,95"/>
+            <!-- Europe -->
+            <polygon points="171,53 205,19 209,25 217,34 206,53 175,54"/>
+            <!-- Africa -->
+            <polygon points="174,54 212,60 231,78 220,100 198,124 190,95 163,75"/>
+            <!-- Asia (main) -->
+            <polygon points="206,52 310,18 358,24 340,38 318,54 284,89 257,82 250,67 223,75"/>
+            <!-- Australia -->
+            <polygon points="293,105 333,105 330,128 317,125 295,122"/>
+          </g>
+          <!-- User location dots (added by loadCommunityStats) -->
+          <g id="world-map-dots"></g>
         </svg>
-        <div id="map-dots"></div>
       </div>
       <div id="map-caption" style="font-size:11px;color:#3b82f6;font-weight:500;margin-top:8px;text-align:center;">
         Researchers worldwide
@@ -331,17 +350,15 @@ async function loadCommunityStats(container) {
     const userEl = container.querySelector('#community-user-count');
     if (userEl) userEl.textContent = userCount.toLocaleString();
 
-    // Map dots
-    const dotsEl = container.querySelector('#map-dots');
+    // Map dots — SVG circles in the same 360×180 coordinate space
+    const dotsEl = container.querySelector('#world-map-dots');
     if (dotsEl && userRows?.length) {
       const countries = new Set(userRows.map(u => u.country).filter(Boolean));
-      const uniqueCountries = [...countries];
-      dotsEl.innerHTML = uniqueCountries.map(c => {
+      dotsEl.innerHTML = [...countries].map(c => {
         const xy = countryToXY(c);
         if (!xy) return '';
-        return `<div style="position:absolute;left:${xy.x.toFixed(1)}%;top:${xy.y.toFixed(1)}%;
-                            width:6px;height:6px;border-radius:50%;background:#2563eb;
-                            transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(255,255,255,0.7);"></div>`;
+        return `<circle cx="${xy.x}" cy="${xy.y}" r="5" fill="#1d4ed8" opacity="0.85"/>
+                <circle cx="${xy.x}" cy="${xy.y}" r="9" fill="#1d4ed8" opacity="0.15"/>`;
       }).join('');
     }
 
