@@ -350,8 +350,55 @@ function renderSparkline(monthly) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;" preserveAspectRatio="none">${bars}</svg>`;
 }
 
-function loadTopContributors(container) {
-  // Implemented in Task 7
+async function loadTopContributors(container) {
+  const el = container.querySelector('#community-leaderboard');
+  if (!el) return;
+
+  try {
+    const { data } = await sb
+      .from('annotations')
+      .select('user_id');
+
+    if (!data?.length) {
+      el.innerHTML = `<div style="font-size:11px;color:#d1d5db;">No contributions yet</div>`;
+      return;
+    }
+
+    const counts = {};
+    data.forEach(row => {
+      counts[row.user_id] = (counts[row.user_id] || 0) + 1;
+    });
+    const top3 = Object.entries(counts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([userId, count]) => ({ userId, count }));
+
+    const ids = top3.map(t => t.userId);
+    const { data: users } = await sb
+      .from('users')
+      .select('id, display_name, lab_affiliation')
+      .in('id', ids);
+
+    const userMap = {};
+    (users || []).forEach(u => { userMap[u.id] = u; });
+
+    const medals = ['🥇', '🥈', '🥉'];
+    el.innerHTML = top3.map((t, i) => {
+      const u = userMap[t.userId];
+      const name = u?.display_name || 'Unknown';
+      const lab  = u?.lab_affiliation || '';
+      return `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:13px;line-height:1;">${medals[i]}</span>
+          <span style="font-size:12px;font-weight:600;color:#111;flex:1;">${name}</span>
+          ${lab ? `<span style="font-size:11px;color:#9ca3af;">${lab}</span>` : ''}
+          <span style="font-size:11px;font-family:'DM Mono',monospace;color:#bbb;margin-left:8px;">${t.count}</span>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    console.error('loadTopContributors:', err);
+    el.innerHTML = `<div style="font-size:11px;color:#d1d5db;">—</div>`;
+  }
 }
 
 async function loadActivityFeed(container) {
