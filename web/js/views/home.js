@@ -315,8 +315,9 @@ function initCommunityMap(container) {
   if (!el || !window.L) return;
 
   const map = L.map(el, {
-    center: [20, 10],
+    center: [20, 0],
     zoom: 1,
+    zoomSnap: 0.1,
     zoomControl: false,
     attributionControl: false,
     dragging: false,
@@ -331,40 +332,71 @@ function initCommunityMap(container) {
     maxZoom: 19,
   }).addTo(map);
 
+  // Fit full world into container
+  map.fitBounds([[-60, -170], [75, 170]], { padding: [2, 2], animate: false });
+
   // Store for marker addition once user data loads
   el._map = map;
+}
+
+async function geocodeCity(city, country) {
+  const q = [city, country].filter(Boolean).join(', ');
+  if (!q) return null;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    const data = await res.json();
+    if (data?.[0]) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+  } catch (e) {
+    console.warn('geocodeCity failed:', q, e);
+  }
+  return null;
 }
 
 async function loadCommunityStats(container) {
   try {
     const { data: userRows } = await sb
       .from('users')
-      .select('id, country');
+      .select('id, city, country');
 
     const userCount = userRows?.length ?? 0;
 
     const userEl = container.querySelector('#community-user-count');
     if (userEl) userEl.textContent = userCount.toLocaleString();
 
-    // Place circle markers on the Leaflet map
+    // Geocode city+country for each unique location, add markers
     const leafletEl = container.querySelector('#community-map');
     const map = leafletEl?._map;
     if (map && userRows?.length) {
       const seen = new Set();
+      const locations = [];
       userRows.forEach(u => {
-        if (!u.country || seen.has(u.country)) return;
-        seen.add(u.country);
-        const coords = countryLatLng(u.country);
-        if (!coords) return;
-        L.circleMarker(coords, {
-          radius: 5,
-          fillColor: '#1d4ed8',
-          color: 'white',
-          weight: 1.5,
-          opacity: 1,
-          fillOpacity: 0.85,
-        }).addTo(map);
+        const key = `${u.city ?? ''}|${u.country ?? ''}`;
+        if (!seen.has(key) && (u.city || u.country)) {
+          seen.add(key);
+          locations.push({ city: u.city, country: u.country });
+        }
       });
+
+      for (const loc of locations) {
+        // Try precise city geocode, fall back to country centroid
+        const coords = (await geocodeCity(loc.city, loc.country))
+          ?? countryLatLng(loc.country);
+        if (coords) {
+          L.circleMarker(coords, {
+            radius: 5,
+            fillColor: '#1d4ed8',
+            color: 'white',
+            weight: 1.5,
+            opacity: 1,
+            fillOpacity: 0.85,
+          }).addTo(map);
+        }
+        // Nominatim asks for max 1 req/sec
+        if (locations.length > 1) await new Promise(r => setTimeout(r, 1100));
+      }
     }
 
     const { data: annRows } = await sb
