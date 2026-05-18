@@ -32,8 +32,6 @@ const COLLECTIONS = [
   { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', icon: '/design/Chimeraicon.jpg' },
 ];
 
-// SVG world map: viewBox "0 0 360 180", equirectangular projection
-// x = lng + 180  (0–360),  y = 90 - lat  (0–180)
 const COUNTRY_CENTROIDS = {
   'united states': [38, -97], 'usa': [38, -97], 'us': [38, -97],
   'united kingdom': [54, -2], 'uk': [54, -2], 'england': [52, -1],
@@ -58,14 +56,9 @@ const COUNTRY_CENTROIDS = {
   'chile': [-35, -71], 'colombia': [4, -72], 'peru': [-10, -76],
 };
 
-function countryToXY(country) {
+function countryLatLng(country) {
   if (!country) return null;
-  const key = country.toLowerCase().trim();
-  const coords = COUNTRY_CENTROIDS[key];
-  if (!coords) return null;
-  const [lat, lng] = coords;
-  // SVG coordinate space: 360×180, equirectangular
-  return { x: Math.round(lng + 180), y: Math.round(90 - lat) };
+  return COUNTRY_CENTROIDS[country.toLowerCase().trim()] ?? null;
 }
 
 export async function renderHome(container) {
@@ -269,17 +262,12 @@ function renderCommunityColumn(container) {
       🌍 Community
     </div>
 
-    <!-- World map — land drawn by buildWorldMap() from world-atlas topojson -->
-    <div style="background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:14px;margin-bottom:10px;">
-      <div style="height:110px;border-radius:5px;background:#e8f2ff;overflow:hidden;">
-        <svg id="world-map-svg" width="100%" height="110" viewBox="0 0 360 180"
-             style="display:block;" preserveAspectRatio="none">
-          <g id="world-map-land"></g>
-          <g id="world-map-dots"></g>
-        </svg>
-      </div>
-      <div id="map-caption" style="font-size:11px;color:#3b82f6;font-weight:500;margin-top:8px;text-align:center;">
-        Researchers worldwide
+    <!-- World map (Leaflet + CartoDB tiles) -->
+    <div style="border:1px solid #dbeafe;border-radius:8px;overflow:hidden;margin-bottom:10px;">
+      <div id="community-map" style="height:130px;"></div>
+      <div style="font-size:9px;color:#cbd5e1;padding:3px 8px;text-align:right;background:white;">
+        © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:inherit;">OpenStreetMap</a>
+        · © <a href="https://carto.com/attributions" target="_blank" style="color:inherit;">CARTO</a>
       </div>
     </div>
 
@@ -316,62 +304,35 @@ function renderCommunityColumn(container) {
     </div>
   `;
 
-  buildWorldMap(container);
+  initCommunityMap(container);
   loadCommunityStats(container);
   loadTopContributors(container);
   loadActivityFeed(container);
 }
 
-async function buildWorldMap(container) {
-  const landEl = container.querySelector('#world-map-land');
-  if (!landEl) return;
-  try {
-    const topo = await fetch(
-      'https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json'
-    ).then(r => r.json());
+function initCommunityMap(container) {
+  const el = container.querySelector('#community-map');
+  if (!el || !window.L) return;
 
-    const { scale: [sx, sy], translate: [tx, ty] } = topo.transform;
+  const map = L.map(el, {
+    center: [20, 10],
+    zoom: 1,
+    zoomControl: false,
+    attributionControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    touchZoom: false,
+    doubleClickZoom: false,
+    keyboard: false,
+    boxZoom: false,
+  });
 
-    // Delta-decode a topojson arc into [lng, lat] pairs
-    function decodeArc(arc) {
-      let x = 0, y = 0;
-      return arc.map(([dx, dy]) => {
-        x += dx; y += dy;
-        return [x * sx + tx, y * sy + ty];
-      });
-    }
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+  }).addTo(map);
 
-    // Resolve arc index (negative index = reversed arc)
-    function resolveArc(i) {
-      const pts = decodeArc(topo.arcs[i < 0 ? ~i : i]);
-      return i < 0 ? pts.slice().reverse() : pts;
-    }
-
-    // Convert a ring (array of arc indices) to an SVG path segment
-    function ringToPath(ring) {
-      const pts = ring.flatMap(resolveArc);
-      return pts.map(([lng, lat], i) =>
-        `${i ? 'L' : 'M'}${(lng + 180).toFixed(1)},${(90 - lat).toFixed(1)}`
-      ).join('') + 'Z';
-    }
-
-    function geomToPath(geom) {
-      if (geom.type === 'Polygon')
-        return geom.arcs.map(ringToPath).join('');
-      if (geom.type === 'MultiPolygon')
-        return geom.arcs.map(poly => poly.map(ringToPath).join('')).join('');
-      return '';
-    }
-
-    const geo = topo.objects.land;
-    const d = geo.type === 'GeometryCollection'
-      ? geo.geometries.map(geomToPath).join('')
-      : geomToPath(geo);
-
-    if (d) landEl.innerHTML = `<path d="${d}" fill="#93c5fd" opacity="0.6"/>`;
-  } catch (err) {
-    console.error('buildWorldMap:', err);
-  }
+  // Store for marker addition once user data loads
+  el._map = map;
 }
 
 async function loadCommunityStats(container) {
@@ -385,26 +346,25 @@ async function loadCommunityStats(container) {
     const userEl = container.querySelector('#community-user-count');
     if (userEl) userEl.textContent = userCount.toLocaleString();
 
-    // Map dots — SVG circles in the same 360×180 coordinate space
-    const dotsEl = container.querySelector('#world-map-dots');
-    if (dotsEl && userRows?.length) {
-      const countries = new Set(userRows.map(u => u.country).filter(Boolean));
-      dotsEl.innerHTML = [...countries].map(c => {
-        const xy = countryToXY(c);
-        if (!xy) return '';
-        return `<circle cx="${xy.x}" cy="${xy.y}" r="5" fill="#1d4ed8" opacity="0.85"/>
-                <circle cx="${xy.x}" cy="${xy.y}" r="9" fill="#1d4ed8" opacity="0.15"/>`;
-      }).join('');
-    }
-
-    const mapEl = container.querySelector('#map-caption');
-    if (mapEl) {
-      const countryCount = userRows ? new Set(userRows.map(u => u.country).filter(Boolean)).size : 0;
-      if (userCount > 0 && countryCount > 0) {
-        mapEl.textContent = `${userCount.toLocaleString()} researcher${userCount !== 1 ? 's' : ''} · ${countryCount} countr${countryCount !== 1 ? 'ies' : 'y'}`;
-      } else if (userCount > 0) {
-        mapEl.textContent = `${userCount.toLocaleString()} researcher${userCount !== 1 ? 's' : ''} worldwide`;
-      }
+    // Place circle markers on the Leaflet map
+    const leafletEl = container.querySelector('#community-map');
+    const map = leafletEl?._map;
+    if (map && userRows?.length) {
+      const seen = new Set();
+      userRows.forEach(u => {
+        if (!u.country || seen.has(u.country)) return;
+        seen.add(u.country);
+        const coords = countryLatLng(u.country);
+        if (!coords) return;
+        L.circleMarker(coords, {
+          radius: 5,
+          fillColor: '#1d4ed8',
+          color: 'white',
+          weight: 1.5,
+          opacity: 1,
+          fillOpacity: 0.85,
+        }).addTo(map);
+      });
     }
 
     const { data: annRows } = await sb
