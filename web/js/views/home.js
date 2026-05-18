@@ -402,7 +402,50 @@ async function loadTopContributors(container) {
 }
 
 async function loadActivityFeed(container) {
-  // Implemented in Task 8
+  const el = container.querySelector('#community-activity');
+  if (!el) return;
+
+  try {
+    const { data } = await sb
+      .from('site_updates')
+      .select('id, title, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (!data?.length) {
+      el.textContent = 'No recent activity';
+      return;
+    }
+
+    function relativeTime(isoString) {
+      const diff = Date.now() - new Date(isoString).getTime();
+      const h = Math.floor(diff / 36e5);
+      if (h < 1) return 'just now';
+      if (h < 24) return `${h}h ago`;
+      const d = Math.floor(h / 24);
+      if (d === 1) return 'yesterday';
+      return `${d} days ago`;
+    }
+
+    const lines = data.map(u =>
+      `${u.title} <span style="color:#bbb">· ${relativeTime(u.created_at)}</span>`
+    );
+
+    let i = 0;
+    el.innerHTML = lines[0];
+
+    setInterval(() => {
+      el.style.opacity = '0';
+      setTimeout(() => {
+        i = (i + 1) % lines.length;
+        el.innerHTML = lines[i];
+        el.style.opacity = '1';
+      }, 420);
+    }, 4000);
+  } catch (err) {
+    console.error('loadActivityFeed:', err);
+    el.textContent = '—';
+  }
 }
 
 async function loadStats(container) {
@@ -441,46 +484,6 @@ async function loadStats(container) {
 }
 
 
-// Map site_updates category values to organism colors
-const UPDATE_COLORS = {
-  'CT-L2':      '#16a34a',
-  'CT-D':       '#4b2e83',
-  'CM':         '#2563eb',
-  'Structures': '#1a6b4a',
-};
-
-async function loadUpdates(container) {
-  let data;
-  try {
-    const { data: rows } = await sb
-      .from('site_updates')
-      .select('id, title, category, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5);
-    data = rows;
-  } catch (err) {
-    console.error('loadUpdates:', err);
-    return;
-  }
-
-  const el = container.querySelector('#updates-section');
-  if (!el || !data?.length) return;
-
-  el.innerHTML = `
-    <div style="font-size:0.5875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:0.875rem;">
-      Recent Updates
-    </div>
-    ${data.map(u => {
-      const color = UPDATE_COLORS[u.category] ?? '#9ca3af';
-      const date = new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      return `
-        <div style="display:flex;align-items:flex-start;gap:0.625rem;padding:0.625rem 0;border-bottom:1px solid #f5f5f5;">
-          <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;margin-top:0.3125rem;"></div>
-          <div style="font-size:0.8125rem;color:#444;line-height:1.45;flex:1;">${u.title}</div>
-          <div style="font-size:0.6563rem;color:#ccc;white-space:nowrap;padding-left:0.5rem;">${date}</div>
-        </div>`;
-    }).join('')}`;
-}
 function renderFooter(container) {
   const el = container.querySelector('#home-footer');
   if (!el) return;
