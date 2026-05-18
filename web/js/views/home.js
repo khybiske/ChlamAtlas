@@ -269,30 +269,12 @@ function renderCommunityColumn(container) {
       🌍 Community
     </div>
 
-    <!-- World map -->
+    <!-- World map — land drawn by buildWorldMap() from world-atlas topojson -->
     <div style="background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:14px;margin-bottom:10px;">
       <div style="height:110px;border-radius:5px;background:#e8f2ff;overflow:hidden;">
-        <!-- viewBox 360×180 = equirectangular; x=lng+180, y=90-lat -->
         <svg id="world-map-svg" width="100%" height="110" viewBox="0 0 360 180"
              style="display:block;" preserveAspectRatio="none">
-          <!-- Continent polygons -->
-          <g fill="#93c5fd" opacity="0.55">
-            <!-- North America -->
-            <polygon points="15,30 85,18 127,43 100,65 88,75 70,67 55,42"/>
-            <!-- Greenland -->
-            <polygon points="110,13 158,17 136,30"/>
-            <!-- South America -->
-            <polygon points="107,80 145,95 142,105 137,113 110,145 107,130 99,95"/>
-            <!-- Europe -->
-            <polygon points="171,53 205,19 209,25 217,34 206,53 175,54"/>
-            <!-- Africa -->
-            <polygon points="174,54 212,60 231,78 220,100 198,124 190,95 163,75"/>
-            <!-- Asia (main) -->
-            <polygon points="206,52 310,18 358,24 340,38 318,54 284,89 257,82 250,67 223,75"/>
-            <!-- Australia -->
-            <polygon points="293,105 333,105 330,128 317,125 295,122"/>
-          </g>
-          <!-- User location dots (added by loadCommunityStats) -->
+          <g id="world-map-land"></g>
           <g id="world-map-dots"></g>
         </svg>
       </div>
@@ -334,9 +316,62 @@ function renderCommunityColumn(container) {
     </div>
   `;
 
+  buildWorldMap(container);
   loadCommunityStats(container);
   loadTopContributors(container);
   loadActivityFeed(container);
+}
+
+async function buildWorldMap(container) {
+  const landEl = container.querySelector('#world-map-land');
+  if (!landEl) return;
+  try {
+    const topo = await fetch(
+      'https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json'
+    ).then(r => r.json());
+
+    const { scale: [sx, sy], translate: [tx, ty] } = topo.transform;
+
+    // Delta-decode a topojson arc into [lng, lat] pairs
+    function decodeArc(arc) {
+      let x = 0, y = 0;
+      return arc.map(([dx, dy]) => {
+        x += dx; y += dy;
+        return [x * sx + tx, y * sy + ty];
+      });
+    }
+
+    // Resolve arc index (negative index = reversed arc)
+    function resolveArc(i) {
+      const pts = decodeArc(topo.arcs[i < 0 ? ~i : i]);
+      return i < 0 ? pts.slice().reverse() : pts;
+    }
+
+    // Convert a ring (array of arc indices) to an SVG path segment
+    function ringToPath(ring) {
+      const pts = ring.flatMap(resolveArc);
+      return pts.map(([lng, lat], i) =>
+        `${i ? 'L' : 'M'}${(lng + 180).toFixed(1)},${(90 - lat).toFixed(1)}`
+      ).join('') + 'Z';
+    }
+
+    function geomToPath(geom) {
+      if (geom.type === 'Polygon')
+        return geom.arcs.map(ringToPath).join('');
+      if (geom.type === 'MultiPolygon')
+        return geom.arcs.map(poly => poly.map(ringToPath).join('')).join('');
+      return '';
+    }
+
+    const geo = topo.objects.land;
+    const d = geo.type === 'GeometryCollection'
+      ? geo.geometries.map(geomToPath).join('')
+      : geomToPath(geo);
+
+    if (d) landEl.innerHTML = `<path d="${d}" fill="#93c5fd" opacity="0.6"/>`;
+  } catch (err) {
+    console.error('buildWorldMap:', err);
+  }
 }
 
 async function loadCommunityStats(container) {
