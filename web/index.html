@@ -59,12 +59,24 @@
         <button data-tab="pipeline" class="nav-tab" style="display:none">Pipeline</button>
       </nav>
 
-      <!-- Right side: auth -->
-      <div id="auth-area" class="flex items-center gap-2 flex-shrink-0">
-        <button id="btn-sign-in"
-          class="text-sm text-white/80 hover:text-white font-medium px-3 py-1.5 rounded-lg hover:bg-white/10 transition border border-white/30 hover:border-white/50">
-          Sign in
+      <!-- Right side: search, saved, auth -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button id="btn-nav-search"
+          style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:5px 11px;cursor:pointer;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span style="font-size:12px;color:rgba(255,255,255,0.8);font-weight:500;">Search</span>
         </button>
+        <button id="btn-nav-saved"
+          style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:5px 11px;cursor:pointer;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span style="font-size:12px;color:rgba(255,255,255,0.8);font-weight:500;">Saved</span>
+        </button>
+        <div id="auth-area" class="flex items-center gap-2">
+          <button id="btn-sign-in"
+            class="text-sm text-white/80 hover:text-white font-medium px-3 py-1.5 rounded-lg hover:bg-white/10 transition border border-white/30 hover:border-white/50">
+            Sign in
+          </button>
+        </div>
       </div>
 
     </div>
@@ -314,6 +326,6 @@
   </div>
 
   <!-- Supabase JS client (ESM via CDN) -->
-  <script type="module" src="/web/js/app.js?v=65"></script>
+  <script type="module" src="/web/js/app.js?v=66"></script>
 </body>
 </html>
