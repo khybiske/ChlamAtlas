@@ -26,14 +26,11 @@ const ORGANISMS = [
 ];
 
 export async function renderHome(container) {
-  // Build full-bleed page — container has no max-width constraint
   container.innerHTML = `
     <!-- ── Masthead ── -->
     <div class="home-masthead" style="background:#0f4530;overflow:hidden;position:relative;">
-      <!-- Subtle decorative circle -->
       <div style="position:absolute;right:-80px;top:-80px;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,0.025);pointer-events:none;"></div>
       <div class="max-w-5xl mx-auto px-5 sm:px-8" style="padding-top:2.75rem;padding-bottom:2.75rem;position:relative;z-index:1;">
-        <!-- Desktop: two-column; Mobile: stacked -->
         <div class="sm:grid sm:gap-12" style="grid-template-columns:1fr auto;align-items:end;">
           <div>
             <h1 class="font-display font-bold text-white" style="font-size:clamp(2.75rem,7vw,4.25rem);line-height:1;margin-bottom:0.75rem;letter-spacing:-0.01em;">ChlamAtlas</h1>
@@ -43,21 +40,19 @@ export async function renderHome(container) {
               pipeline tracking across three model strains.
             </p>
           </div>
-          <!-- Stats — right column desktop, horizontal row mobile -->
           <div id="mast-stats" class="flex sm:flex-col gap-0 sm:gap-4 mt-5 sm:mt-0">
-            <!-- Skeleton while loading -->
             <div class="flex sm:hidden gap-0 w-full" id="stats-row-mobile">
               ${[0,1,2].map(() => `
                 <div class="flex-1 px-3 sm:px-0" style="border-right:1px solid rgba(255,255,255,0.1);">
-                  <div class="skeleton" style="height:1.25rem;width:3rem;margin-bottom:0.25rem;background:rgba(255,255,255,0.12);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
-                  <div class="skeleton" style="height:0.625rem;width:2rem;background:rgba(255,255,255,0.08);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
+                  <div style="height:1.25rem;width:3rem;margin-bottom:0.25rem;background:rgba(255,255,255,0.12);border-radius:4px;"></div>
+                  <div style="height:0.625rem;width:2rem;background:rgba(255,255,255,0.08);border-radius:4px;"></div>
                 </div>`).join('')}
             </div>
             <div class="hidden sm:flex sm:flex-col sm:gap-4 sm:items-end" id="stats-col-desktop">
               ${[0,1,2].map(() => `
                 <div class="text-right">
-                  <div class="skeleton" style="height:1.875rem;width:4rem;margin-bottom:0.25rem;margin-left:auto;background:rgba(255,255,255,0.12);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
-                  <div class="skeleton" style="height:0.625rem;width:3rem;margin-left:auto;background:rgba(255,255,255,0.08);animation:pulse 1.5s ease-in-out infinite;border-radius:4px;"></div>
+                  <div style="height:1.875rem;width:4rem;margin-bottom:0.25rem;margin-left:auto;background:rgba(255,255,255,0.12);border-radius:4px;"></div>
+                  <div style="height:0.625rem;width:3rem;margin-left:auto;background:rgba(255,255,255,0.08);border-radius:4px;"></div>
                 </div>`).join('')}
             </div>
           </div>
@@ -65,23 +60,19 @@ export async function renderHome(container) {
       </div>
     </div>
 
-    <!-- ── Entry blocks ── -->
-    <div id="entry-blocks" style="background:white;border-bottom:1px solid #ececec;"></div>
-
-    <!-- ── Lower section ── -->
+    <!-- ── Three-column main content ── -->
     <div style="background:white;">
-      <div class="max-w-5xl mx-auto px-5 sm:px-8" style="padding-top:2.25rem;padding-bottom:3rem;">
-        <div class="sm:grid sm:gap-14" style="grid-template-columns:1fr 1fr;">
-          <div id="organisms-section"></div>
-          <div id="updates-section" class="mt-8 sm:mt-0"></div>
-        </div>
+      <div style="max-width:960px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;">
+        <div id="col-genomes"   style="padding:36px 28px 40px;border-right:1px solid #f0f0f0;"></div>
+        <div id="col-mutants"   style="padding:36px 28px 40px;border-right:1px solid #f0f0f0;"></div>
+        <div id="col-community" style="padding:36px 28px 40px;"></div>
       </div>
     </div>
 
     <!-- ── Footer ── -->
     <div id="home-footer"></div>
 
-    <!-- ── Citation modal ── -->
+    <!-- ── Citation modal (unchanged) ── -->
     <div id="citation-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
         <div class="px-6 py-5" style="background:#0f4530;">
@@ -98,7 +89,7 @@ export async function renderHome(container) {
     </div>
   `;
 
-  // Wire citation modal close
+  // Wire citation modal
   container.querySelector('#citation-close').addEventListener('click', () => {
     container.querySelector('#citation-modal').classList.add('hidden');
   });
@@ -109,11 +100,23 @@ export async function renderHome(container) {
 
   // Load all sections in parallel
   loadStats(container);
-  renderEntryBlocks(container);
-  loadOrganisms(container);
-  loadUpdates(container);
+  renderGenomesColumn(container);
+  renderMutantsColumn(container);
+  renderCommunityColumn(container);
   renderFooter(container);
   loadCitation(container);
+}
+
+function renderGenomesColumn(container) {
+  // Implemented in Task 4
+}
+
+function renderMutantsColumn(container) {
+  // Implemented in Task 5
+}
+
+function renderCommunityColumn(container) {
+  // Implemented in Task 6
 }
 
 async function loadStats(container) {
@@ -149,11 +152,6 @@ async function loadStats(container) {
       </div>`).join('');
   }
 
-  // Also update entry block meta counts (populated by renderEntryBlocks in Task 5)
-  const ebGene = container.querySelector('#eb-gene-count');
-  const ebMutant = container.querySelector('#eb-mutant-count');
-  if (ebGene) ebGene.textContent = geneRes.count?.toLocaleString() ?? '—';
-  if (ebMutant) ebMutant.textContent = mutantRes.count?.toLocaleString() ?? '—';
 }
 
 function renderEntryBlocks(container) {
