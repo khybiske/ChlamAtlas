@@ -1,11 +1,23 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY } from './client.js?v=65';
-import { renderHome } from './views/home.js?v=65';
+import { renderHome } from './views/home.js?v=66';
 import { renderGenomes } from './views/genomes.js?v=66';
 import { renderMutants } from './views/mutants.js?v=69';
 import { renderPipeline } from './views/pipeline.js?v=65';
 
 export { sb, state };
+
+// ─── Nav stub buttons ──────────────────────────────────────
+function wireNavStubs() {
+  document.getElementById('btn-nav-search')?.addEventListener('click', () => {
+    // TODO: open search modal
+    console.log('Search coming soon');
+  });
+  document.getElementById('btn-nav-saved')?.addEventListener('click', () => {
+    // TODO: navigate to Favorites page
+    console.log('Saved coming soon');
+  });
+}
 
 // ─── Tab routing ──────────────────────────────────────────
 const TABS = ['home', 'genomes', 'mutants', 'pipeline'];
@@ -766,5 +778,6 @@ window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab))
 // Supabase client in a broken state that silences all subsequent queries.
 renderAuthArea();
 updateNavVisibility();
+wireNavStubs();
 const _hash = location.hash.replace(/^#\/?/, '');
 activateTab(TABS.includes(_hash) ? _hash : 'home');
