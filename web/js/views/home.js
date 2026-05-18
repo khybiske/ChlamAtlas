@@ -25,6 +25,13 @@ const ORGANISMS = [
   },
 ];
 
+const COLLECTIONS = [
+  { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   avatarBg: '#dcfce7', emoji: '🧫' },
+  { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      avatarBg: '#dbeafe', emoji: '🐭' },
+  { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', avatarBg: '#fef9c3', emoji: '⭐' },
+  { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', emoji: '🔀' },
+];
+
 export async function renderHome(container) {
   container.innerHTML = `
     <!-- ── Masthead ── -->
@@ -157,7 +164,62 @@ async function loadGenomeCounts(container) {
 }
 
 function renderMutantsColumn(container) {
-  // Implemented in Task 5
+  const el = container.querySelector('#col-mutants');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
+      🔬 Mutants
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      ${COLLECTIONS.map(c => `
+        <button data-collection="${c.id}"
+          style="display:flex;align-items:center;gap:12px;width:100%;
+                 background:white;border:1px solid #e5e7eb;border-radius:7px;
+                 padding:11px 13px;cursor:pointer;text-align:left;transition:background 0.15s;"
+          onmouseenter="this.style.background='#fafafa'" onmouseleave="this.style.background='white'">
+          <div style="width:36px;height:36px;border-radius:50%;background:${c.avatarBg};
+                      flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;">
+            ${c.emoji}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:#111;">${c.label}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">
+              ${c.sub} · <span id="mut-count-${c.id}">—</span>
+            </div>
+          </div>
+          <span style="color:#e5e7eb;font-size:18px;line-height:1;flex-shrink:0;">›</span>
+        </button>`).join('')}
+    </div>`;
+
+  el.querySelectorAll('[data-collection]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.__mutantCollection = btn.dataset.collection;
+      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
+    });
+  });
+
+  loadMutantCounts(container);
+}
+
+async function loadMutantCounts(container) {
+  try {
+    const results = await Promise.all(
+      COLLECTIONS.map(c =>
+        sb.from('mutants')
+          .select('id', { count: 'exact', head: true })
+          .eq('collection', c.id)
+      )
+    );
+    COLLECTIONS.forEach((c, i) => {
+      const count = results[i].count;
+      if (count == null) return;
+      const el = container.querySelector(`#mut-count-${c.id}`);
+      if (el) el.textContent = `${Number(count).toLocaleString()} mutants`;
+    });
+  } catch (err) {
+    console.error('loadMutantCounts:', err);
+  }
 }
 
 function renderCommunityColumn(container) {
@@ -199,133 +261,6 @@ async function loadStats(container) {
 
 }
 
-function renderEntryBlocks(container) {
-  const isLabMember = ['lab_member', 'admin'].includes(state.userRole);
-
-  // Blocks always shown
-  const blocks = [
-    {
-      icon: '🧬', verb: 'Browse',      title: 'Genomes',
-      meta: '<span id="eb-gene-count">—</span> genes · 3 strains',
-      tab: 'genomes', disabled: false,
-    },
-    {
-      icon: '🔬', verb: 'Explore',     title: 'Mutants',
-      meta: '<span id="eb-mutant-count">—</span>+ characterized',
-      tab: 'mutants', disabled: false,
-      collections: [
-        { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
-        { id: 'CM',       label: 'C. muridarum',   icon: '/design/CMicon.jpg' },
-        { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/L17icon.jpg' },
-        { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
-      ],
-    },
-  ];
-
-  // Pipeline: lab members only
-  if (isLabMember) {
-    blocks.push({
-      icon: '⚗️', verb: 'Track', title: 'Pipeline',
-      meta: 'Multi-lab progress',
-      tab: 'pipeline', disabled: false,
-    });
-  }
-
-  // Search: always last, always disabled
-  blocks.push({
-    icon: '🔍', verb: 'Coming soon', title: 'Search',
-    meta: 'Universal search',
-    tab: null, disabled: true,
-  });
-
-  const isMobile = window.innerWidth < 640;
-
-  const el = container.querySelector('#entry-blocks');
-  if (!el) return;
-
-  if (!isMobile) {
-    // Desktop: flex row
-    el.style.cssText = '';
-    el.innerHTML = `
-      <div class="max-w-5xl mx-auto" style="display:grid;grid-template-columns:repeat(${blocks.length},1fr);">
-        ${blocks.map((b, i) => entryBlockHTML(b, i < blocks.length - 1 ? 'border-right:1px solid #ececec;' : '')).join('')}
-      </div>`;
-  } else if (isLabMember) {
-    // Mobile 2×2
-    el.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;">
-        ${blocks.map((b, i) => {
-          const borderRight = (i % 2 === 0) ? 'border-right:1px solid #ececec;' : '';
-          const borderBottom = (i < 2) ? 'border-bottom:1px solid #ececec;' : '';
-          return entryBlockHTML(b, borderRight + borderBottom);
-        }).join('')}
-      </div>`;
-  } else {
-    // Mobile guest: Genomes | Mutants top row, Search full-width below
-    const [genomesBlock, mutantsBlock, searchBlock] = blocks;
-    el.innerHTML = `
-      <div style="border-bottom:1px solid #ececec;display:grid;grid-template-columns:1fr 1fr;">
-        ${entryBlockHTML(genomesBlock, 'border-right:1px solid #ececec;')}
-        ${entryBlockHTML(mutantsBlock, '')}
-      </div>
-      <div style="display:flex;align-items:center;gap:1rem;padding:1.125rem 1.25rem 1rem;opacity:0.32;cursor:default;">
-        <span style="font-size:1.375rem;">${searchBlock.icon}</span>
-        <div>
-          <div style="font-size:0.59375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:#1a6b4a;margin-bottom:0.25rem;">${searchBlock.verb}</div>
-          <div style="font-size:1.0625rem;font-weight:600;color:#111;margin-bottom:0.25rem;">${searchBlock.title}</div>
-          <div class="font-mono" style="font-size:0.75rem;color:#bbb;">${searchBlock.meta}</div>
-        </div>
-      </div>`;
-  }
-
-  // Wire up click handlers (non-disabled blocks only)
-  el.querySelectorAll('[data-nav-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.navTab;
-      if (tab) window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab } }));
-    });
-  });
-
-  // Collection pill buttons on the Mutants block
-  el.querySelectorAll('[data-collection-nav]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.__mutantCollection = btn.dataset.collectionNav;
-      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
-    });
-  });
-}
-
-function entryBlockHTML(block, borderStyle) {
-  const cursor = block.disabled ? 'cursor:default;' : 'cursor:pointer;';
-  const opacity = block.disabled ? 'opacity:0.32;' : '';
-  const navAttr = !block.disabled && !block.collections ? 'data-nav-tab="' + block.tab + '"' : '';
-  const hoverHandlers = !block.disabled && !block.collections
-    ? 'onmouseenter="this.style.background=\'#f9fafb\'" onmouseleave="this.style.background=\'\'"'
-    : '';
-  const collectionPills = block.collections ? `
-    <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.625rem;">
-      ${block.collections.map(c => `
-        <button data-collection-nav="${c.id}"
-          style="display:inline-flex;align-items:center;gap:0.3125rem;padding:0.25rem 0.625rem 0.25rem 0.25rem;
-                 border-radius:9999px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;
-                 font-size:0.6875rem;font-weight:500;color:#374151;transition:background 0.15s;"
-          onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='#fff'">
-          <img src="${c.icon}" style="width:1rem;height:1rem;border-radius:9999px;object-fit:cover;" alt="">
-          ${c.label}
-        </button>`).join('')}
-    </div>` : '';
-  return `
-    <div ${navAttr}
-      style="padding:1.125rem 1.25rem 1rem;${borderStyle}${!block.collections ? cursor : 'cursor:default;'}${opacity}transition:background 0.15s;"
-      ${hoverHandlers}>
-      <span style="font-size:1.375rem;margin-bottom:0.5rem;display:block;">${block.icon}</span>
-      <div style="font-size:0.59375rem;font-weight:700;text-transform:uppercase;letter-spacing:0.11em;color:#1a6b4a;margin-bottom:0.25rem;">${block.verb}</div>
-      <div style="font-size:1.0625rem;font-weight:600;color:#111;margin-bottom:0.25rem;">${block.title}</div>
-      <div class="font-mono" style="font-size:0.75rem;color:#bbb;">${block.meta}</div>
-      ${collectionPills}
-    </div>`;
-}
 
 // Map site_updates category values to organism colors
 const UPDATE_COLORS = {
