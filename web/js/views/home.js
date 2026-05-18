@@ -223,7 +223,139 @@ async function loadMutantCounts(container) {
 }
 
 function renderCommunityColumn(container) {
-  // Implemented in Task 6
+  const el = container.querySelector('#col-community');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
+      🌍 Community
+    </div>
+
+    <!-- Map placeholder -->
+    <div style="background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:14px;margin-bottom:10px;">
+      <div style="height:110px;border-radius:5px;background:#e8f2ff;position:relative;overflow:hidden;">
+        <svg width="100%" height="100%" viewBox="0 0 300 110" style="position:absolute;inset:0;opacity:0.18;" preserveAspectRatio="xMidYMid meet">
+          <path d="M28,32 Q52,18 72,34 Q82,46 66,57 Q44,62 28,52 Z" fill="#1d4ed8"/>
+          <path d="M88,24 Q132,12 153,29 Q163,41 157,57 Q140,67 108,61 Q83,51 88,24 Z" fill="#1d4ed8"/>
+          <path d="M163,29 Q186,20 202,34 Q208,49 197,60 Q174,65 158,52 Z" fill="#1d4ed8"/>
+          <path d="M214,27 Q242,18 262,31 Q270,45 257,56 Q236,62 213,51 Z" fill="#1d4ed8"/>
+          <path d="M93,66 Q117,59 128,73 Q123,84 101,82 Q87,76 93,66 Z" fill="#1d4ed8"/>
+        </svg>
+        <div id="map-dots"></div>
+      </div>
+      <div id="map-caption" style="font-size:11px;color:#3b82f6;font-weight:500;margin-top:8px;text-align:center;">
+        Researchers worldwide
+      </div>
+    </div>
+
+    <!-- Stats panel: Users + Annotation sparkline -->
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:7px;padding:12px 14px;
+                display:flex;align-items:center;gap:0;margin-bottom:10px;">
+      <div style="flex:0 0 auto;padding-right:16px;border-right:1px solid #f3f4f6;margin-right:16px;">
+        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Users</div>
+        <div id="community-user-count" style="font-size:26px;font-weight:700;font-family:'DM Mono',monospace;color:#111;line-height:1;">—</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Annotations over time</div>
+        <div id="community-sparkline">
+          <div style="height:32px;background:#f9fafb;border-radius:3px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top contributors -->
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:7px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Top contributors</div>
+      <div id="community-leaderboard" style="display:flex;flex-direction:column;gap:5px;">
+        <div style="font-size:11px;color:#e5e7eb;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Cycling activity strip -->
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;padding:10px 14px;
+                display:flex;align-items:center;gap:9px;">
+      <div style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0;"></div>
+      <div id="community-activity" style="font-size:12px;color:#555;transition:opacity 0.4s;">
+        Loading activity…
+      </div>
+    </div>
+  `;
+
+  loadCommunityStats(container);
+  loadTopContributors(container);
+  loadActivityFeed(container);
+}
+
+async function loadCommunityStats(container) {
+  try {
+    const { count: userCount } = await sb
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+
+    const userEl = container.querySelector('#community-user-count');
+    if (userEl && userCount != null)
+      userEl.textContent = userCount.toLocaleString();
+
+    const mapEl = container.querySelector('#map-caption');
+    if (mapEl && userCount != null)
+      mapEl.textContent = `${userCount.toLocaleString()} researcher${userCount !== 1 ? 's' : ''} worldwide`;
+
+    const { data: annRows } = await sb
+      .from('annotations')
+      .select('created_at')
+      .order('created_at', { ascending: true });
+
+    const sparklineEl = container.querySelector('#community-sparkline');
+    if (!sparklineEl) return;
+
+    if (!annRows?.length) {
+      sparklineEl.innerHTML = `<div style="font-size:11px;color:#e5e7eb;padding:8px 0;text-align:center;">No annotations yet</div>`;
+      return;
+    }
+
+    const monthMap = {};
+    annRows.forEach(row => {
+      const d = new Date(row.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthMap[key] = (monthMap[key] || 0) + 1;
+    });
+    const monthly = Object.entries(monthMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, count]) => ({ month: new Date(key + '-01'), count }));
+
+    sparklineEl.innerHTML = renderSparkline(monthly);
+  } catch (err) {
+    console.error('loadCommunityStats:', err);
+  }
+}
+
+function renderSparkline(monthly) {
+  const BAR_W = 8, GAP = 6, MAX_H = 28, LABEL_H = 8;
+  const H = MAX_H + LABEL_H;
+  const maxVal = Math.max(...monthly.map(d => d.count), 1);
+  const W = monthly.length * (BAR_W + GAP) - GAP;
+  const COLORS = ['#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'];
+  const INITIALS = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+
+  const bars = monthly.map((d, i) => {
+    const h = Math.max(2, Math.round((d.count / maxVal) * MAX_H));
+    const x = i * (BAR_W + GAP);
+    const y = MAX_H - h;
+    const ci = Math.round((i / Math.max(monthly.length - 1, 1)) * (COLORS.length - 1));
+    const label = INITIALS[d.month.getMonth()];
+    return `<rect x="${x}" y="${y}" width="${BAR_W}" height="${h}" fill="${COLORS[ci]}" rx="1"/>
+            <text x="${x + BAR_W / 2}" y="${H}" font-size="4.5" fill="#d1d5db" text-anchor="middle" font-family="monospace">${label}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+function loadTopContributors(container) {
+  // Implemented in Task 7
+}
+
+async function loadActivityFeed(container) {
+  // Implemented in Task 8
 }
 
 async function loadStats(container) {
