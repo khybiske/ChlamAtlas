@@ -26,11 +26,43 @@ const ORGANISMS = [
 ];
 
 const COLLECTIONS = [
-  { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   avatarBg: '#dcfce7', emoji: '🧫' },
-  { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      avatarBg: '#dbeafe', emoji: '🐭' },
-  { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', avatarBg: '#fef9c3', emoji: '⭐' },
-  { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', emoji: '🔀' },
+  { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   avatarBg: '#dcfce7', icon: '/design/L2icon.jpg' },
+  { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      avatarBg: '#dbeafe', icon: '/design/CMicon.jpg' },
+  { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', avatarBg: '#fef9c3', icon: '/design/L17icon.jpg' },
+  { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', icon: '/design/Chimeraicon.jpg' },
 ];
+
+// Equirectangular projection: x% = (lng+180)/360*100, y% = (90-lat)/180*100
+const COUNTRY_CENTROIDS = {
+  'united states': [38, -97], 'usa': [38, -97], 'us': [38, -97],
+  'united kingdom': [54, -2], 'uk': [54, -2], 'england': [52, -1],
+  'germany': [51, 10], 'france': [46, 2], 'netherlands': [52, 5],
+  'sweden': [62, 15], 'norway': [65, 13], 'denmark': [56, 10],
+  'finland': [64, 26], 'switzerland': [47, 8], 'austria': [47, 14],
+  'italy': [42, 12], 'spain': [40, -4], 'portugal': [39, -8],
+  'belgium': [50, 4], 'poland': [52, 20], 'czechia': [49, 15],
+  'czech republic': [49, 15], 'hungary': [47, 19], 'romania': [46, 25],
+  'canada': [56, -96], 'australia': [-27, 133], 'new zealand': [-41, 174],
+  'japan': [36, 138], 'china': [35, 105], 'south korea': [37, 128],
+  'korea': [37, 128], 'india': [20, 77], 'singapore': [1, 104],
+  'taiwan': [24, 121], 'hong kong': [22, 114], 'israel': [31, 35],
+  'brazil': [-14, -51], 'argentina': [-34, -64], 'mexico': [24, -102],
+  'south africa': [-29, 25], 'kenya': [1, 38], 'nigeria': [10, 8],
+  'egypt': [27, 30], 'saudi arabia': [24, 45], 'turkey': [39, 35],
+  'russia': [60, 100], 'ukraine': [49, 31], 'greece': [39, 22],
+};
+
+function countryToXY(country) {
+  if (!country) return null;
+  const key = country.toLowerCase().trim();
+  const coords = COUNTRY_CENTROIDS[key];
+  if (!coords) return null;
+  const [lat, lng] = coords;
+  return {
+    x: ((lng + 180) / 360) * 100,
+    y: ((90 - lat) / 180) * 100,
+  };
+}
 
 export async function renderHome(container) {
   container.innerHTML = `
@@ -179,8 +211,10 @@ function renderMutantsColumn(container) {
                  padding:11px 13px;cursor:pointer;text-align:left;transition:background 0.15s;"
           onmouseenter="this.style.background='#fafafa'" onmouseleave="this.style.background='white'">
           <div style="width:36px;height:36px;border-radius:50%;background:${c.avatarBg};
-                      flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;">
-            ${c.emoji}
+                      flex-shrink:0;overflow:hidden;">
+            <img src="${c.icon}" alt="${c.label}"
+              style="width:100%;height:100%;object-fit:cover;border-radius:50%;"
+              onerror="this.style.display='none'">
           </div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:600;color:#111;">${c.label}</div>
@@ -288,17 +322,38 @@ function renderCommunityColumn(container) {
 
 async function loadCommunityStats(container) {
   try {
-    const { count: userCount } = await sb
+    const { data: userRows } = await sb
       .from('users')
-      .select('id', { count: 'exact', head: true });
+      .select('id, country');
+
+    const userCount = userRows?.length ?? 0;
 
     const userEl = container.querySelector('#community-user-count');
-    if (userEl && userCount != null)
-      userEl.textContent = userCount.toLocaleString();
+    if (userEl) userEl.textContent = userCount.toLocaleString();
+
+    // Map dots
+    const dotsEl = container.querySelector('#map-dots');
+    if (dotsEl && userRows?.length) {
+      const countries = new Set(userRows.map(u => u.country).filter(Boolean));
+      const uniqueCountries = [...countries];
+      dotsEl.innerHTML = uniqueCountries.map(c => {
+        const xy = countryToXY(c);
+        if (!xy) return '';
+        return `<div style="position:absolute;left:${xy.x.toFixed(1)}%;top:${xy.y.toFixed(1)}%;
+                            width:6px;height:6px;border-radius:50%;background:#2563eb;
+                            transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(255,255,255,0.7);"></div>`;
+      }).join('');
+    }
 
     const mapEl = container.querySelector('#map-caption');
-    if (mapEl && userCount != null)
-      mapEl.textContent = `${userCount.toLocaleString()} researcher${userCount !== 1 ? 's' : ''} worldwide`;
+    if (mapEl) {
+      const countryCount = userRows ? new Set(userRows.map(u => u.country).filter(Boolean)).size : 0;
+      if (userCount > 0 && countryCount > 0) {
+        mapEl.textContent = `${userCount.toLocaleString()} researcher${userCount !== 1 ? 's' : ''} · ${countryCount} countr${countryCount !== 1 ? 'ies' : 'y'}`;
+      } else if (userCount > 0) {
+        mapEl.textContent = `${userCount.toLocaleString()} researcher${userCount !== 1 ? 's' : ''} worldwide`;
+      }
+    }
 
     const { data: annRows } = await sb
       .from('annotations')
