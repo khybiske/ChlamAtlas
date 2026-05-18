@@ -108,7 +108,52 @@ export async function renderHome(container) {
 }
 
 function renderGenomesColumn(container) {
-  // Implemented in Task 4
+  const el = container.querySelector('#col-genomes');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
+      🧬 Genomes
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      ${ORGANISMS.map(org => `
+        <button data-strain="${org.id}"
+          style="display:flex;flex-direction:column;align-items:flex-start;width:100%;
+                 background:white;border:1px solid #e5e7eb;border-left:3px solid ${org.color};
+                 border-radius:7px;padding:12px 14px;cursor:pointer;text-align:left;transition:background 0.15s;"
+          onmouseenter="this.style.background='#fafafa'" onmouseleave="this.style.background='white'">
+          <div style="font-size:13px;font-weight:700;color:${org.color};margin-bottom:3px;">${org.label}</div>
+          <div style="font-size:12px;font-style:italic;color:#444;">${org.species}</div>
+          <div id="gene-count-${org.id}" style="font-size:11px;color:#bbb;font-family:var(--font-mono,'DM Mono',monospace);margin-top:5px;">— genes</div>
+        </button>`).join('')}
+    </div>`;
+
+  el.querySelectorAll('[data-strain]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.__preferredStrain = btn.dataset.strain;
+      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+    });
+  });
+
+  loadGenomeCounts(container);
+}
+
+async function loadGenomeCounts(container) {
+  try {
+    const { data } = await sb
+      .from('strains')
+      .select('common_name, genes(count)')
+      .eq('is_active', true);
+
+    (data || []).forEach(strain => {
+      const count = strain.genes?.[0]?.count;
+      if (count == null) return;
+      const el = container.querySelector(`#gene-count-${strain.common_name}`);
+      if (el) el.textContent = `${Number(count).toLocaleString()} genes`;
+    });
+  } catch (err) {
+    console.error('loadGenomeCounts:', err);
+  }
 }
 
 function renderMutantsColumn(container) {
@@ -282,54 +327,6 @@ function entryBlockHTML(block, borderStyle) {
     </div>`;
 }
 
-async function loadOrganisms(container) {
-  // Query gene counts per strain using embedded count
-  let strains;
-  try {
-    const { data } = await sb
-      .from('strains')
-      .select('id, common_name, genes(count)')
-      .eq('is_active', true);
-    strains = data;
-  } catch (err) {
-    console.error('loadOrganisms:', err);
-    return;
-  }
-
-  const el = container.querySelector('#organisms-section');
-  if (!el) return;
-
-  el.innerHTML = `
-    <div style="font-size:0.5875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:0.875rem;">
-      Model Organisms
-    </div>
-    ${ORGANISMS.map(org => {
-      // Match by common_name (CT-L2, CT-D, CM)
-      const strain = strains?.find(s => s.common_name === org.id);
-      const count = strain?.genes?.[0]?.count;
-      const countText = count != null ? `<span class="font-mono" style="font-size:0.6875rem;color:#ccc;">${Number(count).toLocaleString()} genes</span>` : '';
-      return `
-        <button data-strain="${org.id}"
-          style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid #f3f3f3;width:100%;text-align:left;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;"
-          onmouseenter="this.style.opacity='0.8'" onmouseleave="this.style.opacity='1'">
-          <div style="width:3px;height:2.25rem;border-radius:2px;background:${org.color};flex-shrink:0;"></div>
-          <div style="flex:1;">
-            <div style="font-size:0.875rem;font-style:italic;color:#222;font-weight:500;">${org.species}</div>
-            <div style="font-size:0.7188rem;color:#bbb;margin-top:1px;">${org.label} · ${org.desc}</div>
-          </div>
-          ${countText}
-          <span style="color:#ddd;font-size:1.125rem;margin-left:0.25rem;">›</span>
-        </button>`;
-    }).join('')}`;
-
-  // Wire up navigation — pass strain preference to genomes view
-  el.querySelectorAll('[data-strain]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      window.__preferredStrain = btn.dataset.strain;
-      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
-    });
-  });
-}
 // Map site_updates category values to organism colors
 const UPDATE_COLORS = {
   'CT-L2':      '#16a34a',
