@@ -2488,7 +2488,109 @@ function buildModalHtml(gene, protein, pdbRows) {
   </div>`;
 }
 
+function buildAdvancedHtml(protein, pdbRows) {
+  const advField = (label, name, value, extra = '') =>
+    `<div>
+      <label style="display:block;font-size:8px;color:#64748b;font-weight:600;
+        margin-bottom:3px;">${label}</label>
+      <input name="${name}" value="${esc(String(value ?? ''))}" ${extra}
+        style="width:100%;border:1.5px solid #e2e8f0;border-radius:5px;padding:5px 7px;
+        font-size:11px;box-sizing:border-box;">
+      <div id="gem-err-${name}" style="font-size:10px;color:#dc2626;margin-top:2px;display:none;"></div>
+    </div>`;
+
+  const pdbList = pdbRows.map(r => `
+    <div class="gem-pdb-existing" data-pdb-id="${esc(r.id)}"
+      style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:6px;
+      padding:7px 9px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;">
+        <div style="font-size:10px;font-weight:600;font-family:'DM Mono',monospace;color:#111;">
+          ${esc(r.top_homolog_pdb_id ?? '')}
+        </div>
+        <div style="font-size:9px;color:#64748b;margin-top:1px;">
+          ${esc(r.top_homolog_description ?? '')}
+        </div>
+      </div>
+      <button class="gem-pdb-remove" data-row-id="${esc(r.id)}"
+        style="font-size:9px;color:#94a3b8;background:none;border:none;cursor:pointer;
+        padding:2px 4px;">remove</button>
+    </div>`).join('');
+
+  return `
+    <div style="border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:10px;">
+      <button id="gem-adv-toggle" type="button"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;
+        padding:8px 12px;background:#f8fafc;border:none;cursor:pointer;">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#94a3b8;">Advanced Fields</span>
+        <span id="gem-adv-arrow" style="font-size:10px;color:#cbd5e1;">▸</span>
+      </button>
+      <div id="gem-adv-body" style="display:none;padding:12px;border-top:1px solid #e2e8f0;">
+
+        <div style="font-size:8px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;">Protein Identity</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          ${advField('UniProt ID', 'uniprot_id', protein?.uniprot_id, 'style="font-family:\'DM Mono\',monospace;"')}
+          ${advField('Protein Family', 'protein_family', protein?.protein_family)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          ${advField('Subunit Structure', 'oligomeric_state', protein?.oligomeric_state)}
+          ${advField('Mass (kDa)', 'mass_kd', protein?.mass_kd)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+          ${advField('TM Domains', 'transmembrane_domains', protein?.transmembrane_domains, 'type="number" min="0"')}
+          <div>
+            <label style="display:block;font-size:8px;color:#64748b;font-weight:600;margin-bottom:5px;">
+              Signal Peptide
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#374151;margin-top:5px;">
+              <input type="checkbox" name="signal_peptide" ${protein?.signal_peptide ? 'checked' : ''}> Yes
+            </label>
+          </div>
+        </div>
+
+        <!-- PDB structures -->
+        <div style="border-top:1px solid #e2e8f0;padding-top:10px;">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;
+            letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;">Crystal / PDB Structures</div>
+          <div id="gem-pdb-list">${pdbList || '<div style="font-size:10px;color:#bbb;margin-bottom:6px;">No PDB entries on record.</div>'}</div>
+          <!-- Add new PDB -->
+          <div style="border:1.5px dashed #c7d2fe;border-radius:6px;padding:8px 9px;background:#fafffe;">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;
+              letter-spacing:.05em;color:#6366f1;margin-bottom:5px;">Add New PDB Entry</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="gem-pdb-input" placeholder="e.g. 5YKG"
+                style="flex:1;border:1.5px solid #c7d2fe;border-radius:5px;padding:5px 7px;
+                font-size:11px;font-family:'DM Mono',monospace;box-sizing:border-box;text-transform:uppercase;">
+              <button id="gem-pdb-lookup" type="button"
+                style="background:#6366f1;border:none;border-radius:5px;padding:5px 10px;
+                font-size:9px;color:white;font-weight:600;white-space:nowrap;cursor:pointer;">
+                Look up ↗
+              </button>
+            </div>
+            <div id="gem-pdb-error" style="font-size:10px;color:#dc2626;margin-top:4px;display:none;"></div>
+            <div id="gem-pdb-result" style="display:none;margin-top:7px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, container) {
   overlay.querySelector('#gem-close')?.addEventListener('click', closeModal);
   overlay.querySelector('#gem-cancel')?.addEventListener('click', closeModal);
+
+  // Inject advanced section
+  const advWrap = overlay.querySelector('#gem-advanced-wrap');
+  if (advWrap) advWrap.innerHTML = buildAdvancedHtml(protein, pdbRows);
+
+  // Toggle advanced expander
+  overlay.querySelector('#gem-adv-toggle')?.addEventListener('click', () => {
+    const body  = overlay.querySelector('#gem-adv-body');
+    const arrow = overlay.querySelector('#gem-adv-arrow');
+    const open  = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    arrow.textContent  = open ? '▾' : '▸';
+  });
 }
