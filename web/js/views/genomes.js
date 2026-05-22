@@ -2359,9 +2359,10 @@ async function openGeneEditModal(gene, proteinArg, detail, container) {
 
 function buildModalHtml(gene, protein, pdbRows) {
   const curLoc = protein?.subcellular_location_sl?.[0] ?? '';
-  const catOpts = CATEGORY_OPTIONS.map(c =>
-    `<option value="${esc(c)}" ${gene.functional_category === c ? 'selected' : ''}>${esc(c)}</option>`
-  ).join('');
+  const catOpts = `<option value="" ${!gene.functional_category ? 'selected' : ''}>— not set —</option>` +
+    CATEGORY_OPTIONS.map(c =>
+      `<option value="${esc(c)}" ${gene.functional_category === c ? 'selected' : ''}>${esc(c)}</option>`
+    ).join('');
   const locOpts = LOC_OPTIONS.map(o =>
     `<option value="${esc(o.id)}" ${curLoc === o.id ? 'selected' : ''}>${esc(o.label)}</option>`
   ).join('');
@@ -2473,7 +2474,7 @@ function buildModalHtml(gene, protein, pdbRows) {
     </div>
 
     <!-- Error banner (hidden by default) -->
-    <div id="gem-error-banner" style="display:none;margin:0 18px;padding:8px 12px;
+    <div id="gem-error-banner" style="display:none;margin:0 18px 8px;padding:8px 12px;
       background:#fef2f2;border:1px solid #fecaca;border-radius:7px;
       font-size:11px;color:#dc2626;line-height:1.4;"></div>
 
