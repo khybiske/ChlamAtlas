@@ -2640,7 +2640,7 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
         <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:5px;padding:7px 9px;">
           <div style="font-size:9px;font-weight:600;color:#065f46;">✓ Found: ${esc(rawId)}</div>
           <div style="font-size:9px;color:#047857;margin-top:2px;">
-            ${esc(title)}${res_a ? ` · ${res_a} Å` : ''}${year ? ` · ${year}` : ''}
+            ${esc(title)}${res_a != null ? ` · ${esc(String(res_a))} Å` : ''}${year ? ` · ${esc(year)}` : ''}
           </div>
           <button id="gem-pdb-add" type="button"
             data-pdb-id="${esc(rawId)}"
