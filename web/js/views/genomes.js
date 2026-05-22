@@ -2689,8 +2689,170 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
   // Wire save button
   overlay.querySelector('#gem-save')?.addEventListener('click', async () => {
     if (!validateGeneEditForm(overlay)) return;
-    // Save logic added in Task 8
+
+    const saveBtn = overlay.querySelector('#gem-save');
+    const banner  = overlay.querySelector('#gem-error-banner');
+    banner.style.display = 'none';
+    saveBtn.textContent  = 'Saving…';
+    saveBtn.disabled     = true;
+
+    const showBanner = msg => {
+      banner.textContent   = msg;
+      banner.style.display = 'block';
+      saveBtn.textContent  = 'Save Changes';
+      saveBtn.disabled     = false;
+    };
+
+    try {
+      // 1. Collect diffs
+      const geneDiff    = collectGeneDiff(overlay, gene);
+      const proteinDiff = collectProteinDiff(overlay, protein);
+
+      // Localization diff
+      const locSelect  = overlay.querySelector('[name="localization_sl"]');
+      const newLocSlId = locSelect?.value ?? '';
+      const oldLocSlId = protein?.subcellular_location_sl?.[0] ?? '';
+      if (newLocSlId !== oldLocSlId) {
+        proteinDiff['subcellular_location_sl'] = {
+          old: oldLocSlId ? [oldLocSlId] : [],
+          new: newLocSlId ? [newLocSlId] : [],
+        };
+        if (newLocSlId) {
+          proteinDiff['localization_source']  = { old: protein?.localization_source,  new: 'user' };
+          proteinDiff['localization_curated'] = { old: protein?.localization_curated, new: true };
+        }
+      }
+
+      const allDiff = {
+        ...Object.fromEntries(Object.entries(geneDiff).map(([k, v])    => [`genes.${k}`, v])),
+        ...Object.fromEntries(Object.entries(proteinDiff).map(([k, v]) => [`proteins.${k}`, v])),
+      };
+
+      // 2. PATCH genes
+      let genesSaved = false;
+      if (Object.keys(geneDiff).length > 0) {
+        const genePayload = Object.fromEntries(Object.entries(geneDiff).map(([k, v]) => [k, v.new]));
+        genePayload.updated_by = state.user?.email ?? state.user?.user_metadata?.full_name ?? 'unknown';
+
+        const { error: gErr } = await sb.from('genes').update(genePayload).eq('id', gene.id);
+        if (gErr) {
+          showBanner("The server returned an error. Try again in a moment — if it keeps failing, contact the lab at khybiske@uw.edu.");
+          return;
+        }
+        genesSaved = true;
+      }
+
+      // 3. PATCH proteins
+      if (Object.keys(proteinDiff).length > 0 && protein?.id) {
+        const protPayload = Object.fromEntries(Object.entries(proteinDiff).map(([k, v]) => [k, v.new]));
+        const { error: pErr } = await sb.from('proteins').update(protPayload).eq('id', protein.id);
+        if (pErr) {
+          const msg = genesSaved
+            ? "Gene info was saved, but protein fields couldn't be updated. Your name, product, and category changes are live. Try saving again to retry the protein fields."
+            : "The server returned an error. Try again in a moment — if it keeps failing, contact the lab at khybiske@uw.edu.";
+          showBanner(msg);
+          return;
+        }
+      }
+
+      // 4. INSERT new PDB entries
+      const pdbToAdd = overlay._pdbToAdd ?? [];
+      for (const entry of pdbToAdd) {
+        if (!protein?.id) continue;
+        await sb.from('alphafold_results').insert({
+          protein_id:              protein.id,
+          af_version:              'PDB',
+          top_homolog_pdb_id:      entry.pdb_id,
+          top_homolog_description: entry.title,
+          homology_score:          entry.resolution ? Number(entry.resolution) : null,
+        });
+      }
+
+      // 5. DELETE removed PDB entries
+      const pdbToDelete = overlay._pdbToDelete ?? [];
+      for (const rowId of pdbToDelete) {
+        await sb.from('alphafold_results').delete().eq('id', rowId);
+      }
+
+      // 6. INSERT audit log
+      if (Object.keys(allDiff).length > 0) {
+        await sb.from('gene_edit_log').insert({
+          gene_id:   gene.id,
+          editor_id: state.user.id,
+          changes:   allDiff,
+        });
+      }
+
+      // 7. Success — close modal and refresh detail
+      overlay.remove();
+      document.removeEventListener('keydown', overlay._onEsc);
+
+      const updatedGene = {
+        ...gene,
+        ...Object.fromEntries(Object.entries(geneDiff).map(([k, v]) => [k, v.new])),
+      };
+      showGeneDetailDesktop(updatedGene, container);
+
+    } catch (err) {
+      const msg = err.message?.includes('fetch') || err.message?.includes('network') || err.name === 'TypeError'
+        ? "Couldn't reach the server. Check your internet connection and try again."
+        : "The server returned an error. Try again in a moment — if it keeps failing, contact the lab at khybiske@uw.edu.";
+      showBanner(msg);
+    }
   });
+}
+
+function collectGeneDiff(overlay, original) {
+  const f   = name => overlay.querySelector(`[name="${name}"]`);
+  const str = name => f(name)?.value?.trim() || null;
+  const chk = name => f(name)?.checked ?? false;
+
+  const diff = {};
+  const next = {
+    gene_name:           str('gene_name'),
+    gene_symbol:         str('gene_symbol'),
+    product:             str('product'),
+    functional_category: str('functional_category'),
+    is_hypothetical:     chk('is_hypothetical'),
+    is_membrane_protein: chk('is_membrane_protein'),
+    is_t3_secreted:      chk('is_t3_secreted'),
+    is_dna_binding:      chk('is_dna_binding'),
+  };
+
+  for (const [k, v] of Object.entries(next)) {
+    if (v !== (original[k] ?? null)) diff[k] = { old: original[k] ?? null, new: v };
+  }
+
+  // is_characterized always mirrors is_hypothetical
+  if ('is_hypothetical' in diff) {
+    diff['is_characterized'] = { old: !diff.is_hypothetical.old, new: !diff.is_hypothetical.new };
+  }
+
+  return diff;
+}
+
+function collectProteinDiff(overlay, original) {
+  const f   = name => overlay.querySelector(`[name="${name}"]`);
+  const str = name => f(name)?.value?.trim() || null;
+  const num = name => { const v = f(name)?.value?.trim(); return v === '' || v == null ? null : Number(v); };
+  const chk = name => f(name)?.checked ?? false;
+
+  const diff = {};
+  const next = {
+    uniprot_id:            str('uniprot_id'),
+    protein_family:        str('protein_family'),
+    oligomeric_state:      str('oligomeric_state'),
+    mass_kd:               num('mass_kd'),
+    transmembrane_domains: num('transmembrane_domains'),
+    signal_peptide:        chk('signal_peptide'),
+  };
+
+  for (const [k, v] of Object.entries(next)) {
+    const orig = original?.[k] ?? null;
+    if (String(v) !== String(orig)) diff[k] = { old: orig, new: v };
+  }
+
+  return diff;
 }
 
 function validateGeneEditForm(overlay) {
