@@ -2178,6 +2178,12 @@ function showGeneDetailDesktop(gene, container) {
           title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
           ${isFav ? '★' : '☆'}
         </button>
+        ${state.user ? `
+        <button id="detail-edit-btn"
+          style="background:none;border:none;cursor:pointer;color:#9ca3af;padding:0;flex-shrink:0;padding-top:2px;margin-left:2px;"
+          title="Edit gene">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>
+        </button>` : ''}
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
         <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
@@ -2250,6 +2256,11 @@ function showGeneDetailDesktop(gene, container) {
       listBtn.textContent = nowFav ? '★' : '☆';
       listBtn.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
     }
+  });
+
+  // Wire edit button
+  detail.querySelector('#detail-edit-btn')?.addEventListener('click', () => {
+    openGeneEditModal(gene, null, detail, container);
   });
 
   // Render synchronous sections immediately
