@@ -2500,7 +2500,7 @@ function buildAdvancedHtml(protein, pdbRows) {
     </div>`;
 
   const pdbList = pdbRows.map(r => `
-    <div class="gem-pdb-existing" data-pdb-id="${esc(r.id)}"
+    <div class="gem-pdb-existing" data-row-id="${esc(r.id)}"
       style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:6px;
       padding:7px 9px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
       <div style="flex:1;">
@@ -2508,7 +2508,7 @@ function buildAdvancedHtml(protein, pdbRows) {
           ${esc(r.top_homolog_pdb_id ?? '')}
         </div>
         <div style="font-size:9px;color:#64748b;margin-top:1px;">
-          ${esc(r.top_homolog_description ?? '')}
+          ${esc(r.top_homolog_description ?? '')}${r.homology_score ? ` · ${esc(String(r.homology_score))} Å` : ''}
         </div>
       </div>
       <button class="gem-pdb-remove" data-row-id="${esc(r.id)}"
@@ -2536,7 +2536,7 @@ function buildAdvancedHtml(protein, pdbRows) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
           ${advField('Subunit Structure', 'oligomeric_state', protein?.oligomeric_state)}
-          ${advField('Mass (kDa)', 'mass_kd', protein?.mass_kd)}
+          ${advField('Mass (kDa)', 'mass_kd', protein?.mass_kd, 'type="number" min="0" step="any"')}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
           ${advField('TM Domains', 'transmembrane_domains', protein?.transmembrane_domains, 'type="number" min="0"')}
