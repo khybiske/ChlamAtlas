@@ -2173,16 +2173,18 @@ function showGeneDetailDesktop(gene, container) {
             : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
         </div>
-        <button id="detail-fav-btn" data-id="${gene.id}"
-          style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;padding-top:2px;"
-          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-          ${isFav ? '★' : '☆'}
-        </button>
-        <button id="detail-edit-btn"
-          style="background:none;border:none;cursor:pointer;color:#9ca3af;padding:0;flex-shrink:0;padding-top:2px;margin-left:2px;display:${state.user ? 'inline-flex' : 'none'};"
-          title="Edit gene">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>
-        </button>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:2px;">
+          <button id="detail-edit-btn"
+            style="background:none;border:none;cursor:pointer;color:#9ca3af;padding:0;flex-shrink:0;display:none;"
+            title="Edit gene">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H2v-3L11.5 2.5z"/></svg>
+          </button>
+          <button id="detail-fav-btn" data-id="${gene.id}"
+            style="font-size:16px;background:none;border:none;cursor:pointer;color:${isFav ? '#f59e0b' : '#d1d5db'};padding:0;flex-shrink:0;"
+            title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+            ${isFav ? '★' : '☆'}
+          </button>
+        </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
         <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
@@ -2257,14 +2259,10 @@ function showGeneDetailDesktop(gene, container) {
     }
   });
 
-  // Wire edit button — always in DOM, visible only when authenticated
+  // Wire edit button — hidden by default, shown after session confirmed
   const editBtn = detail.querySelector('#detail-edit-btn');
   if (editBtn) {
-    editBtn.addEventListener('click', () => {
-      if (!state.user) return;
-      openGeneEditModal(gene, null, detail, container);
-    });
-    // Show button if auth resolved after the hero rendered
+    editBtn.addEventListener('click', () => openGeneEditModal(gene, null, detail, container));
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) editBtn.style.display = 'inline-flex';
     });
