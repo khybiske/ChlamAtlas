@@ -2284,3 +2284,93 @@ function showGeneDetailMobile(gene, container) {
   container.querySelector('#list-panel').style.display   = 'none';
   showGeneDetailDesktop(gene, container);
 }
+
+// ─── Gene Edit Modal ──────────────────────────────────────────────────────────
+
+async function openGeneEditModal(gene, proteinArg, detail, container) {
+  // Remove any stale modal
+  document.getElementById('gene-edit-overlay')?.remove();
+
+  // Fetch protein if not provided
+  let protein = proteinArg;
+  if (!protein && gene.id) {
+    const { data } = await sb
+      .from('proteins')
+      .select('*')
+      .eq('gene_id', gene.id)
+      .maybeSingle();
+    protein = data;
+  }
+
+  // Fetch existing PDB entries for this protein
+  let pdbRows = [];
+  if (protein?.id) {
+    const { data } = await sb
+      .from('alphafold_results')
+      .select('id,top_homolog_pdb_id,top_homolog_description,homology_score')
+      .eq('protein_id', protein.id)
+      .eq('af_version', 'PDB');
+    pdbRows = data ?? [];
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'gene-edit-overlay';
+  overlay.style.cssText = [
+    'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;',
+    'display:flex;align-items:center;justify-content:center;padding:16px;',
+  ].join('');
+
+  function closeModal() {
+    overlay.remove();
+    document.removeEventListener('keydown', onEsc);
+  }
+
+  function onEsc(e) {
+    if (e.key === 'Escape') closeModal();
+  }
+  document.addEventListener('keydown', onEsc);
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal();
+  });
+
+  overlay.innerHTML = buildModalHtml(gene, protein, pdbRows);
+  document.body.appendChild(overlay);
+
+  overlay._onEsc = onEsc;
+
+  wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, container);
+}
+
+function buildModalHtml(gene, protein, pdbRows) {
+  return `<div id="gene-edit-modal" style="background:white;border-radius:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);width:420px;max-width:100%;
+    font-size:12px;overflow:hidden;">
+    <div style="padding:16px 18px 12px;border-bottom:1px solid #f0f0f0;
+      display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#111;">Edit Gene</div>
+        <div style="font-size:9px;color:#94a3b8;font-family:'DM Mono',monospace;margin-top:1px;">
+          ${esc(gene.locus_tag)} · ${esc(gene.strains?.common_name ?? '')}
+        </div>
+      </div>
+      <button id="gem-close" style="font-size:18px;color:#d1d5db;background:none;
+        border:none;cursor:pointer;line-height:1;padding:0;">✕</button>
+    </div>
+    <div id="gem-body" style="padding:14px 18px;max-height:70vh;overflow-y:auto;">
+      <p style="color:#94a3b8;font-size:11px;">Form coming in next task…</p>
+    </div>
+    <div id="gem-footer" style="padding:12px 18px;border-top:1px solid #f0f0f0;
+      display:flex;gap:8px;background:#fafafa;">
+      <button id="gem-cancel" style="flex:1;background:#f1f5f9;border:none;border-radius:7px;
+        padding:9px;font-size:12px;color:#64748b;cursor:pointer;font-weight:500;">Cancel</button>
+      <button id="gem-save" style="flex:2;background:#111;border:none;border-radius:7px;
+        padding:9px;font-size:12px;color:white;font-weight:600;cursor:pointer;">Save Changes</button>
+    </div>
+  </div>`;
+}
+
+function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, container) {
+  overlay.querySelector('#gem-close')?.addEventListener('click', closeModal);
+  overlay.querySelector('#gem-cancel')?.addEventListener('click', closeModal);
+}
