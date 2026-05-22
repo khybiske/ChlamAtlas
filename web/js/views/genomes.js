@@ -2685,4 +2685,45 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
   // Expose staged state on overlay for the save handler (Task 8)
   overlay._pdbToAdd    = pdbToAdd;
   overlay._pdbToDelete = pdbToDelete;
+
+  // Wire save button
+  overlay.querySelector('#gem-save')?.addEventListener('click', async () => {
+    if (!validateGeneEditForm(overlay)) return;
+    // Save logic added in Task 8
+  });
+}
+
+function validateGeneEditForm(overlay) {
+  let valid = true;
+
+  function fieldErr(name, msg) {
+    const el = overlay.querySelector(`#gem-err-${name}`);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+    valid = false;
+  }
+  function fieldOk(name) {
+    const el = overlay.querySelector(`#gem-err-${name}`);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+  }
+
+  const form = overlay.querySelector('#gene-edit-modal');
+  const val  = name => (form?.querySelector(`[name="${name}"]`)?.value ?? '').trim();
+
+  // TM domains: non-negative integer
+  const tm = val('transmembrane_domains');
+  if (tm !== '' && (!/^\d+$/.test(tm) || Number(tm) < 0)) {
+    fieldErr('transmembrane_domains', 'Must be a whole number (0 or greater).');
+  } else {
+    fieldOk('transmembrane_domains');
+  }
+
+  // UniProt ID: standard format if non-empty
+  const uid = val('uniprot_id');
+  if (uid !== '' && !/^[A-Z][0-9][A-Z0-9]{3}[0-9]$/.test(uid)) {
+    fieldErr('uniprot_id', "Doesn't look like a valid UniProt ID (e.g. Q3KLD0).");
+  } else {
+    fieldOk('uniprot_id');
+  }
+
+  return valid;
 }
