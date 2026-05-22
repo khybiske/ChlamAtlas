@@ -2759,19 +2759,21 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
       const pdbToAdd = overlay._pdbToAdd ?? [];
       for (const entry of pdbToAdd) {
         if (!protein?.id) continue;
-        await sb.from('alphafold_results').insert({
+        const { error: pdbAddErr } = await sb.from('alphafold_results').insert({
           protein_id:              protein.id,
           af_version:              'PDB',
           top_homolog_pdb_id:      entry.pdb_id,
           top_homolog_description: entry.title,
           homology_score:          entry.resolution ? Number(entry.resolution) : null,
         });
+        if (pdbAddErr) throw pdbAddErr;
       }
 
       // 5. DELETE removed PDB entries
       const pdbToDelete = overlay._pdbToDelete ?? [];
       for (const rowId of pdbToDelete) {
-        await sb.from('alphafold_results').delete().eq('id', rowId);
+        const { error: pdbDelErr } = await sb.from('alphafold_results').delete().eq('id', rowId);
+        if (pdbDelErr) throw pdbDelErr;
       }
 
       // 6. INSERT audit log
@@ -2819,8 +2821,10 @@ function collectGeneDiff(overlay, original) {
     is_dna_binding:      chk('is_dna_binding'),
   };
 
+  const boolFields = new Set(['is_hypothetical','is_membrane_protein','is_t3_secreted','is_dna_binding']);
   for (const [k, v] of Object.entries(next)) {
-    if (v !== (original[k] ?? null)) diff[k] = { old: original[k] ?? null, new: v };
+    const orig = boolFields.has(k) ? (original[k] ?? false) : (original[k] ?? null);
+    if (v !== orig) diff[k] = { old: orig, new: v };
   }
 
   // is_characterized always mirrors is_hypothetical
