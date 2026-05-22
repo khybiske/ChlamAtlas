@@ -2285,6 +2285,21 @@ function showGeneDetailMobile(gene, container) {
   showGeneDetailDesktop(gene, container);
 }
 
+const CATEGORY_OPTIONS = Object.keys(CATEGORY_COLORS);
+
+const LOC_OPTIONS = [
+  { id: '',        label: '— not set —' },
+  { id: 'SL-0086', label: 'Cytoplasm' },
+  { id: 'SL-0037', label: 'Cell inner membrane' },
+  { id: 'SL-0040', label: 'Cell outer membrane' },
+  { id: 'SL-0200', label: 'Membrane' },
+  { id: 'SL-0187', label: 'Periplasm' },
+  { id: 'SL-0204', label: 'Secreted' },
+  { id: 'SL-0310', label: 'Cell surface' },
+  { id: 'SL-0122', label: 'Host cell membrane' },
+  { id: 'SL-0478', label: 'Host cytoplasm' },
+];
+
 // ─── Gene Edit Modal ──────────────────────────────────────────────────────────
 
 async function openGeneEditModal(gene, proteinArg, detail, container) {
@@ -2343,9 +2358,36 @@ async function openGeneEditModal(gene, proteinArg, detail, container) {
 }
 
 function buildModalHtml(gene, protein, pdbRows) {
+  const curLoc = protein?.subcellular_location_sl?.[0] ?? '';
+  const catOpts = CATEGORY_OPTIONS.map(c =>
+    `<option value="${esc(c)}" ${gene.functional_category === c ? 'selected' : ''}>${esc(c)}</option>`
+  ).join('');
+  const locOpts = LOC_OPTIONS.map(o =>
+    `<option value="${esc(o.id)}" ${curLoc === o.id ? 'selected' : ''}>${esc(o.label)}</option>`
+  ).join('');
+
+  const field = (label, name, value, extra = '') =>
+    `<div>
+      <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:#64748b;margin-bottom:4px;">${label}</label>
+      <input name="${name}" value="${esc(value ?? '')}" ${extra}
+        style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+        font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+      <div id="gem-err-${name}" style="font-size:10px;color:#dc2626;margin-top:2px;display:none;"></div>
+    </div>`;
+
+  const checkEl = (label, name, checked) =>
+    `<label style="display:flex;align-items:center;gap:5px;background:#f8fafc;
+      border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;
+      font-size:11px;color:#374151;">
+      <input type="checkbox" name="${name}" ${checked ? 'checked' : ''}> ${label}
+    </label>`;
+
   return `<div id="gene-edit-modal" style="background:white;border-radius:14px;
     box-shadow:0 12px 40px rgba(0,0,0,0.25);width:420px;max-width:100%;
     font-size:12px;overflow:hidden;">
+
+    <!-- Header -->
     <div style="padding:16px 18px 12px;border-bottom:1px solid #f0f0f0;
       display:flex;align-items:center;justify-content:space-between;">
       <div>
@@ -2357,11 +2399,86 @@ function buildModalHtml(gene, protein, pdbRows) {
       <button id="gem-close" style="font-size:18px;color:#d1d5db;background:none;
         border:none;cursor:pointer;line-height:1;padding:0;">✕</button>
     </div>
+
+    <!-- Body -->
     <div id="gem-body" style="padding:14px 18px;max-height:70vh;overflow-y:auto;">
-      <p style="color:#94a3b8;font-size:11px;">Form coming in next task…</p>
+
+      <!-- Gene name + symbol -->
+      <div style="display:grid;grid-template-columns:3fr 2fr;gap:10px;margin-bottom:10px;">
+        ${field('Gene Name', 'gene_name', gene.gene_name)}
+        ${field('Symbol', 'gene_symbol', gene.gene_symbol, 'style="font-family:\'DM Mono\',monospace;"')}
+      </div>
+
+      <!-- Product -->
+      <div style="margin-bottom:10px;">
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Product Description</label>
+        <textarea name="product" rows="2"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+          font-size:11.5px;color:#111;box-sizing:border-box;resize:vertical;">${esc(gene.product ?? '')}</textarea>
+      </div>
+
+      <!-- Functional category -->
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Functional Category</label>
+        <select name="functional_category"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+          font-size:12px;color:#111;background:white;">
+          ${catOpts}
+        </select>
+      </div>
+
+      <!-- Flags -->
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:6px;">Properties</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${checkEl('Hypothetical', 'is_hypothetical', gene.is_hypothetical)}
+          ${checkEl('Membrane',     'is_membrane_protein', gene.is_membrane_protein)}
+          ${checkEl('T3 Secreted',  'is_t3_secreted', gene.is_t3_secreted)}
+          ${checkEl('DNA Binding',  'is_dna_binding', gene.is_dna_binding)}
+        </div>
+      </div>
+
+      <!-- Localization -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:4px;">
+          Localization
+          <span style="font-weight:400;color:#94a3b8;">(lab-curated)</span>
+        </label>
+        <select name="localization_sl"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+          font-size:12px;color:#111;background:white;">
+          ${locOpts}
+        </select>
+      </div>
+
+      <!-- Advanced expander placeholder (filled in Task 5) -->
+      <div id="gem-advanced-wrap"></div>
+
+      <!-- UniProt sync placeholder -->
+      <div style="border:1.5px dashed #e2e8f0;border-radius:7px;padding:8px 10px;
+        display:flex;align-items:center;gap:8px;background:#fafafa;margin-bottom:4px;">
+        <div style="font-size:14px;">🔄</div>
+        <div style="flex:1;">
+          <div style="font-size:10px;font-weight:600;color:#94a3b8;">Sync with UniProt</div>
+          <div style="font-size:9px;color:#cbd5e1;">Coming soon — refresh protein data from UniProt</div>
+        </div>
+        <button disabled style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:5px;
+          padding:4px 9px;font-size:9px;color:#cbd5e1;cursor:not-allowed;">Sync</button>
+      </div>
+
     </div>
-    <div id="gem-footer" style="padding:12px 18px;border-top:1px solid #f0f0f0;
-      display:flex;gap:8px;background:#fafafa;">
+
+    <!-- Error banner (hidden by default) -->
+    <div id="gem-error-banner" style="display:none;margin:0 18px;padding:8px 12px;
+      background:#fef2f2;border:1px solid #fecaca;border-radius:7px;
+      font-size:11px;color:#dc2626;line-height:1.4;"></div>
+
+    <!-- Footer -->
+    <div style="padding:12px 18px;border-top:1px solid #f0f0f0;display:flex;gap:8px;background:#fafafa;">
       <button id="gem-cancel" style="flex:1;background:#f1f5f9;border:none;border-radius:7px;
         padding:9px;font-size:12px;color:#64748b;cursor:pointer;font-weight:500;">Cancel</button>
       <button id="gem-save" style="flex:2;background:#111;border:none;border-radius:7px;
