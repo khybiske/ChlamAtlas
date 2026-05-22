@@ -2672,7 +2672,7 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
         input.value            = '';
       });
     } catch (err) {
-      errorEl.textContent   = err.status === 404 || err.message === 'not_found'
+      errorEl.textContent   = err.status === 404
         ? `No PDB entry found for '${rawId}'. Double-check the ID at rcsb.org.`
         : "Couldn't reach RCSB right now. Check your connection or try again in a moment.";
       errorEl.style.display = 'block';
@@ -2852,7 +2852,7 @@ function collectProteinDiff(overlay, original) {
   };
 
   for (const [k, v] of Object.entries(next)) {
-    const orig = original?.[k] ?? null;
+    const orig = k === 'signal_peptide' ? (original?.[k] ?? false) : (original?.[k] ?? null);
     if (String(v) !== String(orig)) diff[k] = { old: orig, new: v };
   }
 
