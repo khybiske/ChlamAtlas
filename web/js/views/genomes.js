@@ -2593,4 +2593,96 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
     body.style.display = open ? 'block' : 'none';
     arrow.textContent  = open ? '▾' : '▸';
   });
+
+  // PDB staged state: entries to add and row IDs to delete
+  const pdbToAdd    = [];   // { pdb_id, title, resolution }
+  const pdbToDelete = [];   // alphafold_results.id strings
+
+  // Remove existing PDB entry
+  overlay.querySelector('#gem-pdb-list')?.addEventListener('click', e => {
+    const btn = e.target.closest('.gem-pdb-remove');
+    if (!btn) return;
+    const rowId = btn.dataset.rowId;
+    pdbToDelete.push(rowId);
+    btn.closest('.gem-pdb-existing').remove();
+  });
+
+  // PDB lookup
+  overlay.querySelector('#gem-pdb-lookup')?.addEventListener('click', async () => {
+    const input    = overlay.querySelector('#gem-pdb-input');
+    const errorEl  = overlay.querySelector('#gem-pdb-error');
+    const resultEl = overlay.querySelector('#gem-pdb-result');
+    const rawId    = (input?.value ?? '').trim().toUpperCase();
+
+    errorEl.style.display  = 'none';
+    resultEl.style.display = 'none';
+    resultEl.innerHTML     = '';
+
+    if (!/^[A-Z0-9]{4}$/.test(rawId)) {
+      errorEl.textContent   = 'PDB IDs are 4 characters (e.g. 5YKG).';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const btn = overlay.querySelector('#gem-pdb-lookup');
+    btn.textContent = 'Looking up…';
+    btn.disabled    = true;
+
+    try {
+      const res = await fetch(`https://data.rcsb.org/rest/v1/core/entry/${rawId}`);
+      if (!res.ok) throw Object.assign(new Error('not_found'), { status: res.status });
+      const data  = await res.json();
+      const title = data.struct?.title ?? rawId;
+      const res_a = data.rcsb_entry_info?.resolution_combined?.[0] ?? null;
+      const year  = data.rcsb_accession_info?.initial_release_date?.slice(0, 4) ?? '';
+
+      resultEl.innerHTML = `
+        <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:5px;padding:7px 9px;">
+          <div style="font-size:9px;font-weight:600;color:#065f46;">✓ Found: ${esc(rawId)}</div>
+          <div style="font-size:9px;color:#047857;margin-top:2px;">
+            ${esc(title)}${res_a ? ` · ${res_a} Å` : ''}${year ? ` · ${year}` : ''}
+          </div>
+          <button id="gem-pdb-add" type="button"
+            data-pdb-id="${esc(rawId)}"
+            data-title="${esc(title)}"
+            data-resolution="${esc(String(res_a ?? ''))}"
+            style="margin-top:6px;background:#059669;border:none;border-radius:4px;
+            padding:3px 9px;font-size:9px;color:white;font-weight:600;cursor:pointer;">
+            Add this structure
+          </button>
+        </div>`;
+      resultEl.style.display = 'block';
+
+      resultEl.querySelector('#gem-pdb-add')?.addEventListener('click', e => {
+        const b = e.currentTarget;
+        pdbToAdd.push({ pdb_id: b.dataset.pdbId, title: b.dataset.title, resolution: b.dataset.resolution });
+        const listEl = overlay.querySelector('#gem-pdb-list');
+        listEl.insertAdjacentHTML('beforeend', `
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:6px;
+            padding:7px 9px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;">
+              <div style="font-size:10px;font-weight:600;font-family:'DM Mono',monospace;color:#111;">
+                ${esc(b.dataset.pdbId)} <span style="font-size:8px;color:#059669;">(staged)</span>
+              </div>
+              <div style="font-size:9px;color:#64748b;">${esc(b.dataset.title)}</div>
+            </div>
+          </div>`);
+        resultEl.style.display = 'none';
+        resultEl.innerHTML     = '';
+        input.value            = '';
+      });
+    } catch (err) {
+      errorEl.textContent   = err.status === 404 || err.message === 'not_found'
+        ? `No PDB entry found for '${rawId}'. Double-check the ID at rcsb.org.`
+        : "Couldn't reach RCSB right now. Check your connection or try again in a moment.";
+      errorEl.style.display = 'block';
+    } finally {
+      btn.textContent = 'Look up ↗';
+      btn.disabled    = false;
+    }
+  });
+
+  // Expose staged state on overlay for the save handler (Task 8)
+  overlay._pdbToAdd    = pdbToAdd;
+  overlay._pdbToDelete = pdbToDelete;
 }
