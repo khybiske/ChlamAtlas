@@ -799,11 +799,44 @@ function hideMutantDropdown() {
   if (_mutOutsideClick) { document.removeEventListener('click', _mutOutsideClick); _mutOutsideClick = null; }
 }
 
+// ─── Genomes strain picker ────────────────────────────────
+const STRAINS = [
+  { id: 'CT-L2', label: 'C. trachomatis L2', emoji: '🦠' },
+  { id: 'CT-D',  label: 'C. trachomatis D',  emoji: '🔬' },
+  { id: 'CM',    label: 'C. muridarum',       emoji: '🐭' },
+];
+
+function showGenomesStrainPicker(anchor) {
+  const content = `
+    <div class="nav-popover-label">Select strain</div>
+    ${STRAINS.map(s => `
+      <button class="nav-popover-row" data-strain="${s.id}">
+        <span class="nav-popover-row-icon">${s.emoji}</span>
+        <span class="nav-popover-row-name">${s.label}</span>
+      </button>`).join('')}
+  `;
+
+  const pop = openNavPopover(anchor, content, 'genomes-strain-popover');
+
+  pop.querySelectorAll('[data-strain]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.__preferredStrain = btn.dataset.strain;
+      pop.remove();
+      activateTab('genomes');
+    });
+  });
+}
+
 // ─── Nav wiring ───────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.dropdown === 'mutants') {
       showMutantDropdown(btn);
+      return;
+    }
+    // Desktop Genomes tab shows strain picker; mobile goes directly
+    if (btn.dataset.tab === 'genomes' && btn.classList.contains('nav-tab')) {
+      showGenomesStrainPicker(btn);
       return;
     }
     activateTab(btn.dataset.tab);
