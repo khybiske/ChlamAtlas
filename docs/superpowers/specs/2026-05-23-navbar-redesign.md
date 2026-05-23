@@ -55,9 +55,12 @@ A single `openNavPopover(anchorEl, contentHtml, opts)` helper in `app.js`:
 
 **Query logic (debounced 250 ms):**
 - Minimum 2 characters before querying
-- **Genes:** `ilike` on `locus_tag`, `gene_name`, `gene_symbol`, `product` — limit 5 results
-- **Mutants:** `ilike` on `mutant_id`, `name`, `notes` — limit 5 results
-- Both queries fire in parallel via `Promise.all`
+- Three queries fire in parallel via `Promise.all`:
+  1. **Gene query:** `ilike` on `locus_tag`, `gene_name`, `gene_symbol`; join `proteins` to also search `function` — limit 5 results
+  2. **Mutant direct query:** `ilike` on `mutant_id`, `name`, `notes` — limit 5 results
+  3. **Mutant via gene query:** find genes matching the term (locus_tag, gene_name, gene_symbol), then find mutants whose `target_gene_ids` contains any of those gene UUIDs — limit 5 results
+- Mutant results from queries 2 and 3 are merged and deduplicated by `id` before rendering
+- This means e.g. typing "CT119" returns CT119 in the Genes section, and any mutants targeting CT119 in the Mutants section
 
 **Results dropdown:** rendered below the search input, full width of nav or clamped to 380px, same popover shadow style:
 ```
@@ -71,7 +74,7 @@ A single `openNavPopover(anchorEl, contentHtml, opts)` helper in `app.js`:
 - If a section has no results it is hidden (not shown with "No results")
 - If both sections empty: single "No results" message
 
-**Fields searched on genes:** `locus_tag`, `gene_name`, `gene_symbol` — no join to proteins. Protein function search is deferred to a future iteration.
+**Fields searched on genes:** `locus_tag`, `gene_name`, `gene_symbol` (gene table) + `function` (proteins table, joined). **Fields searched on mutants:** `mutant_id`, `name`, `notes` (direct) + `locus_tag`/`gene_symbol` of linked genes (via target_gene_ids cross-reference).
 
 ---
 
