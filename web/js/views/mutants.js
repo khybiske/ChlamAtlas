@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=69';
+import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=74';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -209,40 +209,28 @@ function wireControls() {
 }
 
 function showCollectionDropdown(anchor) {
-  const existing = document.getElementById('mut-coll-dd');
-  if (existing) { existing.remove(); return; }
+  const openPop = window.__openNavPopover;
+  if (!openPop) return;
 
-  const dd = document.createElement('div');
-  dd.id = 'mut-coll-dd';
-  dd.className = 'mut-nav-dropdown';
-  dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;z-index:300;min-width:14rem;';
-  dd.innerHTML = `
-    <div class="mut-nav-dropdown-header">Collections</div>
+  openPop(anchor, `
+    <div class="nav-popover-label">Collections</div>
     ${COLLECTIONS.map(c => `
-      <button class="mut-nav-row" data-collection="${c.id}">
-        <img class="mut-nav-icon" src="${c.icon}" alt="">
-        <span class="mut-nav-label">${c.label}</span>
+      <button class="nav-popover-row" data-collection="${c.id}">
+        <img style="width:22px;height:22px;border-radius:50%;object-fit:cover;" src="${c.icon}" alt="">
+        <span class="nav-popover-row-name">${c.label}</span>
       </button>`).join('')}
-  `;
+  `, 'mut-coll-popover');
 
-  const strip = document.querySelector('.mut-strip');
-  strip.style.position = 'relative';
-  strip.appendChild(dd);
-
-  dd.querySelectorAll('[data-collection]').forEach(btn => {
+  const pop = document.getElementById('mut-coll-popover');
+  pop?.querySelectorAll('[data-collection]').forEach(btn => {
     btn.addEventListener('click', () => {
       _collection = btn.dataset.collection;
       window.__mutantCollection = _collection;
-      dd.remove();
+      pop.remove();
       _selectedId = null;
       renderMutants(_container);
     });
   });
-
-  const dismiss = (e) => {
-    if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', dismiss); }
-  };
-  setTimeout(() => document.addEventListener('click', dismiss), 0);
 }
 
 // ─── Filter bar ───────────────────────────────────────────

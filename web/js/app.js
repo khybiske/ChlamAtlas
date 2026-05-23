@@ -2,7 +2,7 @@
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY } from './client.js?v=65';
 import { renderHome } from './views/home.js?v=71';
 import { renderGenomes } from './views/genomes.js?v=73';
-import { renderMutants } from './views/mutants.js?v=69';
+import { renderMutants } from './views/mutants.js?v=74';
 import { renderPipeline } from './views/pipeline.js?v=65';
 
 export { sb, state };
