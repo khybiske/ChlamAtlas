@@ -364,7 +364,7 @@
   box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.06);
   border: 1px solid #f0f0f0;
   min-width: 220px;
-  z-index: 300;
+  z-index: 9999;
 }
 .nav-popover::before {
   content: '';
@@ -448,7 +448,7 @@
   border-radius: 14px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.06);
   border: 1px solid #f0f0f0;
-  z-index: 300;
+  z-index: 9999;
   overflow-x: hidden;
   overflow-y: auto;
   min-width: 340px;
