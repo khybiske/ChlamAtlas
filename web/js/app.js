@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=75';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=76';
 import { renderHome } from './views/home.js?v=71';
-import { renderGenomes } from './views/genomes.js?v=75';
-import { renderMutants } from './views/mutants.js?v=75';
+import { renderGenomes } from './views/genomes.js?v=76';
+import { renderMutants } from './views/mutants.js?v=76';
 import { renderPipeline } from './views/pipeline.js?v=65';
 
 export { sb, state };
@@ -334,24 +334,31 @@ async function runSearch(q) {
 
   const [geneFieldRes, proteinRes, directMutantRes] = await Promise.all([
     sb.from('genes')
-      .select('id, locus_tag, gene_name, gene_symbol, strain_id')
+      .select('id, locus_tag, gene_name, gene_symbol, strain_id, proteins(alphafold_results(thumbnail_path))')
       .or(`locus_tag.ilike.%${sq}%,gene_name.ilike.%${sq}%,gene_symbol.ilike.%${sq}%`)
       .limit(5),
     sb.from('proteins')
-      .select('gene_id, function_narrative, genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
+      .select('gene_id, function_narrative, alphafold_results(thumbnail_path), genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
       .ilike('function_narrative', `%${sq}%`)
       .limit(5),
     sb.from('mutants')
-      .select('id, mutant_id, name, target_gene_ids')
+      .select('id, mutant_id, name, collection, target_gene_ids')
       .or(`mutant_id.ilike.%${sq}%,name.ilike.%${sq}%,notes.ilike.%${sq}%`)
       .limit(5),
   ]);
 
-  // Merge gene results, deduplicate by id
+  // Merge gene results, deduplicate by id; attach thumbnail where available
   const geneMap = new Map();
-  (geneFieldRes.data ?? []).forEach(g => geneMap.set(g.id, g));
+  (geneFieldRes.data ?? []).forEach(g => {
+    geneMap.set(g.id, { ...g, thumbnail: g.proteins?.alphafold_results?.[0]?.thumbnail_path ?? null });
+  });
   (proteinRes.data ?? []).forEach(p => {
-    if (p.genes && !geneMap.has(p.genes.id)) geneMap.set(p.genes.id, p.genes);
+    if (p.genes && !geneMap.has(p.genes.id)) {
+      geneMap.set(p.genes.id, {
+        ...p.genes,
+        thumbnail: p.alphafold_results?.[0]?.thumbnail_path ?? null,
+      });
+    }
   });
   const genes = [...geneMap.values()].slice(0, 5);
 
@@ -360,7 +367,7 @@ async function runSearch(q) {
   let mutantsViaGene = [];
   if (matchingGeneIds.length) {
     const { data } = await sb.from('mutants')
-      .select('id, mutant_id, name, target_gene_ids')
+      .select('id, mutant_id, name, collection, target_gene_ids')
       .overlaps('target_gene_ids', matchingGeneIds)
       .limit(5);
     mutantsViaGene = data ?? [];
@@ -401,27 +408,43 @@ function renderSearchResults(genes, mutants) {
 
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+  const COLL_ICONS = {
+    CT_L2: '/design/L2icon.jpg', CM: '/design/CMicon.jpg',
+    Lucky17: '/design/L17icon.jpg', Chimeras: '/design/Chimeraicon.jpg',
+  };
+
   const genesHtml = genes.length ? `
     <div class="nav-search-section-label">Genes</div>
-    ${genes.map(g => `
+    ${genes.map(g => {
+      const thumb = g.thumbnail
+        ? `<img src="${esc(g.thumbnail)}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;flex-shrink:0;">`
+        : `<span class="nav-search-row-icon">🧬</span>`;
+      return `
       <div class="nav-search-row" data-type="gene" data-id="${g.id}" style="cursor:pointer;">
-        <span class="nav-search-row-icon">🧬</span>
+        ${thumb}
         <div class="nav-search-row-main">
           <div class="nav-search-row-title">${esc(g.locus_tag)}${g.gene_symbol ? ' · ' + esc(g.gene_symbol) : ''}</div>
           ${g.gene_name ? `<div class="nav-search-row-sub">${esc(g.gene_name)}</div>` : ''}
         </div>
-      </div>`).join('')}` : '';
+      </div>`;
+    }).join('')}` : '';
 
   const mutantsHtml = mutants.length ? `
     <div class="nav-search-section-label">Mutants</div>
-    ${mutants.map(m => `
+    ${mutants.map(m => {
+      const iconSrc = COLL_ICONS[m.collection];
+      const icon = iconSrc
+        ? `<img src="${iconSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        : `<span class="nav-search-row-icon">🔬</span>`;
+      return `
       <div class="nav-search-row" data-type="mutant" data-id="${m.id}" style="cursor:pointer;">
-        <span class="nav-search-row-icon">🔬</span>
+        ${icon}
         <div class="nav-search-row-main">
           <div class="nav-search-row-title">${esc(m.mutant_id)}</div>
           ${m.name ? `<div class="nav-search-row-sub">${esc(m.name)}</div>` : ''}
         </div>
-      </div>`).join('')}` : '';
+      </div>`;
+    }).join('')}` : '';
 
   drop.innerHTML = genesHtml + mutantsHtml;
 
@@ -981,6 +1004,35 @@ document.getElementById('auth-modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('auth-modal')) hideAuthModal();
 });
 
+// ─── Mutants collection picker ───────────────────────────
+const MUTANT_COLLECTIONS = [
+  { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
+  { id: 'CM',       label: 'C. muridarum',   icon: '/design/CMicon.jpg' },
+  { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/L17icon.jpg' },
+  { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
+];
+
+function showMutantCollectionPicker(anchor) {
+  const content = `
+    <div class="nav-popover-label">Collections</div>
+    ${MUTANT_COLLECTIONS.map(c => `
+      <button class="nav-popover-row" data-collection="${c.id}">
+        <img style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;" src="${c.icon}" alt="">
+        <span class="nav-popover-row-name">${c.label}</span>
+      </button>`).join('')}
+  `;
+
+  const pop = openNavPopover(anchor, content, 'mutant-coll-nav-popover');
+
+  pop.querySelectorAll('[data-collection]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.__mutantCollection = btn.dataset.collection;
+      pop.remove();
+      activateTab('mutants');
+    });
+  });
+}
+
 // ─── Genomes strain picker ────────────────────────────────
 const STRAINS = [
   { id: 'CT-L2', label: 'C. trachomatis L2', emoji: '🦠' },
@@ -1012,6 +1064,11 @@ function showGenomesStrainPicker(anchor) {
 // ─── Nav wiring ───────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
+    // Desktop Mutants tab shows collection picker; mobile goes directly
+    if (btn.dataset.tab === 'mutants' && btn.classList.contains('nav-tab')) {
+      showMutantCollectionPicker(btn);
+      return;
+    }
     // Desktop Genomes tab shows strain picker; mobile goes directly
     if (btn.dataset.tab === 'genomes' && btn.classList.contains('nav-tab')) {
       showGenomesStrainPicker(btn);
