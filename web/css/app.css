@@ -365,7 +365,6 @@
   border: 1px solid #f0f0f0;
   min-width: 220px;
   z-index: 300;
-  overflow: hidden;
 }
 .nav-popover::before {
   content: '';
@@ -408,13 +407,14 @@
 .nav-popover-footer {
   display: block;
   padding: 8px 14px;
+  border: none;
   border-top: 1px solid #f3f4f6;
+  border-left: 3px solid transparent;
   font-size: 0.75rem;
   color: #1a6b4a;
   font-weight: 500;
   cursor: pointer;
   background: none;
-  border-left: 3px solid transparent;
   width: 100%;
   text-align: left;
   font-family: inherit;
@@ -449,10 +449,10 @@
   box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.06);
   border: 1px solid #f0f0f0;
   z-index: 300;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-width: 340px;
   max-height: 420px;
-  overflow-y: auto;
 }
 .nav-search-section-label {
   padding: 8px 14px 4px;
