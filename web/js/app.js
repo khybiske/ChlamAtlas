@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=74';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=75';
 import { renderHome } from './views/home.js?v=71';
-import { renderGenomes } from './views/genomes.js?v=74';
-import { renderMutants } from './views/mutants.js?v=74';
+import { renderGenomes } from './views/genomes.js?v=75';
+import { renderMutants } from './views/mutants.js?v=75';
 import { renderPipeline } from './views/pipeline.js?v=65';
 
 export { sb, state };
@@ -100,7 +100,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
       state.user        = session.user;
       state.accessToken = session.access_token;
       await refreshRole(session.access_token);
-      await syncFavoritesFromDB();
+      await syncFavoritesFromDB(session.access_token);
     }
     updateNavVisibility();
     renderAuthArea();
@@ -302,7 +302,7 @@ function showNavSearch() {
   input.focus();
 
   function closeSearch() {
-    btnEl.style.display    = '';
+    btnEl.style.display    = 'flex';
     expanded.style.display = 'none';
     document.getElementById('nav-search-results')?.remove();
     document.removeEventListener('click', onOutsideClick);
@@ -338,8 +338,8 @@ async function runSearch(q) {
       .or(`locus_tag.ilike.%${sq}%,gene_name.ilike.%${sq}%,gene_symbol.ilike.%${sq}%`)
       .limit(5),
     sb.from('proteins')
-      .select('gene_id, function, genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
-      .ilike('function', `%${sq}%`)
+      .select('gene_id, function_narrative, genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
+      .ilike('function_narrative', `%${sq}%`)
       .limit(5),
     sb.from('mutants')
       .select('id, mutant_id, name, target_gene_ids')
@@ -428,7 +428,7 @@ function renderSearchResults(genes, mutants) {
   drop.querySelectorAll('[data-type]').forEach(row => {
     row.addEventListener('click', () => {
       drop.remove();
-      document.getElementById('btn-nav-search').style.display    = '';
+      document.getElementById('btn-nav-search').style.display    = 'flex';
       document.getElementById('nav-search-expanded').style.display = 'none';
       if (row.dataset.type === 'gene') {
         activateTab('genomes');
@@ -981,50 +981,6 @@ document.getElementById('auth-modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('auth-modal')) hideAuthModal();
 });
 
-// ─── Mutants nav dropdown ─────────────────────────────────
-const MUTANT_COLLECTIONS = [
-  { id: 'CT_L2',   label: 'C. trachomatis', icon: '/design/L2icon.jpg',      count: null },
-  { id: 'CM',      label: 'C. muridarum',   icon: '/design/CMicon.jpg',      count: null },
-  { id: 'Lucky17', label: 'Lucky 17',        icon: '/design/L17icon.jpg',     count: null },
-  { id: 'Chimeras',label: 'Chimeras',        icon: '/design/Chimeraicon.jpg', count: null },
-];
-let _mutDropdownEl = null;
-let _mutOutsideClick = null;
-
-function showMutantDropdown(anchorEl) {
-  hideMutantDropdown();
-  const wrap = document.getElementById('nav-mutants-wrap');
-  const dd = document.createElement('div');
-  dd.className = 'mut-nav-dropdown';
-  dd.innerHTML = `
-    <div class="mut-nav-dropdown-header">Collections</div>
-    ${MUTANT_COLLECTIONS.map(c => `
-      <button class="mut-nav-row" data-collection="${c.id}">
-        <img class="mut-nav-icon" src="${c.icon}" alt="">
-        <span class="mut-nav-label">${c.label}</span>
-      </button>
-    `).join('')}
-  `;
-  wrap.appendChild(dd);
-  _mutDropdownEl = dd;
-  dd.querySelectorAll('[data-collection]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      window.__mutantCollection = btn.dataset.collection;
-      hideMutantDropdown();
-      activateTab('mutants');
-    });
-  });
-  _mutOutsideClick = (e) => {
-    if (!dd.contains(e.target) && e.target !== anchorEl) hideMutantDropdown();
-  };
-  setTimeout(() => document.addEventListener('click', _mutOutsideClick), 0);
-}
-
-function hideMutantDropdown() {
-  if (_mutDropdownEl) { _mutDropdownEl.remove(); _mutDropdownEl = null; }
-  if (_mutOutsideClick) { document.removeEventListener('click', _mutOutsideClick); _mutOutsideClick = null; }
-}
-
 // ─── Genomes strain picker ────────────────────────────────
 const STRAINS = [
   { id: 'CT-L2', label: 'C. trachomatis L2', emoji: '🦠' },
@@ -1056,10 +1012,6 @@ function showGenomesStrainPicker(anchor) {
 // ─── Nav wiring ───────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (btn.dataset.dropdown === 'mutants') {
-      showMutantDropdown(btn);
-      return;
-    }
     // Desktop Genomes tab shows strain picker; mobile goes directly
     if (btn.dataset.tab === 'genomes' && btn.classList.contains('nav-tab')) {
       showGenomesStrainPicker(btn);

@@ -17,18 +17,28 @@ export const state = {
 
 // ── Supabase-backed favorites ─────────────────────────────
 
-export async function syncFavoritesFromDB() {
-  if (!state.user) {
+// Uses fetch() with the access token already in hand to avoid re-acquiring
+// the Supabase auth storage lock inside onAuthStateChange (same pattern as refreshRole).
+export async function syncFavoritesFromDB(accessToken) {
+  if (!state.user || !accessToken) {
     state.favorites = { genes: new Set(), mutants: new Set() };
     return;
   }
   try {
-    const { data, error } = await sb
-      .from('favorites')
-      .select('entity_type, entity_id');
-    if (error) throw error;
-    state.favorites.genes   = new Set((data ?? []).filter(r => r.entity_type === 'gene').map(r => String(r.entity_id)));
-    state.favorites.mutants = new Set((data ?? []).filter(r => r.entity_type === 'mutant').map(r => String(r.entity_id)));
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/favorites?select=entity_type,entity_id`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+    if (res.ok) {
+      const rows = await res.json();
+      state.favorites.genes   = new Set(rows.filter(r => r.entity_type === 'gene').map(r => String(r.entity_id)));
+      state.favorites.mutants = new Set(rows.filter(r => r.entity_type === 'mutant').map(r => String(r.entity_id)));
+    }
   } catch (e) {
     console.warn('[ChlamAtlas] syncFavoritesFromDB error:', e);
   }
