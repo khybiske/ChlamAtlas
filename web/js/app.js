@@ -244,6 +244,7 @@ function hideUserDropdown() {
 
 // ─── Shared nav popover helper ─────────────────────────────
 function openNavPopover(anchorEl, contentHtml, id = 'nav-popover') {
+  if (!anchorEl) return null;
   document.getElementById(id)?.remove();
 
   const pop = document.createElement('div');
@@ -255,22 +256,32 @@ function openNavPopover(anchorEl, contentHtml, id = 'nav-popover') {
   const anchorRect = anchorEl.getBoundingClientRect();
   const popWidth   = Math.max(pop.offsetWidth, 220);
   let left = anchorRect.left;
-  // Keep within viewport
   if (left + popWidth > window.innerWidth - 8) left = window.innerWidth - popWidth - 8;
+  left = Math.max(8, left);
   pop.style.top  = (anchorRect.bottom + 8) + 'px';
   pop.style.left = left + 'px';
 
-  // Align caret to anchor center
   const caretLeft = (anchorRect.left + anchorRect.width / 2) - left - 6;
   pop.style.setProperty('--caret-left', Math.max(8, caretLeft) + 'px');
 
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      pop.remove();
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', dismiss);
+    }
+  };
   const dismiss = (e) => {
     if (!pop.contains(e.target) && e.target !== anchorEl) {
       pop.remove();
       document.removeEventListener('click', dismiss);
+      document.removeEventListener('keydown', onKey);
     }
   };
-  setTimeout(() => document.addEventListener('click', dismiss), 0);
+  setTimeout(() => {
+    document.addEventListener('click', dismiss);
+    document.addEventListener('keydown', onKey);
+  }, 0);
 
   return pop;
 }
