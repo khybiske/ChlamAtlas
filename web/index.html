@@ -63,12 +63,18 @@
 
       <!-- Right side: search, saved, auth -->
       <div class="flex items-center gap-2 flex-shrink-0">
-        <button id="btn-nav-search"
-          class="hover:bg-white/10 transition rounded-md"
-          style="display:flex;align-items:center;gap:5px;padding:5px 11px;cursor:pointer;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span style="font-size:12px;color:rgba(255,255,255,0.7);font-weight:500;">Search</span>
-        </button>
+        <div id="nav-search-area" style="position:relative;">
+          <button id="btn-nav-search"
+            class="hover:bg-white/10 transition rounded-md"
+            style="display:flex;align-items:center;gap:5px;padding:5px 11px;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span style="font-size:12px;color:rgba(255,255,255,0.7);font-weight:500;">Search</span>
+          </button>
+          <div id="nav-search-expanded" class="nav-search-wrap" style="display:none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="nav-search-input" class="nav-search-input" type="text" placeholder="Search genes, mutants…" autocomplete="off" />
+          </div>
+        </div>
         <button id="btn-nav-saved"
           class="hover:bg-white/10 transition rounded-md"
           style="display:flex;align-items:center;gap:5px;padding:5px 11px;cursor:pointer;">
@@ -331,6 +337,6 @@
 
   <!-- Supabase JS client (ESM via CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
-  <script type="module" src="/web/js/app.js?v=73"></script>
+  <script type="module" src="/web/js/app.js?v=74"></script>
 </body>
 </html>

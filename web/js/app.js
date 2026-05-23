@@ -287,6 +287,155 @@ function openNavPopover(anchorEl, contentHtml, id = 'nav-popover') {
 }
 window.__openNavPopover = openNavPopover;
 
+// ─── Universal search ──────────────────────────────────────
+let _searchDebounce = null;
+
+function showNavSearch() {
+  const btnEl    = document.getElementById('btn-nav-search');
+  const expanded = document.getElementById('nav-search-expanded');
+  const input    = document.getElementById('nav-search-input');
+  if (!btnEl || !expanded || !input) return;
+
+  btnEl.style.display    = 'none';
+  expanded.style.display = 'flex';
+  input.value = '';
+  input.focus();
+
+  function closeSearch() {
+    btnEl.style.display    = '';
+    expanded.style.display = 'none';
+    document.getElementById('nav-search-results')?.remove();
+    document.removeEventListener('click', onOutsideClick);
+    input.removeEventListener('keydown', onKeyDown);
+  }
+
+  function onOutsideClick(e) {
+    const results = document.getElementById('nav-search-results');
+    if (!expanded.contains(e.target) && !results?.contains(e.target)) closeSearch();
+  }
+  setTimeout(() => document.addEventListener('click', onOutsideClick), 0);
+
+  function onKeyDown(e) { if (e.key === 'Escape') closeSearch(); }
+  input.addEventListener('keydown', onKeyDown);
+
+  input.addEventListener('input', () => {
+    clearTimeout(_searchDebounce);
+    const q = input.value.trim();
+    if (q.length < 2) { document.getElementById('nav-search-results')?.remove(); return; }
+    _searchDebounce = setTimeout(() => runSearch(q), 250);
+  });
+}
+
+async function runSearch(q) {
+  const [geneFieldRes, proteinRes, directMutantRes] = await Promise.all([
+    sb.from('genes')
+      .select('id, locus_tag, gene_name, gene_symbol, strain_id')
+      .or(`locus_tag.ilike.%${q}%,gene_name.ilike.%${q}%,gene_symbol.ilike.%${q}%`)
+      .limit(5),
+    sb.from('proteins')
+      .select('gene_id, function, genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
+      .ilike('function', `%${q}%`)
+      .limit(5),
+    sb.from('mutants')
+      .select('id, mutant_id, name, target_gene_ids')
+      .or(`mutant_id.ilike.%${q}%,name.ilike.%${q}%,notes.ilike.%${q}%`)
+      .limit(5),
+  ]);
+
+  // Merge gene results, deduplicate by id
+  const geneMap = new Map();
+  (geneFieldRes.data ?? []).forEach(g => geneMap.set(g.id, g));
+  (proteinRes.data ?? []).forEach(p => {
+    if (p.genes && !geneMap.has(p.genes.id)) geneMap.set(p.genes.id, p.genes);
+  });
+  const genes = [...geneMap.values()].slice(0, 5);
+
+  // Mutant-via-gene cross-reference
+  const matchingGeneIds = [...geneMap.keys()];
+  let mutantsViaGene = [];
+  if (matchingGeneIds.length) {
+    const { data } = await sb.from('mutants')
+      .select('id, mutant_id, name, target_gene_ids')
+      .overlaps('target_gene_ids', matchingGeneIds)
+      .limit(5);
+    mutantsViaGene = data ?? [];
+  }
+
+  // Merge mutant results, deduplicate by id
+  const mutantMap = new Map();
+  (directMutantRes.data ?? []).forEach(m => mutantMap.set(m.id, m));
+  mutantsViaGene.forEach(m => { if (!mutantMap.has(m.id)) mutantMap.set(m.id, m); });
+  const mutants = [...mutantMap.values()].slice(0, 5);
+
+  // Bail if input changed while querying
+  const currentInput = document.getElementById('nav-search-input');
+  if (!currentInput || currentInput.value.trim() !== q) return;
+
+  renderSearchResults(genes, mutants);
+}
+
+function renderSearchResults(genes, mutants) {
+  document.getElementById('nav-search-results')?.remove();
+
+  const expandedEl = document.getElementById('nav-search-expanded');
+  if (!expandedEl) return;
+
+  const drop = document.createElement('div');
+  drop.id = 'nav-search-results';
+  drop.className = 'nav-search-dropdown';
+  document.body.appendChild(drop);
+
+  const rect = expandedEl.getBoundingClientRect();
+  drop.style.top  = (rect.bottom + 6) + 'px';
+  drop.style.left = rect.left + 'px';
+
+  if (!genes.length && !mutants.length) {
+    drop.innerHTML = `<div class="nav-search-empty">No results</div>`;
+    return;
+  }
+
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const genesHtml = genes.length ? `
+    <div class="nav-search-section-label">Genes</div>
+    ${genes.map(g => `
+      <div class="nav-search-row" data-type="gene" data-id="${g.id}" style="cursor:pointer;">
+        <span class="nav-search-row-icon">🧬</span>
+        <div class="nav-search-row-main">
+          <div class="nav-search-row-title">${esc(g.locus_tag)}${g.gene_symbol ? ' · ' + esc(g.gene_symbol) : ''}</div>
+          ${g.gene_name ? `<div class="nav-search-row-sub">${esc(g.gene_name)}</div>` : ''}
+        </div>
+      </div>`).join('')}` : '';
+
+  const mutantsHtml = mutants.length ? `
+    <div class="nav-search-section-label">Mutants</div>
+    ${mutants.map(m => `
+      <div class="nav-search-row" data-type="mutant" data-id="${m.id}" style="cursor:pointer;">
+        <span class="nav-search-row-icon">🔬</span>
+        <div class="nav-search-row-main">
+          <div class="nav-search-row-title">${esc(m.mutant_id)}</div>
+          ${m.name ? `<div class="nav-search-row-sub">${esc(m.name)}</div>` : ''}
+        </div>
+      </div>`).join('')}` : '';
+
+  drop.innerHTML = genesHtml + mutantsHtml;
+
+  drop.querySelectorAll('[data-type]').forEach(row => {
+    row.addEventListener('click', () => {
+      drop.remove();
+      document.getElementById('btn-nav-search').style.display    = '';
+      document.getElementById('nav-search-expanded').style.display = 'none';
+      if (row.dataset.type === 'gene') {
+        activateTab('genomes');
+        window.__openGeneId = row.dataset.id;
+      } else {
+        activateTab('mutants');
+        window.__openMutantId = row.dataset.id;
+      }
+    });
+  });
+}
+
 // ─── Saved popover ─────────────────────────────────────────
 async function showSavedPopover(anchor) {
   if (!state.user) {
