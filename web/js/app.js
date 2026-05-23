@@ -242,6 +242,40 @@ function hideUserDropdown() {
   document.removeEventListener('click', _outsideClick);
 }
 
+// ─── Shared nav popover helper ─────────────────────────────
+function openNavPopover(anchorEl, contentHtml, id = 'nav-popover') {
+  document.getElementById(id)?.remove();
+
+  const pop = document.createElement('div');
+  pop.id = id;
+  pop.className = 'nav-popover';
+  pop.innerHTML = contentHtml;
+  document.body.appendChild(pop);
+
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const popWidth   = Math.max(pop.offsetWidth, 220);
+  let left = anchorRect.left;
+  // Keep within viewport
+  if (left + popWidth > window.innerWidth - 8) left = window.innerWidth - popWidth - 8;
+  pop.style.top  = (anchorRect.bottom + 8) + 'px';
+  pop.style.left = left + 'px';
+
+  // Align caret to anchor center
+  const caretLeft = (anchorRect.left + anchorRect.width / 2) - left - 6;
+  pop.style.setProperty('--caret-left', Math.max(8, caretLeft) + 'px');
+
+  const dismiss = (e) => {
+    if (!pop.contains(e.target) && e.target !== anchorEl) {
+      pop.remove();
+      document.removeEventListener('click', dismiss);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss), 0);
+
+  return pop;
+}
+window.__openNavPopover = openNavPopover;
+
 // ─── Nav visibility ────────────────────────────────────────
 function updateNavVisibility() {
   const showPipeline = ['lab_member','admin'].includes(state.userRole);
@@ -257,6 +291,7 @@ function showAuthModal(panel = 'signin') {
   const focusMap = { signin: 'auth-email', signup: 'signup-email', forgot: 'forgot-email', reset: 'reset-password' };
   document.getElementById(focusMap[panel] || 'auth-email')?.focus();
 }
+window.__showAuthModal = showAuthModal;
 
 function hideAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
