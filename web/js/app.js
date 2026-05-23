@@ -1,5 +1,5 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY } from './client.js?v=74';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=74';
 import { renderHome } from './views/home.js?v=71';
 import { renderGenomes } from './views/genomes.js?v=73';
 import { renderMutants } from './views/mutants.js?v=74';
@@ -102,6 +102,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
       state.user        = session.user;
       state.accessToken = session.access_token;
       await refreshRole(session.access_token);
+      await syncFavoritesFromDB();
     }
     updateNavVisibility();
     renderAuthArea();
@@ -114,6 +115,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     state.userRole    = 'guest';
     state.userProfile = null;
     state.accessToken = null;
+    state.favorites   = { genes: new Set(), mutants: new Set() };
     updateNavVisibility();
     renderAuthArea();
   }
