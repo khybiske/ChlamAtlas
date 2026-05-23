@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state, loadFavorites, toggleFavorite, GENE_FAVORITES_KEY } from '../client.js?v=66';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=74';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -252,12 +252,13 @@ function showGeneList(container) {
   fetchGenes(container, true);
 
   // Star button delegation (handles all .fav-btn clicks within the scrollable list)
-  container.querySelector('#gene-scroll').addEventListener('click', e => {
+  container.querySelector('#gene-scroll').addEventListener('click', async e => {
     const favBtn = e.target.closest('.fav-btn');
     if (!favBtn) return;
     e.stopPropagation(); // prevent triggering the row click
+    if (!state.user) { window.__showAuthModal?.('signin'); return; }
     const geneId = favBtn.dataset.id;
-    const nowFav = toggleFavorite(geneId, GENE_FAVORITES_KEY);
+    const nowFav = await toggleFavoriteDB('gene', geneId);
     favBtn.textContent = nowFav ? '★' : '☆';
     favBtn.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
     // If filtering by favorites, remove unfavorited row from view
@@ -635,11 +636,10 @@ async function fetchGenes(container, reset = false) {
   // Cache all fetched gene objects for detail panel use
   genes.forEach(g => _geneCache.set(String(g.id), g));
 
-  // Apply favorites filter client-side (localStorage)
+  // Apply favorites filter client-side (Supabase-backed state)
   let rows = genes;
   if (_filters.favorites) {
-    const favs = loadFavorites(GENE_FAVORITES_KEY);
-    rows = genes.filter(g => favs.has(String(g.id)));
+    rows = genes.filter(g => state.favorites.genes.has(String(g.id)));
   }
 
   if (reset) {
@@ -702,8 +702,7 @@ function setupInfiniteScroll(container) {
 
 function geneRow(g) {
   const color = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
-  const favs  = loadFavorites(GENE_FAVORITES_KEY);
-  const isFav = favs.has(String(g.id));
+  const isFav = state.favorites.genes.has(String(g.id));
 
   const thumbUrl = g.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path ?? null;
   const thumb = thumbUrl
@@ -2144,8 +2143,7 @@ function showGeneDetailDesktop(gene, container) {
     });
   }
 
-  const favs   = loadFavorites(GENE_FAVORITES_KEY);
-  const isFav  = favs.has(String(gene.id));
+  const isFav  = state.favorites.genes.has(String(gene.id));
   const strain = gene.strains?.common_name ?? _strain;
 
   // Category color + badge style
@@ -2246,9 +2244,10 @@ function showGeneDetailDesktop(gene, container) {
     </div>`;
 
   // Wire favorite button in detail panel
-  detail.querySelector('#detail-fav-btn').addEventListener('click', e => {
+  detail.querySelector('#detail-fav-btn').addEventListener('click', async e => {
+    if (!state.user) { window.__showAuthModal?.('signin'); return; }
     const id    = e.currentTarget.dataset.id;
-    const nowFav = toggleFavorite(id, GENE_FAVORITES_KEY);
+    const nowFav = await toggleFavoriteDB('gene', id);
     e.currentTarget.textContent = nowFav ? '★' : '☆';
     e.currentTarget.style.color  = nowFav ? '#f59e0b' : '#d1d5db';
     // Sync star in list panel
