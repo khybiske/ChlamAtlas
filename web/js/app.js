@@ -9,13 +9,11 @@ export { sb, state };
 
 // ─── Nav stub buttons ──────────────────────────────────────
 function wireNavStubs() {
-  document.getElementById('btn-nav-search')?.addEventListener('click', () => {
-    // TODO: open search modal
-    console.log('Search coming soon');
+  document.getElementById('btn-nav-search')?.addEventListener('click', (e) => {
+    showNavSearch(e.currentTarget);
   });
-  document.getElementById('btn-nav-saved')?.addEventListener('click', () => {
-    // TODO: navigate to Favorites page
-    console.log('Saved coming soon');
+  document.getElementById('btn-nav-saved')?.addEventListener('click', (e) => {
+    showSavedPopover(e.currentTarget);
   });
 }
 
@@ -288,6 +286,78 @@ function openNavPopover(anchorEl, contentHtml, id = 'nav-popover') {
   return pop;
 }
 window.__openNavPopover = openNavPopover;
+
+// ─── Saved popover ─────────────────────────────────────────
+async function showSavedPopover(anchor) {
+  if (!state.user) {
+    showAuthModal('signin');
+    return;
+  }
+
+  // Show loading state immediately
+  openNavPopover(anchor, `
+    <div class="nav-popover-label">Saved</div>
+    <div style="padding:14px;font-size:0.8125rem;color:#9ca3af;">Loading…</div>
+  `, 'saved-popover');
+
+  const geneIds   = [...state.favorites.genes];
+  const mutantIds = [...state.favorites.mutants];
+
+  const [genesRes, mutantsRes] = await Promise.all([
+    geneIds.length
+      ? sb.from('genes').select('id, locus_tag, gene_name, strain_id').in('id', geneIds)
+      : Promise.resolve({ data: [] }),
+    mutantIds.length
+      ? sb.from('mutants').select('id, mutant_id, name').in('id', mutantIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const genes   = genesRes.data   ?? [];
+  const mutants = mutantsRes.data ?? [];
+
+  if (!document.getElementById('saved-popover')) return; // dismissed while loading
+
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const genesHtml = genes.length
+    ? genes.map(g => `
+        <button class="nav-popover-row" data-type="gene" data-id="${g.id}">
+          <span class="nav-popover-row-icon">🧬</span>
+          <span class="nav-popover-row-name">${esc(g.locus_tag)}${g.gene_name ? ' — ' + esc(g.gene_name) : ''}</span>
+        </button>`).join('')
+    : '';
+
+  const mutantsHtml = mutants.length
+    ? mutants.map(m => `
+        <button class="nav-popover-row" data-type="mutant" data-id="${m.id}">
+          <span class="nav-popover-row-icon">🔬</span>
+          <span class="nav-popover-row-name">${esc(m.mutant_id)}${m.name ? ' — ' + esc(m.name) : ''}</span>
+        </button>`).join('')
+    : '';
+
+  const emptyHtml = !genes.length && !mutants.length
+    ? `<div style="padding:14px 14px 12px;font-size:0.8125rem;color:#9ca3af;text-align:center;">No saved items yet —<br>star a gene or mutant to save it here</div>`
+    : '';
+
+  const pop = openNavPopover(anchor, `
+    ${genes.length   ? '<div class="nav-popover-label">Genes</div>' + genesHtml : ''}
+    ${mutants.length ? '<div class="nav-popover-label">Mutants</div>' + mutantsHtml : ''}
+    ${emptyHtml}
+  `, 'saved-popover');
+
+  pop.querySelectorAll('[data-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pop.remove();
+      if (btn.dataset.type === 'gene') {
+        activateTab('genomes');
+        window.__openGeneId = btn.dataset.id;
+      } else {
+        activateTab('mutants');
+        window.__openMutantId = btn.dataset.id;
+      }
+    });
+  });
+}
 
 // ─── Nav visibility ────────────────────────────────────────
 function updateNavVisibility() {
