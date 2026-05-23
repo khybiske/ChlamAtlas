@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, loadFavorites, toggleFavorite, MUTANT_FAVORITES_KEY } from '../client.js?v=74';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=74';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -459,8 +459,7 @@ async function fetchList() {
   let displayRows = rows;
 
   if (_filters.favorites) {
-    const favs = loadFavorites(MUTANT_FAVORITES_KEY);
-    displayRows = displayRows.filter(m => favs.has(String(m.id)));
+    displayRows = displayRows.filter(m => state.favorites.mutants.has(String(m.id)));
   }
   if (_filters.type) {
     displayRows = displayRows.filter(m => m.mutation_type === _filters.type);
@@ -660,12 +659,15 @@ async function loadDetail(mutantUUID) {
   rightEl.querySelector('#mut-edit-btn')?.addEventListener('click', () => {});
 
   // Wire favorites star
-  rightEl.querySelector('#mut-fav-btn')?.addEventListener('click', e => {
-    const id     = e.currentTarget.dataset.id;
-    const nowFav = toggleFavorite(id, MUTANT_FAVORITES_KEY);
-    e.currentTarget.style.color = nowFav ? '#f59e0b' : '#d1d5db';
-    e.currentTarget.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
-    e.currentTarget.textContent = nowFav ? '★' : '☆';
+  rightEl.querySelector('#mut-fav-btn')?.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!state.user) { window.__showAuthModal?.('signin'); return; }
+    const btn    = e.currentTarget;
+    const id     = btn.dataset.id;
+    const nowFav = await toggleFavoriteDB('mutant', id);
+    btn.textContent = nowFav ? '★' : '☆';
+    btn.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
+    btn.style.color = nowFav ? '#f59e0b' : '#e5e7eb';
   });
 
 }
@@ -678,7 +680,7 @@ function heroHTML(m, genes = []) {
   const accent       = TYPE_ACCENT[m.mutation_type] ?? DEFAULT_ACCENT;
   const strainLabel  = m.strains?.common_name ?? m.strains?.species ?? '';
   const typeLabel    = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
-  const isFav        = loadFavorites(MUTANT_FAVORITES_KEY).has(String(m.id));
+  const isFav        = state.favorites.mutants.has(String(m.id));
   const col          = COLLECTIONS.find(c => c.id === _collection);
 
   // Locus tag line derived from the resolved genes array
