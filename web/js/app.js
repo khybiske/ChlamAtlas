@@ -307,6 +307,7 @@ function showNavSearch() {
     document.getElementById('nav-search-results')?.remove();
     document.removeEventListener('click', onOutsideClick);
     input.removeEventListener('keydown', onKeyDown);
+    input.removeEventListener('input', onInput);
   }
 
   function onOutsideClick(e) {
@@ -318,27 +319,31 @@ function showNavSearch() {
   function onKeyDown(e) { if (e.key === 'Escape') closeSearch(); }
   input.addEventListener('keydown', onKeyDown);
 
-  input.addEventListener('input', () => {
+  const onInput = () => {
     clearTimeout(_searchDebounce);
     const q = input.value.trim();
     if (q.length < 2) { document.getElementById('nav-search-results')?.remove(); return; }
     _searchDebounce = setTimeout(() => runSearch(q), 250);
-  });
+  };
+  input.addEventListener('input', onInput);
 }
 
 async function runSearch(q) {
+  const sq = q.replace(/[%_,()]/g, '');
+  if (!sq) return;
+
   const [geneFieldRes, proteinRes, directMutantRes] = await Promise.all([
     sb.from('genes')
       .select('id, locus_tag, gene_name, gene_symbol, strain_id')
-      .or(`locus_tag.ilike.%${q}%,gene_name.ilike.%${q}%,gene_symbol.ilike.%${q}%`)
+      .or(`locus_tag.ilike.%${sq}%,gene_name.ilike.%${sq}%,gene_symbol.ilike.%${sq}%`)
       .limit(5),
     sb.from('proteins')
       .select('gene_id, function, genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
-      .ilike('function', `%${q}%`)
+      .ilike('function', `%${sq}%`)
       .limit(5),
     sb.from('mutants')
       .select('id, mutant_id, name, target_gene_ids')
-      .or(`mutant_id.ilike.%${q}%,name.ilike.%${q}%,notes.ilike.%${q}%`)
+      .or(`mutant_id.ilike.%${sq}%,name.ilike.%${sq}%,notes.ilike.%${sq}%`)
       .limit(5),
   ]);
 
