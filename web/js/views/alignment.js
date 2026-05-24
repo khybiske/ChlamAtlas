@@ -715,13 +715,13 @@ async function fetchSequences() {
     const seqMap = Object.fromEntries((geneRows || []).map(r => [r.id, r]));
     for (const entry of alignState.entries) {
       const row = seqMap[entry.gene.id];
-      if (!row?.proteins?.[0]?.aa_sequence) missing.push(entry.gene.locus_tag);
+      if (!row?.proteins?.aa_sequence) missing.push(entry.gene.locus_tag);
     }
     if (missing.length) throw new Error(`No amino acid sequence on file for: ${missing.join(', ')}. Try switching to DNA mode, or these genes may not have sequence data loaded.`);
 
     return alignState.entries.map(e => {
       const row = seqMap[e.gene.id];
-      const seq = row.proteins[0].aa_sequence;
+      const seq = row.proteins.aa_sequence;
       const seqId = row.locus_tag.replace(/[^A-Za-z0-9_\-.]/g, '_');
       return `>${seqId}\n${seq}`;
     }).join('\n');
