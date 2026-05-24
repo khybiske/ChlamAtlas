@@ -63,6 +63,11 @@ function activateTab(name) {
   history.replaceState(null, '', `#/${name}`);
 }
 
+export function openAlignmentWith(geneId) {
+  state.alignmentSeedGeneId = geneId;
+  activateTab('alignment');
+}
+
 // ─── Auth ─────────────────────────────────────────────────
 // Fetch the user's profile row using the access_token we already have from the
 // auth event — avoids re-acquiring the Supabase auth storage lock, which causes

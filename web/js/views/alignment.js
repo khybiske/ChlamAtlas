@@ -1,5 +1,5 @@
 // ChlamAtlas — Sequence Alignment tool
-import { sb } from '../client.js?v=80';
+import { sb, state } from '../client.js?v=80';
 
 // ── Local state ──────────────────────────────────────────────
 let alignState = {
@@ -15,6 +15,15 @@ export function renderAlignment(container) {
   _container = container;
   alignState = { seqType: 'dna', entries: [], results: null, running: false };
   render();
+  if (state.alignmentSeedGeneId) {
+    const seedId = state.alignmentSeedGeneId;
+    state.alignmentSeedGeneId = null;
+    sb.from('genes')
+      .select('id,locus_tag,gene_name,gene_symbol,strain_id')
+      .eq('id', seedId)
+      .single()
+      .then(({ data }) => { if (data) addGeneWithOrthologs(data); });
+  }
 }
 
 function render() {
