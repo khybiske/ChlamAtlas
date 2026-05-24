@@ -4,6 +4,7 @@ import { renderHome } from './views/home.js?v=81';
 import { renderGenomes } from './views/genomes.js?v=82';
 import { renderMutants } from './views/mutants.js?v=82';
 import { renderPipeline } from './views/pipeline.js?v=65';
+import { renderRoadmap }  from './views/roadmap.js?v=83';
 
 export { sb, state };
 
@@ -18,12 +19,13 @@ function wireNavStubs() {
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap'];
 const RENDERERS = {
   home:     renderHome,
   genomes:  renderGenomes,
   mutants:  renderMutants,
   pipeline: renderPipeline,
+  roadmap:  renderRoadmap,
 };
 
 function activateTab(name) {
@@ -31,6 +33,11 @@ function activateTab(name) {
   state.currentTab = name;
 
   if (name === 'pipeline' && !['lab_member','admin'].includes(state.userRole)) {
+    name = 'home';
+    state.currentTab = 'home';
+  }
+
+  if (name === 'roadmap' && !state.user) {
     name = 'home';
     state.currentTab = 'home';
   }
@@ -224,6 +231,11 @@ function showUserDropdown() {
     </button>
     ${requestBtn}
     ${adminBtn}
+    <button id="dd-whats-new"
+      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+      onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+      What's new
+    </button>
     <button id="dd-sign-out"
       style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
@@ -233,6 +245,7 @@ function showUserDropdown() {
   document.body.appendChild(_dropdownEl);
 
   document.getElementById('dd-my-account').addEventListener('click', () => { hideUserDropdown(); showAccountModal(); });
+  document.getElementById('dd-whats-new').addEventListener('click', () => { hideUserDropdown(); activateTab('roadmap'); });
   document.getElementById('dd-sign-out').addEventListener('click', () => { hideUserDropdown(); signOut(); });
   document.getElementById('dd-request-access')?.addEventListener('click', () => { hideUserDropdown(); requestLabAccess(); });
   document.getElementById('dd-admin-panel')?.addEventListener('click', () => { hideUserDropdown(); showAdminPanel(); });
