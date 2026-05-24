@@ -23,6 +23,7 @@ const PLANNED_FEATURES = [
   { id: 'cpn-database',     label: 'C. pneumoniae genome & proteome',            description: 'Full gene, protein, and AlphaFold structure data for C. pneumoniae — the third major Chlamydia model organism.' },
   { id: 'more-strains',     label: 'Additional species & strains',               description: 'Ocular and rectal C. trachomatis serovars and other Chlamydia species as data becomes available.' },
   { id: 'mlst-variants',    label: 'MLST & natural variants panel',              description: 'Gene-level view of multi-locus sequence typing data and natural sequence variation across clinical isolates.' },
+  { id: 'knockdown-mutants', label: 'Knockdown mutant collection',               description: 'CRISPRi, antisense, or other knockdown reagents generated across the Chlamydia field, with phenotype data.' },
 ];
 
 const BADGE_STYLES = {
@@ -44,8 +45,6 @@ function saveVotes(votes) {
 
 export function renderRoadmap(container) {
   const votes = getVotes();
-
-  const sorted = [...PLANNED_FEATURES].sort((a, b) => (votes[b.id] ?? 0) - (votes[a.id] ?? 0));
 
   container.innerHTML = `
     <div style="max-width:1100px;margin:0 auto;padding:28px 24px 48px;">
@@ -78,24 +77,7 @@ export function renderRoadmap(container) {
         <div>
           <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Planned features</div>
           <p style="font-size:12px;color:#9ca3af;margin:0 0 14px;">Vote for what you most want to see next:</p>
-          <div id="feature-list">
-            ${sorted.map(f => {
-              const count = votes[f.id] ?? 0;
-              const voted = count > 0;
-              const btnStyle = voted
-                ? 'background:#f0fdf4;border:1px solid #22c55e;color:#15803d;'
-                : 'background:none;border:1px solid #e5e7eb;color:#6b7280;';
-              return `
-                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                  <button data-vote="${f.id}"
-                    style="flex-shrink:0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:14px;${btnStyle}">
-                    👍
-                  </button>
-                  <div style="flex:1;font-size:13px;color:#374151;font-weight:500;">${f.label}</div>
-                  <span data-vote-count="${f.id}" style="font-size:12px;font-weight:600;color:${voted ? '#16a34a' : '#9ca3af'};">${count}</span>
-                </div>`;
-            }).join('')}
-          </div>
+          <div id="feature-list"></div>
         </div>
 
         <!-- Suggestion box -->
@@ -128,20 +110,39 @@ export function renderRoadmap(container) {
     </style>
   `;
 
-  container.querySelectorAll('[data-vote]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.vote;
-      const current = getVotes();
-      current[id] = (current[id] ?? 0) + 1;
-      saveVotes(current);
-      btn.style.cssText = `flex-shrink:0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:14px;background:#f0fdf4;border:1px solid #22c55e;color:#15803d;`;
-      const countEl = container.querySelector(`[data-vote-count="${id}"]`);
-      if (countEl) {
-        countEl.textContent = current[id];
-        countEl.style.color = '#16a34a';
-      }
+  function renderFeatureList() {
+    const v = getVotes();
+    const items = [...PLANNED_FEATURES].sort((a, b) => (v[b.id] ?? 0) - (v[a.id] ?? 0));
+    const listEl = container.querySelector('#feature-list');
+    listEl.innerHTML = items.map(f => {
+      const count = v[f.id] ?? 0;
+      const voted = count > 0;
+      const btnStyle = voted
+        ? 'background:#f0fdf4;border:1px solid #22c55e;color:#15803d;'
+        : 'background:none;border:1px solid #e5e7eb;color:#6b7280;';
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;">
+          <button data-vote="${f.id}"
+            style="flex-shrink:0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:14px;${btnStyle}">
+            👍
+          </button>
+          <div style="flex:1;font-size:13px;color:#374151;font-weight:500;">${f.label}</div>
+          <span style="font-size:12px;font-weight:600;color:${voted ? '#16a34a' : '#9ca3af'};">${count}</span>
+        </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('[data-vote]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.vote;
+        const current = getVotes();
+        current[id] = (current[id] ?? 0) + 1;
+        saveVotes(current);
+        renderFeatureList();
+      });
     });
-  });
+  }
+
+  renderFeatureList();
 
   container.querySelector('#suggest-submit').addEventListener('click', () => {
     const name = container.querySelector('#suggest-name').value.trim();
