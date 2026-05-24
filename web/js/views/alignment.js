@@ -359,7 +359,7 @@ function renderAlignmentPanel(parsed, diffOnly) {
 
         if (diffOnly) {
           if (isVar && !isGap) {
-            seqHtml += `<span style="background:#fef3c7;color:${colorBase(ch, seqType)};font-weight:800;padding:0 1px;">${ch}</span>`;
+            seqHtml += `<span style="background:#fef3c7;color:${colorBase(ch, seqType)};">${ch}</span>`;
           } else if (isVar && isGap) {
             seqHtml += `<span style="color:#cbd5e1;">-</span>`;
           } else {
@@ -369,7 +369,7 @@ function renderAlignmentPanel(parsed, diffOnly) {
           if (isGap) {
             seqHtml += `<span style="color:#cbd5e1;">-</span>`;
           } else {
-            seqHtml += `<span style="color:${colorBase(ch, seqType)};font-weight:700;">${ch}</span>`;
+            seqHtml += `<span style="color:${colorBase(ch, seqType)};">${ch}</span>`;
           }
         }
       }
@@ -385,17 +385,22 @@ function renderAlignmentPanel(parsed, diffOnly) {
     }
 
     if (!diffOnly) {
-      let consHtml = '<div style="display:flex;height:5px;align-items:flex-end;margin-left:110px;margin-top:2px;font-family:\'DM Mono\',monospace;font-size:11px;">';
+      let barCells = '';
       for (let i = start; i < end; i++) {
         const col = parsed.sequences.map(s => s.seq[i]).filter(c => c !== '-');
         const allSame = col.length > 0 && col.every(c => c === col[0]);
         const anyMatch = col.length > 0 && col.filter(c => c === col[0]).length > 1;
         const h = allSame ? 5 : anyMatch ? 3 : 1;
         const bg = allSame ? '#0f4530' : anyMatch ? '#86efac' : '#e2e8f0';
-        consHtml += `<div style="width:1ch;flex-shrink:0;height:${h}px;background:${bg};border-radius:1px;"></div>`;
+        barCells += `<div style="width:1ch;flex-shrink:0;height:${h}px;background:${bg};border-radius:1px;"></div>`;
       }
-      consHtml += '</div>';
-      html += consHtml;
+      html += `
+        <div style="display:flex;align-items:flex-end;gap:10px;margin-top:2px;">
+          <span style="width:100px;flex-shrink:0;"></span>
+          <div style="display:flex;height:5px;align-items:flex-end;font-family:'DM Mono',monospace;font-size:11px;">
+            ${barCells}
+          </div>
+        </div>`;
     }
 
     html += '</div>';
