@@ -3,11 +3,11 @@
 -- Auto-set on INSERT (trigger); can be set explicitly by admin for batch imports.
 
 ALTER TABLE public.mutants
-  ADD COLUMN IF NOT EXISTS contributed_by uuid REFERENCES public.users(id);
+  ADD COLUMN IF NOT EXISTS contributed_by uuid REFERENCES public.users(id) ON DELETE SET NULL;
 
 -- Auto-fill contributed_by with auth.uid() when not explicitly provided
 CREATE OR REPLACE FUNCTION public.mutants_set_contributed_by()
-  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+  RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF NEW.contributed_by IS NULL THEN
     NEW.contributed_by := auth.uid();
