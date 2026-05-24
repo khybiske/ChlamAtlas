@@ -198,8 +198,225 @@ function renderResults() {
   return renderAlignmentResults(alignState.results);
 }
 
+// ── Alignment parsing ────────────────────────────────────────
+function parseClustalAlignment(clustalText) {
+  const seqMap = {};
+  const labels = [];
+
+  for (const line of clustalText.split('\n')) {
+    if (line.startsWith('CLUSTAL') || line.startsWith(' ') || line.trim() === '') continue;
+    const match = line.match(/^(\S+)\s+([A-Za-z\-]+)/);
+    if (!match) continue;
+    const [, label, seq] = match;
+    if (!seqMap[label]) { seqMap[label] = ''; labels.push(label); }
+    seqMap[label] += seq;
+  }
+
+  const sequences = labels.map(label => ({ label, seq: seqMap[label] }));
+  const alnLength = sequences[0]?.seq.length ?? 0;
+
+  let identical = 0, comparable = 0;
+  for (let i = 0; i < alnLength; i++) {
+    const col = sequences.map(s => s.seq[i]);
+    if (col.some(c => c === '-')) continue;
+    comparable++;
+    if (col.every(c => c === col[0])) identical++;
+  }
+  const identity = comparable > 0 ? ((identical / comparable) * 100).toFixed(1) : '0.0';
+
+  const gapCount = sequences.reduce((acc, s) =>
+    acc + (s.seq.match(/-/g)?.length ?? 0), 0);
+
+  return { sequences, alnLength, identity: parseFloat(identity), gapCount, labels };
+}
+
+// ── Stats cards ──────────────────────────────────────────────
+function identityStyle(pct) {
+  if (pct >= 90) return { bg: '#f0fdf4', border: '#86efac', color: '#15803d' };
+  if (pct >= 70) return { bg: '#fffbeb', border: '#fde68a', color: '#b45309' };
+  return { bg: '#fff1f2', border: '#fecdd3', color: '#be123c' };
+}
+
+function renderStatsCards(parsed) {
+  const s = identityStyle(parsed.identity);
+  const statCard = (val, label, bg='#f8fafc', border='#e2e8f0', color='#374151') => `
+    <div style="border-radius:12px;padding:12px 18px;background:${bg};border:2px solid ${border};min-width:80px;text-align:center;">
+      <div style="font-size:24px;font-weight:900;color:${color};line-height:1;">${val}</div>
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${color};opacity:0.7;margin-top:3px;">${label}</div>
+    </div>
+  `;
+  return `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      ${statCard(parsed.identity + '%', 'Identity', s.bg, s.border, s.color)}
+      ${statCard(parsed.alnLength, 'Aln. length')}
+      ${statCard(parsed.gapCount, 'Gaps')}
+      ${statCard(parsed.sequences.length, 'Sequences')}
+    </div>
+  `;
+}
+
+function renderLegend(parsed) {
+  return `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+      ${parsed.sequences.map(s => {
+        const entry = alignState.entries.find(e => e.gene.locus_tag === s.label);
+        const color = entry ? strainColor(entry.gene.strain_id) : '#64748b';
+        const strainId = entry?.gene.strain_id ?? '';
+        return `
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#374151;">
+            <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;"></span>
+            <span style="font-weight:600;">${escHtml(s.label)}</span>
+            ${strainId ? `<span style="color:#94a3b8;">${escHtml(strainId)}</span>` : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ── DNA/AA base colors ───────────────────────────────────────
+const DNA_COLORS = { A: '#16a34a', T: '#dc2626', G: '#d97706', C: '#2563eb' };
+const AA_COLORS = {
+  G:'#f97316',P:'#f97316',
+  A:'#64748b',V:'#64748b',L:'#64748b',I:'#64748b',M:'#64748b',
+  F:'#8b5cf6',Y:'#8b5cf6',W:'#8b5cf6',
+  K:'#ef4444',R:'#ef4444',H:'#ef4444',
+  D:'#f59e0b',E:'#f59e0b',
+  S:'#22c55e',T:'#22c55e',N:'#22c55e',Q:'#22c55e',
+  C:'#eab308',
+};
+
+function colorBase(ch, seqType) {
+  const c = seqType === 'dna' ? DNA_COLORS[ch.toUpperCase()] : AA_COLORS[ch.toUpperCase()];
+  return c ?? '#64748b';
+}
+
+function renderAlignmentPanel(parsed, diffOnly) {
+  const BLOCK = 60;
+  const seqType = alignState.results.seqType;
+  let html = '';
+
+  for (let start = 0; start < parsed.alnLength; start += BLOCK) {
+    const end = Math.min(start + BLOCK, parsed.alnLength);
+    html += `<div style="margin-bottom:14px;">`;
+    html += `<div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">${start + 1} – ${end}</div>`;
+
+    const variableCols = new Set();
+    for (let i = start; i < end; i++) {
+      const col = parsed.sequences.map(s => s.seq[i]);
+      if (!col.every(c => c === col[0])) variableCols.add(i);
+    }
+
+    for (const { label, seq } of parsed.sequences) {
+      const entry = alignState.entries.find(e => e.gene.locus_tag === label);
+      const color = entry ? strainColor(entry.gene.strain_id) : '#64748b';
+      const block = seq.slice(start, end);
+
+      let seqHtml = '';
+      for (let i = 0; i < block.length; i++) {
+        const ch = block[i];
+        const colIdx = start + i;
+        const isVar = variableCols.has(colIdx);
+        const isGap = ch === '-';
+
+        if (diffOnly) {
+          if (isVar && !isGap) {
+            seqHtml += `<span style="background:#fef3c7;color:${colorBase(ch, seqType)};font-weight:800;padding:0 1px;">${ch}</span>`;
+          } else if (isVar && isGap) {
+            seqHtml += `<span style="color:#cbd5e1;">-</span>`;
+          } else {
+            seqHtml += `<span style="color:#d1d5db;">·</span>`;
+          }
+        } else {
+          if (isGap) {
+            seqHtml += `<span style="color:#cbd5e1;">-</span>`;
+          } else {
+            seqHtml += `<span style="color:${colorBase(ch, seqType)};font-weight:700;">${ch}</span>`;
+          }
+        }
+      }
+
+      html += `
+        <div style="display:flex;align-items:center;gap:10px;line-height:1.6;">
+          <span style="width:100px;flex-shrink:0;font-size:10px;color:${color};font-weight:600;
+                       text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                       font-family:'DM Mono',monospace;">${escHtml(label)}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.04em;">${seqHtml}</span>
+        </div>
+      `;
+    }
+
+    if (!diffOnly) {
+      let consHtml = '<div style="display:flex;gap:1px;height:5px;align-items:flex-end;margin-left:110px;margin-top:2px;">';
+      for (let i = start; i < end; i++) {
+        const col = parsed.sequences.map(s => s.seq[i]).filter(c => c !== '-');
+        const allSame = col.length > 0 && col.every(c => c === col[0]);
+        const anyMatch = col.length > 0 && col.filter(c => c === col[0]).length > 1;
+        const h = allSame ? 5 : anyMatch ? 3 : 1;
+        const bg = allSame ? '#0f4530' : anyMatch ? '#86efac' : '#e2e8f0';
+        consHtml += `<div style="width:7.6px;height:${h}px;background:${bg};border-radius:1px;"></div>`;
+      }
+      consHtml += '</div>';
+      html += consHtml;
+    }
+
+    html += '</div>';
+  }
+
+  return html;
+}
+
+async function exportAlignment(results, format) {
+  console.warn('exportAlignment not yet implemented', format);
+}
+
 function renderAlignmentResults(results) {
-  return `<div style="padding:16px;color:#64748b;font-size:13px;">Results ready — display coming in next task. Job ID: ${results.jobId}</div>`;
+  const parsed = parseClustalAlignment(results.clustalText);
+  const diffOnly = alignState.diffOnly !== false;
+
+  window._alnToggleView = () => {
+    alignState.diffOnly = !diffOnly;
+    render();
+  };
+  window._alnExport = (format) => exportAlignment(results, format);
+
+  return `
+    ${renderStatsCards(parsed)}
+    ${renderLegend(parsed)}
+
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button onclick="window._alnToggleView()"
+        style="font-size:11px;color:#64748b;background:white;border:1.5px solid #e2e8f0;
+               border-radius:7px;padding:5px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        ${diffOnly ? 'Show full color view' : 'Show differences only'}
+      </button>
+    </div>
+
+    <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:16px;
+                overflow-x:auto;">
+      ${renderAlignmentPanel(parsed, diffOnly)}
+      ${diffOnly ? '<div style="font-size:9px;color:#94a3b8;margin-top:6px;text-align:right;">amber = diverges from consensus · · = identical</div>' : ''}
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+      <button onclick="window._alnExport('fasta')"
+        style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;
+               border-radius:7px;padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
+               background:white;font-family:'DM Sans',sans-serif;">⬇ FASTA</button>
+      <button onclick="window._alnExport('clustal')"
+        style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;
+               border-radius:7px;padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
+               background:white;font-family:'DM Sans',sans-serif;">⬇ Clustal</button>
+      <button onclick="window._alnExport('phylip')"
+        style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;
+               border-radius:7px;padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
+               background:white;font-family:'DM Sans',sans-serif;">⬇ Phylip</button>
+      <button onclick="window._alnExport('clipboard')"
+        style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;
+               border-radius:7px;padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
+               background:white;font-family:'DM Sans',sans-serif;">📋 Copy</button>
+    </div>
+  `;
 }
 
 function wirePickerEvents() {
