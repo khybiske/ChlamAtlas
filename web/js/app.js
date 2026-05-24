@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=80';
 import { renderHome } from './views/home.js?v=81';
-import { renderGenomes } from './views/genomes.js?v=81';
-import { renderMutants } from './views/mutants.js?v=80';
+import { renderGenomes } from './views/genomes.js?v=82';
+import { renderMutants } from './views/mutants.js?v=82';
 import { renderPipeline } from './views/pipeline.js?v=65';
 
 export { sb, state };
@@ -463,11 +463,11 @@ function renderSearchResults(genes, mutants) {
       document.getElementById('btn-nav-search').style.display    = 'flex';
       document.getElementById('nav-search-expanded').style.display = 'none';
       if (row.dataset.type === 'gene') {
-        activateTab('genomes');
         window.__openGeneId = row.dataset.id;
+        activateTab('genomes');
       } else {
-        activateTab('mutants');
         window.__openMutantId = row.dataset.id;
+        activateTab('mutants');
       }
     });
   });
@@ -552,11 +552,11 @@ async function showSavedPopover(anchor) {
     btn.addEventListener('click', () => {
       pop.remove();
       if (btn.dataset.type === 'gene') {
-        activateTab('genomes');
         window.__openGeneId = btn.dataset.id;
+        activateTab('genomes');
       } else {
-        activateTab('mutants');
         window.__openMutantId = btn.dataset.id;
+        activateTab('mutants');
       }
     });
   });

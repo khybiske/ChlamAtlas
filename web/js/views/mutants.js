@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, toggleFavoriteDB } from '../client.js?v=80';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=82';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -808,8 +808,11 @@ function geneCardsHTML(genes) {
             <div class="mut-gene-tag">${g.locus_tag}</div>
             ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
             ${funcCategoryPill(g.functional_category)}
-            <button class="mut-gene-link" data-gene-nav="${g.id}">View in Genomes →</button>
           </div>
+          <button class="mut-gene-link" data-gene-nav="${g.id}"
+            style="align-self:center;flex-shrink:0;margin-left:8px;white-space:nowrap;
+                   padding:3px 8px;border-radius:5px;border:1px solid #c7ddd3;
+                   font-size:0.6875rem;">View in Genomes →</button>
         </div>`;
     }).join('');
 

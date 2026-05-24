@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state, toggleFavoriteDB } from '../client.js?v=81';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=82';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -107,7 +107,8 @@ let _offset         = 0;
 let _total       = 0;
 let _hasMore     = false;
 let _loading     = false;
-let _selectedId  = null;
+let _selectedId      = null;
+let _pendingDetailId = null;  // gene ID to auto-open on next render (from search / mutant nav)
 let _scrollPos   = 0;
 let _container   = null;  // saved when detail panel is shown; used by async click handlers
 
@@ -132,6 +133,12 @@ export function renderGenomes(container) {
   // Pick up strain preference set by home page organisms section
   _strain = window.__preferredStrain ?? 'CT-L2';
   delete window.__preferredStrain;
+
+  // Pick up a specific gene to open — set by search results or mutant "View in Genomes" button
+  _pendingDetailId = window.__openGeneId ?? window.__geneDetailId ?? null;
+  delete window.__openGeneId;
+  delete window.__geneDetailId;
+
   _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
   _expressionFilter = null; _ebRbFilter = null;
   _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
@@ -139,6 +146,35 @@ export function renderGenomes(container) {
                hasAf3: false, hasCrystal: false };
   _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false };
   showGeneList(container);
+
+  // If a gene was requested, open its detail panel immediately without waiting for list
+  if (_pendingDetailId) {
+    const id = _pendingDetailId;
+    _pendingDetailId = null;
+    openGeneById(id, container);
+  }
+}
+
+async function openGeneById(geneId, container) {
+  const cached = _geneCache.get(String(geneId));
+  if (cached) {
+    showGeneDetailDesktop(cached, container);
+    return;
+  }
+  const { data } = await sb.from('genes')
+    .select(
+      'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+      'start_bp,end_bp,strand,functional_category,is_characterized,' +
+      'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+      'expression_pattern,eb_enriched,rb_enriched,dna_sequence,' +
+      'strains!inner(common_name,color_hex)'
+    )
+    .eq('id', geneId)
+    .single();
+  if (data) {
+    _geneCache.set(String(data.id), data);
+    showGeneDetailDesktop(data, container);
+  }
 }
 
 // ─── Gene list ────────────────────────────────────────────
