@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, toggleFavoriteDB } from '../client.js?v=77';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=78';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -59,6 +59,7 @@ const TYPE_ACCENT = {
   intron:     { color: '#ca8a04', heroBg: 'rgba(202,138,4,0.08)',   badgeBg: 'rgba(254,249,195,0.6)',  badgeText: '#ca8a04', badgeBorder: 'rgba(202,138,4,0.35)'   },
 };
 const DEFAULT_ACCENT = { color: '#6b7280', heroBg: 'rgba(107,114,128,0.06)', badgeBg: 'rgba(243,244,246,0.6)', badgeText: '#6b7280', badgeBorder: 'rgba(107,114,128,0.3)' };
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const FUNC_CLASSES = ['Hypothetical', 'Inc protein', 'T3 secreted', 'Characterized'];
 
 // Functional category fill colors — matches Genomes tab exactly
@@ -137,6 +138,12 @@ export function renderMutants(container) {
   _moreOpen = false;
   _expandedSections = { type: false, strain: false, function: false };
   _geneDataMap = new Map();
+
+  // Pre-select a mutant navigated to from another tab (e.g. gene detail Mutants panel)
+  if (window.__openMutantId) {
+    _selectedId = window.__openMutantId;
+    delete window.__openMutantId;
+  }
 
   const col = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
   const isMobile = window.innerWidth < 768;
@@ -523,13 +530,13 @@ async function fetchList() {
     });
   });
 
-  // Auto-select first row on initial load
+  // Auto-select first row on initial load, or re-select a pre-chosen ID
   if (!_selectedId && displayRows.length) {
     const first = listEl.querySelector('.mut-row');
     if (first) { first.classList.add('selected'); _selectedId = first.dataset.id; loadDetail(first.dataset.id); }
   } else if (_selectedId) {
     const sel = listEl.querySelector(`[data-id="${_selectedId}"]`);
-    if (sel) sel.classList.add('selected');
+    if (sel) { sel.classList.add('selected'); loadDetail(_selectedId); }
   }
 }
 
