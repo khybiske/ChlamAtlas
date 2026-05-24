@@ -169,7 +169,34 @@ function renderPicker() {
   `;
 }
 
-function renderResults() { return ''; } // placeholder until Task 4
+function renderResults() {
+  if (alignState.running) {
+    return `
+      <div style="padding:32px 0;display:flex;align-items:center;gap:14px;">
+        <div style="width:20px;height:20px;border:2px solid #0f4530;border-top-color:transparent;
+                    border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <span id="aln-spinner-msg" style="font-size:13px;color:#64748b;">Submitting…</span>
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    `;
+  }
+  if (!alignState.results) return '';
+  if (alignState.results.error) {
+    return `
+      <div style="background:#fff1f2;border:1.5px solid #fecdd3;border-radius:10px;padding:14px 16px;color:#be123c;font-size:13px;">
+        ⚠ ${alignState.results.error}
+        <button onclick="window._alnRun()"
+          style="margin-left:12px;background:#0f4530;color:white;border:none;border-radius:6px;
+                 padding:4px 12px;font-size:12px;cursor:pointer;">Retry</button>
+      </div>
+    `;
+  }
+  return renderAlignmentResults(alignState.results);
+}
+
+function renderAlignmentResults(results) {
+  return `<div style="padding:16px;color:#64748b;font-size:13px;">Results ready — display coming in next task. Job ID: ${results.jobId}</div>`;
+}
 
 function wirePickerEvents() {
   // expose globals for inline onclick handlers
@@ -339,5 +366,127 @@ async function addGeneWithOrthologs(gene) {
   reRenderEntries();
 }
 
-// ── Stub for Task 4 ──────────────────────────────────────────
-function runAlignment() { console.warn('runAlignment not yet implemented'); }
+// ── Sequence fetching from Supabase ──────────────────────────
+async function fetchSequences() {
+  const geneIds = alignState.entries.map(e => e.gene.id);
+  const missing = [];
+
+  if (alignState.seqType === 'dna') {
+    const { data } = await sb
+      .from('genes')
+      .select('id,locus_tag,gene_name,dna_sequence')
+      .in('id', geneIds);
+
+    const seqMap = Object.fromEntries((data || []).map(r => [r.id, r]));
+    for (const entry of alignState.entries) {
+      const row = seqMap[entry.gene.id];
+      if (!row?.dna_sequence) missing.push(entry.gene.locus_tag);
+    }
+    if (missing.length) throw new Error(`No DNA sequence on file for: ${missing.join(', ')}`);
+
+    return alignState.entries.map(e => {
+      const row = seqMap[e.gene.id];
+      const seqId = row.locus_tag.replace(/\s+/g, '_');
+      return `>${seqId}\n${row.dna_sequence}`;
+    }).join('\n');
+
+  } else {
+    // AA: join through proteins table
+    const { data: geneRows } = await sb
+      .from('genes')
+      .select('id,locus_tag,proteins(id,aa_sequence)')
+      .in('id', geneIds);
+
+    const seqMap = Object.fromEntries((geneRows || []).map(r => [r.id, r]));
+    for (const entry of alignState.entries) {
+      const row = seqMap[entry.gene.id];
+      if (!row?.proteins?.[0]?.aa_sequence) missing.push(entry.gene.locus_tag);
+    }
+    if (missing.length) throw new Error(`No amino acid sequence on file for: ${missing.join(', ')}`);
+
+    return alignState.entries.map(e => {
+      const row = seqMap[e.gene.id];
+      const seq = row.proteins[0].aa_sequence;
+      const seqId = row.locus_tag.replace(/\s+/g, '_');
+      return `>${seqId}\n${seq}`;
+    }).join('\n');
+  }
+}
+
+// ── EMBL-EBI Clustal Omega REST API ─────────────────────────
+const EBI_BASE = 'https://www.ebi.ac.uk/Tools/services/rest/clustalo';
+const EBI_EMAIL = 'chlamatlas@chlamatlas.org';
+
+async function submitToEBI(fasta) {
+  const body = new URLSearchParams({
+    email:    EBI_EMAIL,
+    sequence: fasta,
+    stype:    alignState.seqType === 'dna' ? 'dna' : 'protein',
+    outfmt:   'clustal_num',
+  });
+  const res = await fetch(`${EBI_BASE}/run`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'text/plain' },
+    body,
+  });
+  if (!res.ok) throw new Error(`EBI submission failed: ${res.status}`);
+  return (await res.text()).trim(); // returns jobId
+}
+
+async function pollEBI(jobId, onStatus) {
+  const MAX_POLLS = 40; // 40 × 3s = 2 min max
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const res = await fetch(`${EBI_BASE}/status/${jobId}`, { headers: { Accept: 'text/plain' } });
+    const status = (await res.text()).trim();
+    onStatus(status, i);
+    if (status === 'FINISHED') return;
+    if (status === 'ERROR' || status === 'FAILURE') throw new Error(`EBI job ${status}`);
+  }
+  throw new Error('Alignment timed out after 2 minutes');
+}
+
+async function fetchEBIResult(jobId, resultType = 'aln-clustal_num') {
+  const res = await fetch(`${EBI_BASE}/result/${jobId}/${resultType}`, {
+    headers: { Accept: 'text/plain' },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch result ${resultType}: ${res.status}`);
+  return res.text();
+}
+
+// ── Run orchestration ────────────────────────────────────────
+async function runAlignment() {
+  alignState.running = true;
+  alignState.results = null;
+  render();
+
+  try {
+    setSpinner('Fetching sequences…');
+    const fasta = await fetchSequences();
+
+    setSpinner('Submitting to Clustal Omega…');
+    const jobId = await submitToEBI(fasta);
+
+    await pollEBI(jobId, (status, poll) => {
+      setSpinner(`Waiting for alignment… (${poll * 3}s)`);
+    });
+
+    setSpinner('Retrieving results…');
+    const [clustalText, fastaText] = await Promise.all([
+      fetchEBIResult(jobId, 'aln-clustal_num'),
+      fetchEBIResult(jobId, 'aln-fasta'),
+    ]);
+    alignState.results = { jobId, clustalText, fastaText, seqType: alignState.seqType };
+
+  } catch (err) {
+    alignState.results = { error: err.message };
+  }
+
+  alignState.running = false;
+  render();
+}
+
+function setSpinner(msg) {
+  const el = document.getElementById('aln-spinner-msg');
+  if (el) el.textContent = msg;
+}
