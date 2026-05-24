@@ -934,12 +934,12 @@ function singleGeneMapSVG(gene, neighborhood, mutationType) {
 
     const nameEl = isNamed
       ? `<text x="${midX}" y="${nameY}" text-anchor="middle"
-               font-family="DM Sans,sans-serif" font-size="${isTarget ? 9 : 7.5}"
+               font-family="DM Sans,sans-serif" font-size="${isTarget ? 13 : 10}"
                font-weight="600" fill="${isTarget ? '#222' : '#888'}">${g.gene_name}</text>`
       : '';
 
     const locusEl = `<text x="${midX}" y="${locusY}" text-anchor="middle"
-                          font-family="DM Mono,monospace" font-size="${isTarget ? 8 : 7}"
+                          font-family="DM Mono,monospace" font-size="${isTarget ? 11 : 9}"
                           font-weight="${isTarget ? '700' : '400'}"
                           fill="${isTarget ? '#111' : '#bbb'}">${g.locus_tag}</text>`;
 
