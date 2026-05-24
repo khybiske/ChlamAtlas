@@ -63,6 +63,10 @@ function strainColor(strainId) {
   return '#64748b';
 }
 
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function renderEntryRow(entry) {
   const g = entry.gene;
   const label = [g.locus_tag, g.gene_name].filter(Boolean).join(' · ');
@@ -184,7 +188,7 @@ function renderResults() {
   if (alignState.results.error) {
     return `
       <div style="background:#fff1f2;border:1.5px solid #fecdd3;border-radius:10px;padding:14px 16px;color:#be123c;font-size:13px;">
-        ⚠ ${alignState.results.error}
+        ⚠ ${escHtml(alignState.results.error)}
         <button onclick="window._alnRun()"
           style="margin-left:12px;background:#0f4530;color:white;border:none;border-radius:6px;
                  padding:4px 12px;font-size:12px;cursor:pointer;">Retry</button>
@@ -372,10 +376,11 @@ async function fetchSequences() {
   const missing = [];
 
   if (alignState.seqType === 'dna') {
-    const { data } = await sb
+    const { data, error: dnaErr } = await sb
       .from('genes')
       .select('id,locus_tag,gene_name,dna_sequence')
       .in('id', geneIds);
+    if (dnaErr) throw new Error(`Failed to fetch sequences: ${dnaErr.message}`);
 
     const seqMap = Object.fromEntries((data || []).map(r => [r.id, r]));
     for (const entry of alignState.entries) {
@@ -386,16 +391,17 @@ async function fetchSequences() {
 
     return alignState.entries.map(e => {
       const row = seqMap[e.gene.id];
-      const seqId = row.locus_tag.replace(/\s+/g, '_');
+      const seqId = row.locus_tag.replace(/[^A-Za-z0-9_\-.]/g, '_');
       return `>${seqId}\n${row.dna_sequence}`;
     }).join('\n');
 
   } else {
     // AA: join through proteins table
-    const { data: geneRows } = await sb
+    const { data: geneRows, error: aaErr } = await sb
       .from('genes')
       .select('id,locus_tag,proteins(id,aa_sequence)')
       .in('id', geneIds);
+    if (aaErr) throw new Error(`Failed to fetch sequences: ${aaErr.message}`);
 
     const seqMap = Object.fromEntries((geneRows || []).map(r => [r.id, r]));
     for (const entry of alignState.entries) {
@@ -407,7 +413,7 @@ async function fetchSequences() {
     return alignState.entries.map(e => {
       const row = seqMap[e.gene.id];
       const seq = row.proteins[0].aa_sequence;
-      const seqId = row.locus_tag.replace(/\s+/g, '_');
+      const seqId = row.locus_tag.replace(/[^A-Za-z0-9_\-.]/g, '_');
       return `>${seqId}\n${seq}`;
     }).join('\n');
   }
@@ -438,6 +444,7 @@ async function pollEBI(jobId, onStatus) {
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise(r => setTimeout(r, 3000));
     const res = await fetch(`${EBI_BASE}/status/${jobId}`, { headers: { Accept: 'text/plain' } });
+    if (!res.ok) throw new Error(`EBI status check failed: ${res.status}`);
     const status = (await res.text()).trim();
     onStatus(status, i);
     if (status === 'FINISHED') return;
