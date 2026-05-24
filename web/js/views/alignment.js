@@ -292,6 +292,51 @@ async function searchGenes(q) {
   };
 }
 
-// ── Stubs for Tasks 3 & 4 ────────────────────────────────────
+// ── Ortholog auto-fill ───────────────────────────────────────
+async function addGeneWithOrthologs(gene) {
+  // Don't add duplicates
+  if (alignState.entries.find(e => e.gene.id === gene.id)) return;
+
+  const isPrimary = alignState.entries.length === 0 || !alignState.entries.some(e => e.isPrimary);
+  const primaryId = `entry-${Date.now()}-${gene.id}`;
+
+  alignState.entries.push({ id: primaryId, gene, status: 'confirmed', isPrimary });
+  reRenderEntries();
+
+  if (!isPrimary) return; // manual additions don't trigger ortholog fetch
+
+  // Fetch orthologs
+  const { data: orthoRows } = await sb
+    .from('orthologs')
+    .select('gene_id,ortholog_gene_id')
+    .or(`gene_id.eq.${gene.id},ortholog_gene_id.eq.${gene.id}`);
+
+  if (!orthoRows?.length) return;
+
+  const orthologGeneIds = orthoRows
+    .map(r => r.gene_id === gene.id ? r.ortholog_gene_id : r.gene_id)
+    .filter(id => id !== gene.id);
+
+  if (!orthologGeneIds.length) return;
+
+  const { data: orthoGenes } = await sb
+    .from('genes')
+    .select('id,locus_tag,gene_name,gene_symbol,strain_id')
+    .in('id', orthologGeneIds);
+
+  if (!orthoGenes?.length) return;
+
+  for (const og of orthoGenes) {
+    if (alignState.entries.find(e => e.gene.id === og.id)) continue;
+    alignState.entries.push({
+      id: `entry-${Date.now()}-${og.id}`,
+      gene: og,
+      status: 'suggested',
+      isPrimary: false,
+    });
+  }
+  reRenderEntries();
+}
+
+// ── Stub for Task 4 ──────────────────────────────────────────
 function runAlignment() { console.warn('runAlignment not yet implemented'); }
-async function addGeneWithOrthologs(gene) { console.warn('addGeneWithOrthologs not yet implemented', gene); }
