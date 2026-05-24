@@ -999,11 +999,12 @@ function renderDetailMutants(detail, gene, mutants) {
   };
 
   const TYPE_ACCENT_LOCAL = {
-    transposon: { color: '#059669', bg: 'rgba(209,250,229,0.5)',  border: 'rgba(5,150,105,0.35)'   },
-    deletion:   { color: '#dc2626', bg: 'rgba(254,226,226,0.5)',  border: 'rgba(220,38,38,0.3)'    },
-    chimera:    { color: '#7c3aed', bg: 'rgba(237,233,254,0.5)',  border: 'rgba(124,58,237,0.3)'   },
-    chemical:   { color: '#2563eb', bg: 'rgba(219,234,254,0.5)',  border: 'rgba(37,99,235,0.3)'    },
-    intron:     { color: '#ca8a04', bg: 'rgba(254,249,195,0.6)',  border: 'rgba(202,138,4,0.35)'   },
+    transposon:    { color: '#059669', bg: 'rgba(209,250,229,0.5)',  border: 'rgba(5,150,105,0.35)'   },
+    deletion:      { color: '#dc2626', bg: 'rgba(254,226,226,0.5)',  border: 'rgba(220,38,38,0.3)'    },
+    chimera:       { color: '#7c3aed', bg: 'rgba(237,233,254,0.5)',  border: 'rgba(124,58,237,0.3)'   },
+    chemical:      { color: '#2563eb', bg: 'rgba(219,234,254,0.5)',  border: 'rgba(37,99,235,0.3)'    },
+    intron:        { color: '#ca8a04', bg: 'rgba(254,249,195,0.6)',  border: 'rgba(202,138,4,0.35)'   },
+    recombination: { color: '#db2777', bg: 'rgba(252,231,243,0.5)',  border: 'rgba(219,39,119,0.3)'   },
   };
 
   const rows = mutants.map(m => {

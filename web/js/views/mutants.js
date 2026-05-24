@@ -8,7 +8,7 @@ const COLLECTIONS = [
   { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
 ];
 
-const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical', intron: 'Intron' };
+const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical', intron: 'Intron', recombination: 'Recombination' };
 
 const SORT_OPTIONS = [
   { field: 'locus_tag', asc: true, label: 'Locus tag' },
@@ -52,11 +52,12 @@ const COLLECTION_STRAINS = {
 
 // Accent color per mutation type — drives hero gradient and type badge color
 const TYPE_ACCENT = {
-  transposon: { color: '#059669', heroBg: 'rgba(5,150,105,0.08)',   badgeBg: 'rgba(209,250,229,0.5)',  badgeText: '#059669', badgeBorder: 'rgba(5,150,105,0.35)'   },
-  deletion:   { color: '#dc2626', heroBg: 'rgba(220,38,38,0.08)',   badgeBg: 'rgba(254,226,226,0.5)',  badgeText: '#dc2626', badgeBorder: 'rgba(220,38,38,0.3)'    },
-  chimera:    { color: '#7c3aed', heroBg: 'rgba(124,58,237,0.08)',  badgeBg: 'rgba(237,233,254,0.5)',  badgeText: '#7c3aed', badgeBorder: 'rgba(124,58,237,0.3)'   },
-  chemical:   { color: '#2563eb', heroBg: 'rgba(37,99,235,0.08)',   badgeBg: 'rgba(219,234,254,0.5)',  badgeText: '#2563eb', badgeBorder: 'rgba(37,99,235,0.3)'    },
-  intron:     { color: '#ca8a04', heroBg: 'rgba(202,138,4,0.08)',   badgeBg: 'rgba(254,249,195,0.6)',  badgeText: '#ca8a04', badgeBorder: 'rgba(202,138,4,0.35)'   },
+  transposon:    { color: '#059669', heroBg: 'rgba(5,150,105,0.08)',   badgeBg: 'rgba(209,250,229,0.5)',  badgeText: '#059669', badgeBorder: 'rgba(5,150,105,0.35)'   },
+  deletion:      { color: '#dc2626', heroBg: 'rgba(220,38,38,0.08)',   badgeBg: 'rgba(254,226,226,0.5)',  badgeText: '#dc2626', badgeBorder: 'rgba(220,38,38,0.3)'    },
+  chimera:       { color: '#7c3aed', heroBg: 'rgba(124,58,237,0.08)',  badgeBg: 'rgba(237,233,254,0.5)',  badgeText: '#7c3aed', badgeBorder: 'rgba(124,58,237,0.3)'   },
+  chemical:      { color: '#2563eb', heroBg: 'rgba(37,99,235,0.08)',   badgeBg: 'rgba(219,234,254,0.5)',  badgeText: '#2563eb', badgeBorder: 'rgba(37,99,235,0.3)'    },
+  intron:        { color: '#ca8a04', heroBg: 'rgba(202,138,4,0.08)',   badgeBg: 'rgba(254,249,195,0.6)',  badgeText: '#ca8a04', badgeBorder: 'rgba(202,138,4,0.35)'   },
+  recombination: { color: '#db2777', heroBg: 'rgba(219,39,119,0.08)',  badgeBg: 'rgba(252,231,243,0.5)',  badgeText: '#db2777', badgeBorder: 'rgba(219,39,119,0.3)'   },
 };
 const DEFAULT_ACCENT = { color: '#6b7280', heroBg: 'rgba(107,114,128,0.06)', badgeBg: 'rgba(243,244,246,0.6)', badgeText: '#6b7280', badgeBorder: 'rgba(107,114,128,0.3)' };
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1406,7 +1407,7 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
       const { data: users } = await sb
         .from('users')
         .select('id, display_name, email')
-        .ilike('email', `%${safeQuery}%`)
+        .or(`email.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
         .limit(5);
 
       if (!users?.length) {
