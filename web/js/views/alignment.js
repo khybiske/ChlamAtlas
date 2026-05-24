@@ -326,10 +326,11 @@ async function addGeneWithOrthologs(gene) {
 
   if (!orthoGenes?.length) return;
 
+  const batchTs = Date.now();
   for (const og of orthoGenes) {
     if (alignState.entries.find(e => e.gene.id === og.id)) continue;
     alignState.entries.push({
-      id: `entry-${Date.now()}-${og.id}`,
+      id: `entry-${batchTs}-${og.id}`,
       gene: og,
       status: 'suggested',
       isPrimary: false,
