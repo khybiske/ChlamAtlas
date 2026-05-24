@@ -770,10 +770,10 @@ async function runAlignment() {
     });
 
     setSpinner('Retrieving results…');
-    const [clustalText, fastaText] = await Promise.all([
-      fetchEBIResult(jobId, 'aln-clustal_num'),
-      fetchEBIResult(jobId, 'aln-fasta'),
-    ]);
+    const clustalText = await fetchEBIResult(jobId, 'aln-clustal_num');
+    // Derive aligned FASTA from the parsed clustal — EBI has no aln-fasta result type
+    const parsed = parseClustalAlignment(clustalText);
+    const fastaText = parsed.sequences.map(s => `>${s.label}\n${s.seq}`).join('\n');
     alignState.results = { jobId, clustalText, fastaText, seqType: alignState.seqType };
 
   } catch (err) {
