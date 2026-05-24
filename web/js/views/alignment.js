@@ -3,19 +3,35 @@ import { sb, state } from '../client.js?v=80';
 
 // ── Local state ──────────────────────────────────────────────
 let alignState = {
-  seqType: 'dna',       // 'dna' | 'aa'
-  entries: [],          // { gene: GeneRow, status: 'confirmed'|'suggested', id: string }
-  results: null,        // parsed alignment results or null
+  seqType: 'dna',
+  entries: [],
+  results: null,
   running: false,
 };
 let _container = null;
 let _clickOutsideController = null;
 let _runGeneration = 0;
 
+// ── Strain lookup (UUID → {name, color}) ─────────────────────
+// Populated once on first renderAlignment call.
+const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#4b2e83', 'CM': '#2563eb' };
+let _strainMap = new Map(); // uuid → { common_name, color }
+
+async function loadStrains() {
+  if (_strainMap.size) return;
+  const { data } = await sb.from('strains').select('id,common_name');
+  for (const s of data || []) {
+    _strainMap.set(s.id, {
+      name:  s.common_name,
+      color: STRAIN_COLORS[s.common_name] ?? '#64748b',
+    });
+  }
+}
+
 export function renderAlignment(container) {
   _container = container;
   alignState = { seqType: 'dna', entries: [], results: null, running: false };
-  render();
+  loadStrains().then(() => render()).catch(() => render());
   if (state.alignmentSeedGeneId) {
     const seedId = state.alignmentSeedGeneId;
     state.alignmentSeedGeneId = null;
@@ -79,12 +95,10 @@ function renderSeqTypeToggle() {
 
 // ── Gene list entries ────────────────────────────────────────
 function strainColor(strainId) {
-  if (!strainId) return '#64748b';
-  const s = strainId.toUpperCase();
-  if (s.includes('L2')) return '#16a34a';
-  if (s.includes('CT-D') || s === 'CT-D') return '#4b2e83';
-  if (s.includes('CM'))  return '#2563eb';
-  return '#64748b';
+  return _strainMap.get(strainId)?.color ?? '#64748b';
+}
+function strainName(strainId) {
+  return _strainMap.get(strainId)?.name ?? strainId ?? '';
 }
 
 function escHtml(s) {
@@ -126,7 +140,7 @@ function renderEntryRow(entry) {
         <div style="font-size:13px;font-weight:700;color:#0f4530;">${label}</div>
         <div style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:2px;">
           <span style="width:8px;height:8px;border-radius:50%;background:${sc};display:inline-block;"></span>
-          <span>${g.strain_id}</span>
+          <span>${escHtml(strainName(g.strain_id))}</span>
           ${badge}
         </div>
       </div>
@@ -285,12 +299,12 @@ function renderLegend(parsed) {
       ${parsed.sequences.map(s => {
         const entry = alignState.entries.find(e => e.gene.locus_tag === s.label);
         const color = entry ? strainColor(entry.gene.strain_id) : '#64748b';
-        const strainId = entry?.gene.strain_id ?? '';
+        const sName = strainName(entry?.gene.strain_id ?? '');
         return `
           <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#374151;">
             <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;"></span>
             <span style="font-weight:600;">${escHtml(s.label)}</span>
-            ${strainId ? `<span style="color:#94a3b8;">${escHtml(strainId)}</span>` : ''}
+            ${sName ? `<span style="color:#94a3b8;">${escHtml(sName)}</span>` : ''}
           </div>
         `;
       }).join('')}
@@ -365,20 +379,20 @@ function renderAlignmentPanel(parsed, diffOnly) {
           <span style="width:100px;flex-shrink:0;font-size:10px;color:${color};font-weight:600;
                        text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
                        font-family:'DM Mono',monospace;">${escHtml(label)}</span>
-          <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.04em;">${seqHtml}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;">${seqHtml}</span>
         </div>
       `;
     }
 
     if (!diffOnly) {
-      let consHtml = '<div style="display:flex;gap:1px;height:5px;align-items:flex-end;margin-left:110px;margin-top:2px;">';
+      let consHtml = '<div style="display:flex;height:5px;align-items:flex-end;margin-left:110px;margin-top:2px;font-family:\'DM Mono\',monospace;font-size:11px;">';
       for (let i = start; i < end; i++) {
         const col = parsed.sequences.map(s => s.seq[i]).filter(c => c !== '-');
         const allSame = col.length > 0 && col.every(c => c === col[0]);
         const anyMatch = col.length > 0 && col.filter(c => c === col[0]).length > 1;
         const h = allSame ? 5 : anyMatch ? 3 : 1;
         const bg = allSame ? '#0f4530' : anyMatch ? '#86efac' : '#e2e8f0';
-        consHtml += `<div style="width:7.6px;height:${h}px;background:${bg};border-radius:1px;"></div>`;
+        consHtml += `<div style="width:1ch;flex-shrink:0;height:${h}px;background:${bg};border-radius:1px;"></div>`;
       }
       consHtml += '</div>';
       html += consHtml;
@@ -599,7 +613,7 @@ async function searchGenes(q) {
           ${g.gene_name ? `<span style="color:#64748b;margin-left:5px;">${g.gene_name}</span>` : ''}
         </div>
         <span style="font-size:9px;font-weight:700;background:#f1f5f9;color:${sc};padding:2px 7px;border-radius:4px;">
-          ${g.strain_id}
+          ${escHtml(strainName(g.strain_id))}
         </span>
       </div>
     `;
