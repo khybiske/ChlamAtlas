@@ -1,5 +1,5 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=77';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=78';
 import { renderHome } from './views/home.js?v=71';
 import { renderGenomes } from './views/genomes.js?v=77';
 import { renderMutants } from './views/mutants.js?v=77';
@@ -101,6 +101,15 @@ sb.auth.onAuthStateChange(async (event, session) => {
       state.accessToken = session.access_token;
       await refreshRole(session.access_token);
       await syncFavoritesFromDB(session.access_token);
+      // Re-render active tab so star buttons appear with correct state.
+      // Stars are omitted from the DOM for guests; this re-render injects them.
+      if (state.currentTab === 'genomes' || state.currentTab === 'mutants') {
+        const container = document.getElementById(`${state.currentTab}-content`);
+        if (container) {
+          container.innerHTML = '';
+          RENDERERS[state.currentTab](container);
+        }
+      }
     }
     updateNavVisibility();
     renderAuthArea();
