@@ -572,7 +572,8 @@ async function loadDetail(mutantUUID) {
   const [mutantRes, pipeRes, phenoRes] = await Promise.all([
     sb.from('mutants')
       .select(`id,mutant_id,name,mutation_type,mutation_method,plasmid_used,marker,
-               creator_name,is_published,notes,target_gene_ids,
+               creator,creator_name,contributed_by,background_strain_id,
+               is_published,notes,target_gene_ids,
                strains!background_strain_id(common_name,species)`)
       .eq('id', mutantUUID)
       .single(),
@@ -662,8 +663,21 @@ async function loadDetail(mutantUUID) {
     });
   });
 
-  // Edit button — placeholder until edit modal is built
-  rightEl.querySelector('#mut-edit-btn')?.addEventListener('click', () => {});
+  // Edit button — wire to modal; visibility revealed by getSession check
+  const editBtn = rightEl.querySelector('#mut-edit-btn');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      if (!state.user) { window.__showAuthModal?.('signin'); return; }
+      openMutantEditModal(m, genes, rightEl);
+    });
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      const uid       = session.user.id;
+      const isLabPlus = state.userRole === 'admin' || state.userRole === 'lab_member';
+      const isOwner   = String(m.creator ?? '') === uid || String(m.contributed_by ?? '') === uid;
+      if (isLabPlus || isOwner) editBtn.style.display = 'inline-flex';
+    });
+  }
 
   // Wire favorites star
   rightEl.querySelector('#mut-fav-btn')?.addEventListener('click', async e => {
@@ -723,7 +737,7 @@ function heroHTML(m, genes = []) {
           ${locusTagStr ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#aaa;margin-top:1px;letter-spacing:0.02em;">${locusTagStr}</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:2px;">
-          <button id="mut-edit-btn" style="${btnBase}color:#9ca3af;" title="Edit">${pencilSvg}</button>
+          <button id="mut-edit-btn" style="${btnBase}color:#9ca3af;display:none;" title="Edit">${pencilSvg}</button>
           <button id="mut-fav-btn" data-id="${m.id}"
             style="font-size:16px;${btnBase}color:${isFav ? '#f59e0b' : '#d1d5db'};"
             title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
@@ -1083,4 +1097,415 @@ function skeletonRows(n) {
         <div class="skeleton" style="height:0.75rem;width:8rem;border-radius:0.25rem;"></div>
       </div>
     </div>`).join('');
+}
+
+// ─── Mutant edit modal ────────────────────────────────────
+
+async function openMutantEditModal(m, genes, rightEl) {
+  document.getElementById('mut-edit-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'mut-edit-overlay';
+  overlay.style.cssText = [
+    'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;',
+    'display:flex;align-items:center;justify-content:center;padding:16px;',
+  ].join('');
+
+  function closeModal() {
+    overlay.remove();
+    document.removeEventListener('keydown', onEsc);
+  }
+  function onEsc(e) { if (e.key === 'Escape') closeModal(); }
+  document.addEventListener('keydown', onEsc);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  overlay.innerHTML = buildMutantEditHtml(m, genes);
+  document.body.appendChild(overlay);
+
+  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl);
+}
+
+function buildMutantEditHtml(m, genes) {
+  const isAdmin = state.userRole === 'admin';
+
+  const field = (label, name, value, extra = '') =>
+    `<div>
+      <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:#64748b;margin-bottom:4px;">${label}</label>
+      <input name="${name}" value="${esc(value ?? '')}" ${extra}
+        style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+        font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+    </div>`;
+
+  const selectEl = (label, name, options, current) =>
+    `<div>
+      <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:#64748b;margin-bottom:4px;">${label}</label>
+      <select name="${name}"
+        style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+        font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+        <option value="" ${!current ? 'selected' : ''}>— not set —</option>
+        ${options.map(([val, label]) =>
+          `<option value="${esc(val)}" ${current === val ? 'selected' : ''}>${esc(label)}</option>`
+        ).join('')}
+      </select>
+    </div>`;
+
+  const markerDisplay = Array.isArray(m.marker) ? m.marker.join(', ') : (m.marker ?? '');
+
+  const existingGeneRows = genes.map(g => `
+    <div class="mem-gene-existing" data-gene-id="${esc(g.id)}"
+      style="display:flex;align-items:center;justify-content:space-between;
+             background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;
+             padding:5px 8px;margin-bottom:4px;">
+      <span style="font-size:10px;font-family:'DM Mono',monospace;color:#111;">${esc(g.locus_tag)}</span>
+      <span style="font-size:10px;color:#6b7280;">${esc(g.gene_name ?? '')}</span>
+      <button type="button" class="mem-gene-remove" data-gene-id="${esc(g.id)}"
+        style="font-size:12px;color:#ef4444;background:none;border:none;cursor:pointer;line-height:1;padding:0 2px;">×</button>
+    </div>`).join('');
+
+  const adminSection = isAdmin ? `
+    <!-- Admin: contributed_by -->
+    <div style="border-top:1px solid #f0f0f0;margin-top:4px;padding-top:12px;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:8px;">Admin</div>
+      <div>
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Contributed By (user)</label>
+        <div id="mem-contrib-display" style="font-size:10px;color:#6b7280;margin-bottom:6px;">
+          ${m.contributed_by ? `UUID: ${esc(m.contributed_by)}` : '— not set —'}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <input id="mem-contrib-search" placeholder="Search by email…"
+            style="flex:1;border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 9px;
+            font-size:11px;color:#111;box-sizing:border-box;">
+          <button type="button" id="mem-contrib-lookup"
+            style="background:#0f172a;border:none;border-radius:7px;padding:6px 12px;
+            font-size:10px;color:white;font-weight:600;cursor:pointer;white-space:nowrap;">
+            Look up
+          </button>
+        </div>
+        <div id="mem-contrib-result" style="margin-top:6px;display:none;"></div>
+        <input type="hidden" id="mem-contrib-value" value="${esc(m.contributed_by ?? '')}">
+      </div>
+    </div>
+    <!-- Admin: publish toggle -->
+    <div style="margin-top:12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="mem-published" ${m.is_published ? 'checked' : ''}>
+        <span style="font-size:11px;font-weight:600;color:#374151;">Published (visible to public)</span>
+      </label>
+    </div>` : '';
+
+  return `
+    <div id="mut-edit-modal"
+      style="background:white;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.25);
+             width:440px;max-width:100%;max-height:90vh;display:flex;flex-direction:column;
+             font-size:12px;overflow:hidden;">
+
+      <!-- Header -->
+      <div style="padding:16px 18px 12px;border-bottom:1px solid #f0f0f0;
+        display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#111;">Edit Mutant</div>
+          <div style="font-size:9px;color:#94a3b8;font-family:'DM Mono',monospace;margin-top:1px;">
+            ${esc(m.mutant_id)}
+          </div>
+        </div>
+        <button id="mem-close"
+          style="font-size:18px;color:#d1d5db;background:none;border:none;cursor:pointer;line-height:1;padding:0;">✕</button>
+      </div>
+
+      <!-- Body (scrollable) -->
+      <div style="padding:16px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
+
+        ${field('Name', 'name', m.name)}
+        ${field('Creator Name', 'creator_name', m.creator_name)}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          ${selectEl('Mutation Type', 'mutation_type', [
+            ['transposon','Transposon'],['deletion','Deletion'],
+            ['chemical','Chemical'],['intron','Intron'],['recombination','Recombination']
+          ], m.mutation_type)}
+          ${selectEl('Collection', 'collection', [
+            ['CT_L2','CT/L2'],['CM','C. muridarum'],
+            ['Lucky17','Lucky 17'],['Chimeras','Chimeras']
+          ], m.collection)}
+        </div>
+
+        ${field('Plasmid Used', 'plasmid_used', m.plasmid_used)}
+        ${field('Marker(s)', 'marker', markerDisplay, 'placeholder="e.g. aadA, gfp"')}
+
+        <div>
+          <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+            letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Notes</label>
+          <textarea name="notes" rows="3"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+            font-size:12px;color:#111;box-sizing:border-box;resize:vertical;">${esc(m.notes ?? '')}</textarea>
+        </div>
+
+        <!-- Target Genes -->
+        <div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+            color:#64748b;margin-bottom:6px;">Target Genes</div>
+          <div id="mem-gene-list" style="margin-bottom:8px;">
+            ${existingGeneRows}
+          </div>
+          <!-- Gene search -->
+          <div style="display:flex;gap:6px;margin-bottom:4px;">
+            <input id="mem-gene-input" placeholder="Locus tag (e.g. CT142)"
+              style="flex:1;border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 9px;
+              font-size:11px;color:#111;box-sizing:border-box;">
+            <button type="button" id="mem-gene-lookup"
+              style="background:#0f172a;border:none;border-radius:7px;padding:6px 12px;
+              font-size:10px;color:white;font-weight:600;cursor:pointer;white-space:nowrap;">
+              Look up
+            </button>
+          </div>
+          <div id="mem-gene-error" style="font-size:10px;color:#dc2626;display:none;margin-bottom:4px;"></div>
+          <div id="mem-gene-result" style="display:none;"></div>
+        </div>
+
+        ${adminSection}
+
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:12px 18px;border-top:1px solid #f0f0f0;display:flex;
+        justify-content:flex-end;gap:8px;flex-shrink:0;">
+        <button id="mem-cancel"
+          style="border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 16px;
+          font-size:11px;font-weight:600;color:#374151;background:white;cursor:pointer;">
+          Cancel
+        </button>
+        <button id="mem-save"
+          style="background:#059669;border:none;border-radius:8px;padding:7px 16px;
+          font-size:11px;font-weight:600;color:white;cursor:pointer;">
+          Save
+        </button>
+      </div>
+    </div>`;
+}
+
+function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
+  overlay.querySelector('#mem-close')?.addEventListener('click', closeModal);
+  overlay.querySelector('#mem-cancel')?.addEventListener('click', closeModal);
+
+  const isAdmin = state.userRole === 'admin';
+
+  // Track staged gene changes
+  const stagedGenes     = [...initialGenes];  // mutable copy reflecting current desired state
+  const geneIdsToRemove = new Set();
+
+  // Remove existing gene
+  overlay.querySelector('#mem-gene-list')?.addEventListener('click', e => {
+    const btn = e.target.closest('.mem-gene-remove');
+    if (!btn) return;
+    const geneId = btn.dataset.geneId;
+    geneIdsToRemove.add(geneId);
+    const idx = stagedGenes.findIndex(g => g.id === geneId);
+    if (idx !== -1) stagedGenes.splice(idx, 1);
+    btn.closest('.mem-gene-existing')?.remove();
+  });
+
+  // Gene lookup
+  overlay.querySelector('#mem-gene-lookup')?.addEventListener('click', async () => {
+    const input    = overlay.querySelector('#mem-gene-input');
+    const errorEl  = overlay.querySelector('#mem-gene-error');
+    const resultEl = overlay.querySelector('#mem-gene-result');
+    const rawTag   = (input?.value ?? '').trim().toUpperCase();
+
+    errorEl.style.display  = 'none';
+    resultEl.style.display = 'none';
+    resultEl.innerHTML     = '';
+
+    if (!rawTag) {
+      errorEl.textContent   = 'Enter a locus tag.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const lookupBtn = overlay.querySelector('#mem-gene-lookup');
+    lookupBtn.textContent = 'Looking up…';
+    lookupBtn.disabled    = true;
+
+    try {
+      const { data: geneMatches } = await sb
+        .from('genes')
+        .select('id, locus_tag, gene_name, strains(common_name)')
+        .ilike('locus_tag', rawTag)
+        .eq('strain_id', m.background_strain_id)
+        .limit(5);
+
+      const found = geneMatches?.[0] ?? null;
+      if (!found) {
+        errorEl.textContent   = `No gene found with locus tag "${rawTag}" in this strain.`;
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      if (stagedGenes.some(g => g.id === found.id)) {
+        errorEl.textContent   = 'This gene is already in the target list.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      resultEl.innerHTML = `
+        <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:5px;padding:7px 9px;">
+          <div style="font-size:9px;font-weight:600;color:#065f46;">✓ Found: ${esc(found.locus_tag)}</div>
+          <div style="font-size:9px;color:#047857;margin-top:2px;">
+            ${esc(found.gene_name ?? 'Hypothetical protein')} · ${esc(found.strains?.common_name ?? '')}
+          </div>
+          <button type="button" id="mem-gene-add"
+            data-gene-id="${esc(found.id)}"
+            data-locus-tag="${esc(found.locus_tag)}"
+            data-gene-name="${esc(found.gene_name ?? '')}"
+            style="margin-top:6px;background:#059669;border:none;border-radius:4px;
+            padding:3px 9px;font-size:9px;color:white;font-weight:600;cursor:pointer;">
+            Add this gene
+          </button>
+        </div>`;
+      resultEl.style.display = 'block';
+
+      resultEl.querySelector('#mem-gene-add')?.addEventListener('click', e => {
+        const b = e.currentTarget;
+        const newGene = { id: b.dataset.geneId, locus_tag: b.dataset.locusTag, gene_name: b.dataset.geneName };
+        stagedGenes.push(newGene);
+
+        const listEl = overlay.querySelector('#mem-gene-list');
+        const row = document.createElement('div');
+        row.className = 'mem-gene-existing';
+        row.dataset.geneId = newGene.id;
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#f0fdf4;border:1px solid #6ee7b7;border-radius:5px;padding:5px 8px;margin-bottom:4px;';
+        row.innerHTML = `
+          <span style="font-size:10px;font-family:'DM Mono',monospace;color:#111;">${esc(newGene.locus_tag)}</span>
+          <span style="font-size:10px;color:#6b7280;">${esc(newGene.gene_name)}</span>
+          <button type="button" class="mem-gene-remove" data-gene-id="${esc(newGene.id)}"
+            style="font-size:12px;color:#ef4444;background:none;border:none;cursor:pointer;line-height:1;padding:0 2px;">×</button>`;
+        listEl?.appendChild(row);
+
+        input.value            = '';
+        resultEl.style.display = 'none';
+        resultEl.innerHTML     = '';
+      });
+    } finally {
+      lookupBtn.textContent = 'Look up';
+      lookupBtn.disabled    = false;
+    }
+  });
+
+  // Admin: contributed_by user lookup
+  if (isAdmin) {
+    overlay.querySelector('#mem-contrib-lookup')?.addEventListener('click', async () => {
+      const input    = overlay.querySelector('#mem-contrib-search');
+      const resultEl = overlay.querySelector('#mem-contrib-result');
+      const query    = (input?.value ?? '').trim();
+      if (!query) return;
+
+      resultEl.style.display = 'none';
+      resultEl.innerHTML     = '';
+
+      const { data: users } = await sb
+        .from('users')
+        .select('id, display_name, email')
+        .ilike('email', `%${query}%`)
+        .limit(5);
+
+      if (!users?.length) {
+        resultEl.innerHTML     = `<div style="font-size:10px;color:#dc2626;">No users found.</div>`;
+        resultEl.style.display = 'block';
+        return;
+      }
+
+      resultEl.innerHTML = users.map(u => `
+        <button type="button" class="mem-contrib-pick"
+          data-uid="${esc(u.id)}" data-label="${esc(u.display_name || u.email)}"
+          style="display:block;width:100%;text-align:left;background:#f8fafc;
+                 border:1px solid #e2e8f0;border-radius:5px;padding:5px 9px;
+                 margin-bottom:3px;font-size:10px;cursor:pointer;">
+          ${esc(u.display_name || u.email)}
+          <span style="color:#9ca3af;font-size:9px;margin-left:4px;">${esc(u.email)}</span>
+        </button>`).join('');
+      resultEl.style.display = 'block';
+
+      resultEl.querySelectorAll('.mem-contrib-pick').forEach(btn => {
+        btn.addEventListener('click', () => {
+          overlay.querySelector('#mem-contrib-value').value = btn.dataset.uid;
+          overlay.querySelector('#mem-contrib-display').textContent = btn.dataset.label;
+          resultEl.style.display = 'none';
+          input.value            = '';
+        });
+      });
+    });
+  }
+
+  // Save
+  overlay.querySelector('#mem-save')?.addEventListener('click', async () => {
+    const saveBtn = overlay.querySelector('#mem-save');
+    saveBtn.textContent = 'Saving…';
+    saveBtn.disabled    = true;
+
+    const modal = overlay.querySelector('#mut-edit-modal');
+    const diff  = {};
+
+    // Collect changed scalar fields
+    const scalarFields = ['name','creator_name','mutation_type','collection','plasmid_used','notes'];
+    scalarFields.forEach(f => {
+      const el = modal.querySelector(`[name="${f}"]`);
+      if (!el) return;
+      const val = el.value.trim() || null;
+      if (val !== (m[f] ?? null)) diff[f] = val;
+    });
+
+    // marker: comma-split → array
+    const markerRaw  = (modal.querySelector('[name="marker"]')?.value ?? '').trim();
+    const markerArr  = markerRaw ? markerRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const origMarker = Array.isArray(m.marker) ? [...m.marker].sort().join(',') : (m.marker ?? '');
+    if (markerArr.slice().sort().join(',') !== origMarker) diff.marker = markerArr;
+
+    // target_gene_ids: replace full array if changed
+    const newGeneIds = stagedGenes.map(g => g.id);
+    const oldGeneIds = (m.target_gene_ids ?? []).slice().sort().join(',');
+    if (newGeneIds.slice().sort().join(',') !== oldGeneIds) {
+      diff.target_gene_ids = newGeneIds.length ? newGeneIds : null;
+    }
+
+    // contributed_by (admin only)
+    if (isAdmin) {
+      const newContrib = overlay.querySelector('#mem-contrib-value')?.value || null;
+      if (newContrib !== (m.contributed_by ?? null)) diff.contributed_by = newContrib;
+    }
+
+    let saveError = null;
+
+    // PATCH scalar + array fields
+    if (Object.keys(diff).length) {
+      diff.updated_by = state.user.id;
+      const { error } = await sb.from('mutants').update(diff).eq('id', m.id);
+      if (error) saveError = error.message;
+    }
+
+    // is_published RPC (admin only, if changed)
+    if (isAdmin && !saveError) {
+      const newPub = overlay.querySelector('#mem-published')?.checked ?? m.is_published;
+      if (newPub !== m.is_published) {
+        const { error } = await sb.rpc('set_mutant_published', {
+          target_mutant_id: m.id,
+          published: newPub,
+        });
+        if (error) saveError = error.message;
+      }
+    }
+
+    saveBtn.textContent = 'Save';
+    saveBtn.disabled    = false;
+
+    if (saveError) {
+      alert(`Save failed: ${saveError}`);
+      return;
+    }
+
+    closeModal();
+    // Re-render the detail panel with fresh data
+    loadDetail(m.id);
+  });
 }
