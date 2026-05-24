@@ -367,13 +367,20 @@ function renderAlignmentPanel(parsed, diffOnly) {
 }
 
 async function exportAlignment(results, format) {
+  const VALID_FORMATS = ['fasta', 'clustal', 'phylip', 'clipboard'];
+  if (!VALID_FORMATS.includes(format)) return;
+
   if (format === 'clipboard') {
-    await navigator.clipboard.writeText(results.fastaText);
-    const btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Copy'));
-    if (btn) {
-      const orig = btn.textContent;
-      btn.textContent = '✓ Copied';
-      setTimeout(() => { btn.textContent = orig; }, 1800);
+    try {
+      await navigator.clipboard.writeText(results.fastaText);
+      const btn = document.querySelector('[data-export="clipboard"]');
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => { btn.textContent = orig; }, 1800);
+      }
+    } catch {
+      alert('Clipboard access denied. Use a download format instead.');
     }
     return;
   }
@@ -446,7 +453,7 @@ function renderAlignmentResults(results) {
         style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;
                border-radius:7px;padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
                background:white;font-family:'DM Sans',sans-serif;">⬇ Phylip</button>
-      <button onclick="window._alnExport('clipboard')"
+      <button data-export="clipboard" onclick="window._alnExport('clipboard')"
         style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;
                border-radius:7px;padding:6px 12px;font-size:12px;color:#64748b;cursor:pointer;
                background:white;font-family:'DM Sans',sans-serif;">📋 Copy</button>
