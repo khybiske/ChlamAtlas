@@ -22,7 +22,8 @@ export function renderAlignment(container) {
       .select('id,locus_tag,gene_name,gene_symbol,strain_id')
       .eq('id', seedId)
       .single()
-      .then(({ data }) => { if (data) addGeneWithOrthologs(data); });
+      .then(({ data }) => { if (data) addGeneWithOrthologs(data); })
+      .catch(err => console.error('Failed to fetch seed gene:', err));
   }
 }
 
