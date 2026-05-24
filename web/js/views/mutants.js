@@ -642,15 +642,16 @@ async function loadDetail(mutantUUID) {
     genes = (geneData ?? []).sort((a, b) => (a.locus_tag ?? '').localeCompare(b.locus_tag ?? ''));
 
     // Fetch genomic neighborhood for locus map.
-    // 1 gene: single fetch ±4 around that gene.
-    // 2 genes: two parallel fetches, one per gene (independent ±4 each).
+    // 1 gene: ±4 flanking (full-width standalone map).
+    // 2 genes: ±2 flanking per gene (compact embedded maps — zoomed in for readability).
     // 3+ genes: no fetch (list layout, no maps).
     if (genes.length === 1 || genes.length === 2) {
+      const flank = genes.length === 2 ? 2 : 4;
       const fetchNb = async (g) => {
         if (g.sort_index == null || !g.strain_id) return [];
         const isPlasmid = g.sort_index >= 871;
-        const lo = isPlasmid ? 871 : Math.max(0, g.sort_index - 4);
-        const hi = isPlasmid ? 878 : g.sort_index + 4;
+        const lo = isPlasmid ? 871 : Math.max(0, g.sort_index - flank);
+        const hi = isPlasmid ? 878 : g.sort_index + flank;
         const { data } = await sb
           .from('genes')
           .select('id,locus_tag,gene_name,functional_category,start_bp,end_bp,strand,sort_index')
