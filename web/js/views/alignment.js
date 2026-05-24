@@ -9,6 +9,7 @@ let alignState = {
   running: false,
 };
 let _container = null;
+let _clickOutsideController = null;
 
 export function renderAlignment(container) {
   _container = container;
@@ -203,11 +204,13 @@ function wirePickerEvents() {
   input.addEventListener('focus', () => {
     if (input.value.trim().length >= 2) results.style.display = 'block';
   });
+  if (_clickOutsideController) _clickOutsideController.abort();
+  _clickOutsideController = new AbortController();
   document.addEventListener('click', (e) => {
     if (!input.contains(e.target) && !results.contains(e.target)) {
       results.style.display = 'none';
     }
-  }, { capture: true });
+  }, { capture: true, signal: _clickOutsideController.signal });
 
   // "Add another gene" re-focuses search
   document.getElementById('aln-add-another')?.addEventListener('click', () => {
@@ -238,10 +241,7 @@ function reRenderEntries() {
   // show/hide "add another"
   const addBtn = document.getElementById('aln-add-another');
   if (!addBtn && alignState.entries.length > 0) {
-    // re-render picker section fully to show the add button
-    const pickerWrap = document.getElementById('aln-entry-list')?.parentElement;
-    if (pickerWrap) pickerWrap.outerHTML = renderPicker();
-    wirePickerEvents();
+    render();
   }
 }
 
