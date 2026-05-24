@@ -10,6 +10,7 @@ let alignState = {
 };
 let _container = null;
 let _clickOutsideController = null;
+let _runGeneration = 0;
 
 export function renderAlignment(container) {
   _container = container;
@@ -47,8 +48,9 @@ function render() {
 
 // ── Sequence type toggle ─────────────────────────────────────
 function renderSeqTypeToggle() {
+  const runningStyle = alignState.running ? 'pointer-events:none;opacity:0.5;' : '';
   return `
-    <div style="display:inline-flex;background:#f1f5f9;border-radius:99px;padding:3px;gap:2px;margin-bottom:24px;">
+    <div style="display:inline-flex;background:#f1f5f9;border-radius:99px;padding:3px;gap:2px;margin-bottom:24px;${runningStyle}">
       <button id="aln-type-dna" onclick="window._alnSetType('dna')"
         style="padding:6px 18px;border-radius:99px;border:none;font-size:13px;font-weight:600;cursor:pointer;
                ${alignState.seqType==='dna' ? 'background:white;color:#0f4530;box-shadow:0 1px 3px rgba(0,0,0,0.1);' : 'background:transparent;color:#94a3b8;'}">
@@ -608,13 +610,13 @@ async function addGeneWithOrthologs(gene) {
   // Fetch orthologs
   const { data: orthoRows } = await sb
     .from('orthologs')
-    .select('gene_id,ortholog_gene_id')
-    .or(`gene_id.eq.${gene.id},ortholog_gene_id.eq.${gene.id}`);
+    .select('gene_id_a,gene_id_b')
+    .or(`gene_id_a.eq.${gene.id},gene_id_b.eq.${gene.id}`);
 
   if (!orthoRows?.length) return;
 
   const orthologGeneIds = orthoRows
-    .map(r => r.gene_id === gene.id ? r.ortholog_gene_id : r.gene_id)
+    .map(r => r.gene_id_a === gene.id ? r.gene_id_b : r.gene_id_a)
     .filter(id => id !== gene.id);
 
   if (!orthologGeneIds.length) return;
@@ -732,6 +734,7 @@ async function fetchEBIResult(jobId, resultType = 'aln-clustal_num') {
 
 // ── Run orchestration ────────────────────────────────────────
 async function runAlignment() {
+  const generation = ++_runGeneration;
   alignState.running = true;
   alignState.results = null;
   render();
@@ -759,6 +762,7 @@ async function runAlignment() {
   }
 
   alignState.running = false;
+  if (generation !== _runGeneration) return; // user navigated away and back
   render();
 }
 

@@ -1370,7 +1370,7 @@ function renderDetailProtein(detail, gene, protein) {
 // Generates an "Align Orthologs" shortcut button that opens the alignment tool
 // pre-seeded with the given gene (and its orthologs) via openAlignmentWith.
 function alignOrthologsBtn(geneId) {
-  return `<button onclick="(async()=>{const {openAlignmentWith}=await import('./app.js?v=80');openAlignmentWith('${geneId}');})()"
+  return `<button onclick="(async()=>{const {openAlignmentWith}=await import('./app.js?v=82');openAlignmentWith('${geneId}');})()"
     style="display:inline-flex;align-items:center;gap:4px;font-size:8px;font-weight:600;
            color:#0f4530;background:#f0fdf4;border:1px solid #86efac;border-radius:5px;
            padding:2px 8px;cursor:pointer;line-height:1.4;font-family:inherit;"
