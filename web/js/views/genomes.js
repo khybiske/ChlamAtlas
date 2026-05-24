@@ -899,7 +899,7 @@ function detailSkeleton(lines = 3) {
 function renderDetailGeneInfo(detail, gene) {
   const prop = (label, value) => value == null ? '' : `
     <div style="display:flex;flex-direction:column;gap:1px;">
-      <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
+      <span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
       <span style="font-size:11.5px;color:#222;font-weight:500;">${value}</span>
     </div>`;
 
@@ -1050,10 +1050,10 @@ function renderDetailMutants(detail, gene, mutants) {
       ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.12);">`
       : `<div style="width:22px;height:22px;border-radius:50%;background:#e5e7eb;flex-shrink:0;"></div>`;
     const pubBadge = m.is_published
-      ? `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(5,150,105,0.09);color:#059669;border:1px solid rgba(5,150,105,0.22);">Published</span>`
-      : `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(180,83,9,0.08);color:#b45309;border:1px solid rgba(180,83,9,0.2);">Lab</span>`;
+      ? `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(5,150,105,0.09);color:#059669;border:1px solid rgba(5,150,105,0.22);">Published</span>`
+      : `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(180,83,9,0.08);color:#b45309;border:1px solid rgba(180,83,9,0.2);">Lab</span>`;
     const typeBadge = typeLabel
-      ? `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:${accent.bg};color:${accent.color};border:1px solid ${accent.border};">${esc(typeLabel)}</span>`
+      ? `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:${accent.bg};color:${accent.color};border:1px solid ${accent.border};">${esc(typeLabel)}</span>`
       : '';
     return `
       <button class="d-mutant-row" data-mutant-id="${esc(m.id)}" data-collection="${esc(m.collection ?? 'CT_L2')}"
@@ -1119,7 +1119,7 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
         onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='white'">
         <div style="width:3px;min-height:22px;border-radius:1px;background:${colorHex};flex-shrink:0;align-self:stretch;"></div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:7.5px;font-weight:700;color:#9ca3af;margin-bottom:1px;">${esc(strain)}</div>
+          <div style="font-size:9px;font-weight:700;color:#9ca3af;margin-bottom:1px;">${esc(strain)}</div>
           <div style="display:flex;align-items:baseline;gap:4px;">${nameHtml}</div>
         </div>
         <span style="font-size:11px;color:#ddd;flex-shrink:0;">›</span>
@@ -1313,7 +1313,7 @@ function renderDetailProtein(detail, gene, protein) {
     if (value == null || value === '' || value === false) return '';
     return `
       <div style="display:flex;flex-direction:column;gap:1px;">
-        <span style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
+        <span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;">${label}</span>
         <span style="font-size:11.5px;color:#222;font-weight:500;">${value}</span>
       </div>`;
   };
@@ -1329,7 +1329,7 @@ function renderDetailProtein(detail, gene, protein) {
 
   const propBlock = (label, value) => !value ? '' : `
     <div style="margin-top:10px;">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:3px;">${label}</div>
+      <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:3px;">${label}</div>
       <div style="font-size:10.5px;color:#444;line-height:1.55;">${value}</div>
     </div>`;
 
@@ -1492,7 +1492,7 @@ function renderDetailTranscriptomics(detail, gene, exprRows) {
             onmouseenter="this.style.background='#16a34a'"
             onmouseleave="this.style.background='#4ade80'"></div>
         </div>
-        <div style="font-size:7.5px;color:#9ca3af;font-family:'DM Mono',monospace;margin-top:3px;">${lbl}</div>
+        <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace;margin-top:3px;">${lbl}</div>
       </div>`;
   }).join('');
 
@@ -1554,7 +1554,7 @@ function renderDetailProteomics(detail, gene, exprRows, orthoProtRow = null) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <img src="${iconSrc}" alt="${label}" style="width:22px;height:22px;flex-shrink:0;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;margin-bottom:3px;">${label}</div>
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;margin-bottom:3px;">${label}</div>
           <div style="display:flex;align-items:center;gap:6px;">
             <div style="height:5px;background:#f3f4f6;border-radius:3px;flex:1;">
               <div style="height:5px;border-radius:3px;background:#4ade80;width:${pct}%;"></div>
@@ -2040,7 +2040,7 @@ function renderDetailLocalization(detail, gene, protein) {
   let sourceBadge = '';
 
   const badgeStyle = (bg, color) =>
-    `font-size:7.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:${bg};color:${color};letter-spacing:0.04em;font-family:inherit;`;
+    `font-size:8.5px;font-weight:700;padding:1px 7px;border-radius:8px;background:${bg};color:${color};letter-spacing:0.04em;font-family:inherit;`;
 
   if (source === 'user') {
     diagramUrl  = slTerms.length ? `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/, '')).join(',')}` : null;
@@ -2305,12 +2305,12 @@ function showGeneDetailDesktop(gene, container) {
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
-        ${catLabel ? `<span data-hero-filter="category" data-value="${esc(gene.functional_category)}" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};cursor:pointer;" title="Filter list by ${esc(catLabel)}">${esc(catLabel)}</span>` : ''}
-        ${gene.is_characterized   ? `<span data-hero-filter="characterized" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);cursor:pointer;" title="Filter list: Characterized">Characterized</span>` : ''}
-        ${gene.is_membrane_protein ? `<span data-hero-filter="membrane" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#0369a1;border:1px solid rgba(3,105,161,0.3);cursor:pointer;" title="Filter list: Membrane proteins">Membrane</span>` : ''}
-        ${gene.is_t3_secreted      ? `<span data-hero-filter="secreted" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);cursor:pointer;" title="Filter list: T3 Secreted">T3 Secreted</span>` : ''}
-        ${gene.is_dna_binding      ? `<span data-hero-filter="dnaBinding" style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#b45309;border:1px solid rgba(180,83,9,0.3);cursor:pointer;" title="Filter list: DNA Binding">DNA Binding</span>` : ''}
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#16a34a;border:1px solid rgba(22,163,74,0.3);">${esc(strain)}</span>
+        ${catLabel ? `<span data-hero-filter="category" data-value="${esc(gene.functional_category)}" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:${catBadge.bg};color:${catBadge.text};border:1px solid ${catBadge.border};cursor:pointer;" title="Filter list by ${esc(catLabel)}">${esc(catLabel)}</span>` : ''}
+        ${gene.is_characterized   ? `<span data-hero-filter="characterized" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#059669;border:1px solid rgba(5,150,105,0.3);cursor:pointer;" title="Filter list: Characterized">Characterized</span>` : ''}
+        ${gene.is_membrane_protein ? `<span data-hero-filter="membrane" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#0369a1;border:1px solid rgba(3,105,161,0.3);cursor:pointer;" title="Filter list: Membrane proteins">Membrane</span>` : ''}
+        ${gene.is_t3_secreted      ? `<span data-hero-filter="secreted" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);cursor:pointer;" title="Filter list: T3 Secreted">T3 Secreted</span>` : ''}
+        ${gene.is_dna_binding      ? `<span data-hero-filter="dnaBinding" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:2px 7px;border-radius:10px;background:rgba(255,255,255,0.7);color:#b45309;border:1px solid rgba(180,83,9,0.3);cursor:pointer;" title="Filter list: DNA Binding">DNA Binding</span>` : ''}
         <span id="d-hero-ext-links" style="margin-left:auto;display:flex;gap:4px;align-items:center;"></span>
       </div>
     </div>`;
