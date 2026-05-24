@@ -367,7 +367,42 @@ function renderAlignmentPanel(parsed, diffOnly) {
 }
 
 async function exportAlignment(results, format) {
-  console.warn('exportAlignment not yet implemented', format);
+  if (format === 'clipboard') {
+    await navigator.clipboard.writeText(results.fastaText);
+    const btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Copy'));
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    }
+    return;
+  }
+
+  let content, filename, mime;
+
+  if (format === 'fasta') {
+    content = results.fastaText;
+    filename = 'alignment.fasta';
+    mime = 'text/plain';
+  } else if (format === 'clustal') {
+    content = results.clustalText;
+    filename = 'alignment.aln';
+    mime = 'text/plain';
+  } else if (format === 'phylip') {
+    try {
+      content = await fetchEBIResult(results.jobId, 'phylip');
+    } catch {
+      content = '# Phylip result unavailable — EBI job may have expired.';
+    }
+    filename = 'alignment.phy';
+    mime = 'text/plain';
+  }
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function renderAlignmentResults(results) {
