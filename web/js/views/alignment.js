@@ -218,7 +218,7 @@ function parseClustalAlignment(clustalText) {
   let identical = 0, comparable = 0;
   for (let i = 0; i < alnLength; i++) {
     const col = sequences.map(s => s.seq[i]);
-    if (col.some(c => c === '-')) continue;
+    if (col.every(c => c === '-')) continue;
     comparable++;
     if (col.every(c => c === col[0])) identical++;
   }
