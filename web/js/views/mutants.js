@@ -1293,15 +1293,13 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
   const isAdmin = state.userRole === 'admin';
 
   // Track staged gene changes
-  const stagedGenes     = [...initialGenes];  // mutable copy reflecting current desired state
-  const geneIdsToRemove = new Set();
+  const stagedGenes = [...initialGenes];  // mutable copy reflecting current desired state
 
   // Remove existing gene
   overlay.querySelector('#mem-gene-list')?.addEventListener('click', e => {
     const btn = e.target.closest('.mem-gene-remove');
     if (!btn) return;
     const geneId = btn.dataset.geneId;
-    geneIdsToRemove.add(geneId);
     const idx = stagedGenes.findIndex(g => g.id === geneId);
     if (idx !== -1) stagedGenes.splice(idx, 1);
     btn.closest('.mem-gene-existing')?.remove();
@@ -1404,10 +1402,11 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
       resultEl.style.display = 'none';
       resultEl.innerHTML     = '';
 
+      const safeQuery = query.replace(/[%_]/g, '\\$&');
       const { data: users } = await sb
         .from('users')
         .select('id, display_name, email')
-        .ilike('email', `%${query}%`)
+        .ilike('email', `%${safeQuery}%`)
         .limit(5);
 
       if (!users?.length) {
