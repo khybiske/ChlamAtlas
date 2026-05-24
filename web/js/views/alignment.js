@@ -293,7 +293,7 @@ function colorBase(ch, seqType) {
 
 function renderAlignmentPanel(parsed, diffOnly) {
   const BLOCK = 60;
-  const seqType = alignState.results.seqType;
+  const seqType = alignState.seqType;
   let html = '';
 
   for (let start = 0; start < parsed.alnLength; start += BLOCK) {
@@ -372,7 +372,7 @@ async function exportAlignment(results, format) {
 
 function renderAlignmentResults(results) {
   const parsed = parseClustalAlignment(results.clustalText);
-  const diffOnly = alignState.diffOnly !== false;
+  const diffOnly = alignState.diffOnly === true;
 
   window._alnToggleView = () => {
     alignState.diffOnly = !diffOnly;
@@ -520,7 +520,7 @@ async function searchGenes(q) {
       <div data-gene-id="${g.id}" style="padding:9px 12px;font-size:12px;border-bottom:1px solid #f1f5f9;
            display:flex;justify-content:space-between;align-items:center;cursor:pointer;"
            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"
-           onclick="window._alnPickGene(${JSON.stringify(JSON.stringify(g))})">
+           onclick="window._alnPickGene(${escHtml(JSON.stringify(JSON.stringify(g)))})">
         <div>
           <span style="font-weight:700;color:#0f4530;">${g.locus_tag}</span>
           ${g.gene_name ? `<span style="color:#64748b;margin-left:5px;">${g.gene_name}</span>` : ''}
