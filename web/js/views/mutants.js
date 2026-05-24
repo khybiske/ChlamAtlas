@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, toggleFavoriteDB } from '../client.js?v=79';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=80';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -174,7 +174,7 @@ export function renderMutants(container) {
         </div>
 
         <!-- Filter bar (sort, favorites, more) -->
-        <div id="filter-bar" style="flex-shrink:0;"></div>
+        <div id="mut-filter-bar" style="flex-shrink:0;"></div>
 
         <!-- List -->
         <div id="mut-list" style="flex:1;overflow-y:auto;"></div>
@@ -267,7 +267,7 @@ function showCollectionDropdown(anchor) {
 // ─── Filter bar ───────────────────────────────────────────
 
 function renderFilterBar() {
-  const bar = document.getElementById('filter-bar');
+  const bar = document.getElementById('mut-filter-bar');
   if (!bar) return;
 
   const sortLabel    = SORT_OPTIONS.find(o => o.field === _sortField)?.label ?? 'Locus tag';
@@ -720,6 +720,13 @@ async function loadDetail(mutantUUID) {
     btn.textContent = nowFav ? '★' : '☆';
     btn.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
     btn.style.color = nowFav ? '#f59e0b' : '#e5e7eb';
+    // Sync list row star
+    const listFav = document.querySelector(`#mut-list .fav-btn[data-id="${id}"]`);
+    if (listFav) {
+      listFav.textContent = nowFav ? '★' : '☆';
+      listFav.style.color = nowFav ? '#f59e0b' : '#e5e7eb';
+      listFav.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
+    }
   });
 
 }

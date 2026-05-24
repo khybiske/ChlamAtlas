@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=79';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=80';
 import { renderHome } from './views/home.js?v=71';
-import { renderGenomes } from './views/genomes.js?v=79';
-import { renderMutants } from './views/mutants.js?v=79';
+import { renderGenomes } from './views/genomes.js?v=80';
+import { renderMutants } from './views/mutants.js?v=80';
 import { renderPipeline } from './views/pipeline.js?v=65';
 
 export { sb, state };
@@ -491,10 +491,10 @@ async function showSavedPopover(anchor) {
 
   const [genesRes, mutantsRes] = await Promise.all([
     geneIds.length
-      ? sb.from('genes').select('id, locus_tag, gene_name, strain_id').in('id', geneIds)
+      ? sb.from('genes').select('id, locus_tag, gene_name, strain_id, proteins(alphafold_results(thumbnail_path))').in('id', geneIds)
       : Promise.resolve({ data: [] }),
     mutantIds.length
-      ? sb.from('mutants').select('id, mutant_id, name').in('id', mutantIds)
+      ? sb.from('mutants').select('id, mutant_id, name, collection').in('id', mutantIds)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -505,20 +505,37 @@ async function showSavedPopover(anchor) {
 
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+  const SAVED_COLL_ICONS = {
+    CT_L2: '/design/L2icon.jpg', CM: '/design/CMicon.jpg',
+    Lucky17: '/design/L17icon.jpg', Chimeras: '/design/Chimeraicon.jpg',
+  };
+
   const genesHtml = genes.length
-    ? genes.map(g => `
+    ? genes.map(g => {
+        const thumb = g.proteins?.alphafold_results?.[0]?.thumbnail_path;
+        const icon = thumb
+          ? `<img src="${esc(thumb)}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;flex-shrink:0;">`
+          : `<span class="nav-popover-row-icon">🧬</span>`;
+        return `
         <button class="nav-popover-row" data-type="gene" data-id="${g.id}">
-          <span class="nav-popover-row-icon">🧬</span>
+          ${icon}
           <span class="nav-popover-row-name">${esc(g.locus_tag)}${g.gene_name ? ' — ' + esc(g.gene_name) : ''}</span>
-        </button>`).join('')
+        </button>`;
+      }).join('')
     : '';
 
   const mutantsHtml = mutants.length
-    ? mutants.map(m => `
+    ? mutants.map(m => {
+        const iconSrc = SAVED_COLL_ICONS[m.collection];
+        const icon = iconSrc
+          ? `<img src="${esc(iconSrc)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+          : `<span class="nav-popover-row-icon">🔬</span>`;
+        return `
         <button class="nav-popover-row" data-type="mutant" data-id="${m.id}">
-          <span class="nav-popover-row-icon">🔬</span>
+          ${icon}
           <span class="nav-popover-row-name">${esc(m.mutant_id)}${m.name ? ' — ' + esc(m.name) : ''}</span>
-        </button>`).join('')
+        </button>`;
+      }).join('')
     : '';
 
   const emptyHtml = !genes.length && !mutants.length
