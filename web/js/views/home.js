@@ -65,15 +65,31 @@ export async function renderHome(container) {
   container.innerHTML = `
     <!-- ── Masthead ── -->
     <div class="home-masthead" style="background:#0f4530;overflow:hidden;position:relative;">
-      <div style="position:absolute;right:-80px;top:-80px;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,0.025);pointer-events:none;"></div>
+      <!-- Globe meridian arcs — SVG background decoration -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"
+           viewBox="0 0 1440 220" preserveAspectRatio="none"
+           xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Arcs: circle centered at (1650, 110), evenly spaced radii, no horizontal lines -->
+        <g stroke="white" fill="none" opacity="0.12">
+          <path stroke-width="0.9" d="M 1272,-10 A 396,396 0 0,0 1272,230"/>
+          <path stroke-width="0.9" d="M 1172,-10 A 495,495 0 0,0 1172,230"/>
+          <path stroke-width="0.9" d="M 1067,-10 A 593,593 0 0,0 1067,230"/>
+          <path stroke-width="0.9" d="M 965,-10  A 694,694 0 0,0 965,230"/>
+          <path stroke-width="0.9" d="M 851,-10  A 807,807 0 0,0 851,230"/>
+          <path stroke-width="0.9" d="M 720,-10  A 936,936 0 0,0 720,230"/>
+          <path stroke-width="0.9" d="M 576,-10  A 1080,1080 0 0,0 576,230"/>
+          <path stroke-width="0.9" d="M 389,-10  A 1266,1266 0 0,0 389,230"/>
+          <path stroke-width="0.9" d="M 173,-10  A 1481,1481 0 0,0 173,230"/>
+          <path stroke-width="0.9" d="M -84,-10  A 1738,1738 0 0,0 -84,230"/>
+        </g>
+      </svg>
       <div class="max-w-5xl mx-auto px-5 sm:px-8" style="padding-top:2.75rem;padding-bottom:2.75rem;position:relative;z-index:1;">
         <div class="sm:grid sm:gap-12" style="grid-template-columns:1fr auto;align-items:end;">
           <div>
             <h1 class="font-display font-bold text-white" style="font-size:clamp(2.75rem,7vw,4.25rem);line-height:1;margin-bottom:0.75rem;letter-spacing:-0.01em;">ChlamAtlas</h1>
             <p style="font-size:0.9375rem;color:rgba(255,255,255,0.6);line-height:1.65;max-width:30rem;">
-              The integrated research database for <em style="color:rgba(255,255,255,0.85);font-style:italic;">Chlamydia</em> —
-              genomics, mutant phenotypes, structural biology, and multi-lab
-              pipeline tracking across three model strains.
+              The authoritative research database for <em style="color:rgba(255,255,255,0.85);font-style:italic;">Chlamydia</em> —
+              genomics, mutant phenotypes, and structural biology across three model strains.
             </p>
           </div>
           <div id="mast-stats" class="flex sm:flex-col gap-0 sm:gap-4 mt-5 sm:mt-0">

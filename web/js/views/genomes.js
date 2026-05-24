@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state, toggleFavoriteDB } from '../client.js?v=80';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=81';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -1008,27 +1008,31 @@ function renderDetailMutants(detail, gene, mutants) {
   };
 
   const rows = mutants.map(m => {
-    const accent = TYPE_ACCENT_LOCAL[m.mutation_type] ?? { color: '#6b7280', bg: 'rgba(243,244,246,0.6)', border: 'rgba(107,114,128,0.3)' };
+    const accent = TYPE_ACCENT_LOCAL[m.mutation_type] ?? { color: '#6b7280', bg: 'rgba(243,244,246,0.5)', border: 'rgba(107,114,128,0.25)' };
     const typeLabel = (m.mutation_type ?? '').charAt(0).toUpperCase() + (m.mutation_type ?? '').slice(1);
     const collIcon = COLL_ICONS[m.collection]
-      ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
-      : '';
+      ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.12);">`
+      : `<div style="width:22px;height:22px;border-radius:50%;background:#e5e7eb;flex-shrink:0;"></div>`;
     const pubBadge = m.is_published
-      ? `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:6px;background:rgba(5,150,105,0.1);color:#059669;border:1px solid rgba(5,150,105,0.25);">Published</span>`
-      : `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:6px;background:rgba(180,83,9,0.1);color:#b45309;border:1px solid rgba(180,83,9,0.25);">Lab</span>`;
+      ? `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(5,150,105,0.09);color:#059669;border:1px solid rgba(5,150,105,0.22);">Published</span>`
+      : `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(180,83,9,0.08);color:#b45309;border:1px solid rgba(180,83,9,0.2);">Lab</span>`;
     const typeBadge = typeLabel
-      ? `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:6px;background:${accent.bg};color:${accent.color};border:1px solid ${accent.border};">${esc(typeLabel)}</span>`
+      ? `<span style="font-size:7px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:${accent.bg};color:${accent.color};border:1px solid ${accent.border};">${esc(typeLabel)}</span>`
       : '';
     return `
       <button class="d-mutant-row" data-mutant-id="${esc(m.id)}" data-collection="${esc(m.collection ?? 'CT_L2')}"
-        style="display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:none;border:none;
-               border-bottom:1px solid #f5f5f5;padding:6px 0;cursor:pointer;border-radius:4px;">
+        style="display:flex;align-items:center;gap:9px;width:100%;text-align:left;cursor:pointer;
+               background:white;border:none;border-left:3px solid ${accent.color};
+               border-radius:6px;padding:8px 10px;margin-bottom:5px;
+               box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:background 0.12s,box-shadow 0.12s;"
+        onmouseenter="this.style.background='${accent.bg}';this.style.boxShadow='0 2px 6px rgba(0,0,0,0.1)'"
+        onmouseleave="this.style.background='white';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)'">
         ${collIcon}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:10.5px;font-weight:600;color:#111;font-family:'DM Mono',monospace;">${esc(m.mutant_id)}</div>
-          ${m.name ? `<div style="font-size:9px;color:#555;margin-top:1px;">${esc(m.name)}</div>` : ''}
+          <div style="font-size:11px;font-weight:700;color:#111;font-family:'DM Mono',monospace;letter-spacing:0.01em;">${esc(m.mutant_id)}</div>
+          ${m.name ? `<div style="font-size:9.5px;color:#6b7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.name)}</div>` : ''}
         </div>
-        <div style="display:flex;gap:3px;align-items:center;flex-shrink:0;">
+        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0;">
           ${typeBadge}
           ${pubBadge}
         </div>
@@ -1036,8 +1040,8 @@ function renderDetailMutants(detail, gene, mutants) {
   }).join('');
 
   el.innerHTML = `
-    <div style="padding:14px 16px;">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:8px;">
+    <div style="padding:14px 16px 10px;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:10px;">
         Mutants (${mutants.length})
       </div>
       <div>${rows}</div>
