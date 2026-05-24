@@ -14,12 +14,15 @@ const CHANGELOG = [
 ];
 
 const PLANNED_FEATURES = [
-  { id: 'expression-charts',     label: 'Interactive expression charts',    description: 'T0–T5 bar charts with hover values and cross-strain ortholog toggling.' },
-  { id: 'molstar-viewer',        label: 'Embedded Mol* 3D viewer',          description: 'Load mmCIF files interactively on gene detail pages instead of static thumbnails only.' },
-  { id: 'ortholog-nav',          label: 'Cross-strain ortholog navigation',  description: 'Jump between CT-L2, CT-D, and CM orthologs from any gene page.' },
-  { id: 'mobile-audit',          label: 'Mobile design audit',               description: 'Full review and polish of the mobile layout across all tabs.' },
-  { id: 'fasta-download',        label: 'Downloadable FASTA sequences',      description: 'Per-gene and per-protein FASTA download button on detail pages.' },
-  { id: 'community-annotations', label: 'Community annotations',             description: 'Let lab members submit evidence-based annotations with PubMed IDs.' },
+  { id: 'ortholog-align',   label: 'Ortholog alignment tool',                    description: 'Side-by-side sequence alignment across CT-L2, CT-D, and CM orthologs directly in the browser.' },
+  { id: 'structure-align',  label: 'Structure alignment tool',                   description: '3D structural superposition of homologous proteins using AlphaFold models.' },
+  { id: 'af3-models',       label: 'AlphaFold 3 models for all proteins',        description: 'Upgrade the structure library from AF2 to AF3 predictions across the full proteome.' },
+  { id: 'chemical-mutants', label: 'Chemical mutant collection',                 description: 'Add the chemical mutagenesis collection to the mutant browser with full phenotype data.' },
+  { id: 'phenotype-images', label: 'Phenotype images on mutant detail pages',    description: 'Microscopy and assay images attached to in vitro and in vivo phenotype records.' },
+  { id: 'ppi-module',       label: 'Protein–protein interaction (PPI) module',   description: 'Interaction network panel on gene/protein detail pages, linking known and predicted PPIs.' },
+  { id: 'cpn-database',     label: 'C. pneumoniae genome & proteome',            description: 'Full gene, protein, and AlphaFold structure data for C. pneumoniae — the third major Chlamydia model organism.' },
+  { id: 'more-strains',     label: 'Additional species & strains',               description: 'Ocular and rectal C. trachomatis serovars and other Chlamydia species as data becomes available.' },
+  { id: 'mlst-variants',    label: 'MLST & natural variants panel',              description: 'Gene-level view of multi-locus sequence typing data and natural sequence variation across clinical isolates.' },
 ];
 
 const BADGE_STYLES = {
