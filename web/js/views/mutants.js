@@ -871,14 +871,16 @@ function singleGeneMapSVG(gene, neighborhood, mutationType) {
   };
   const hitStroke = typeStroke[mutationType] ?? typeStroke.deletion;
 
-  const VB_W    = 600;
-  const VB_H    = 94;
-  const SPINE_Y = 46;
-  const P_TOP   = 34; const P_BOT = 46;
-  const N_TOP   = 48; const N_BOT = 60;
+  // VB_W=300 (half the standalone's 600) so that font sizes render at the same
+  // physical pixel size when the card occupies ~half the panel width.
+  const VB_W    = 300;
+  const VB_H    = 110;
+  const SPINE_Y = 52;
+  const P_TOP   = 40; const P_BOT = 52;
+  const N_TOP   = 54; const N_BOT = 66;
   const TGT_PAD = 3;
-  const TIP     = 9;
-  const MIN_W   = 26;
+  const TIP     = 6;
+  const MIN_W   = 18;
 
   const hasStrand = neighborhood.some(g => g.strand);
 
@@ -925,21 +927,21 @@ function singleGeneMapSVG(gene, neighborhood, mutationType) {
 
     const midX = x + w / 2;
     const isNamed = g.gene_name && g.gene_name !== g.locus_tag;
-    const staggerLevels = w < 35 ? 4 : 2;
+    const staggerLevels = w < 20 ? 4 : 2;
     const level         = idx % staggerLevels;
-    const aboveStagger  = -(level * 8);
-    const belowStagger  =   level * 8;
-    const nameY  = isPlus ? ktop - 4 + aboveStagger : kbot + 9 + belowStagger;
-    const locusY = isPlus ? kbot + 9 + belowStagger  : ktop - 4 + aboveStagger;
+    const aboveStagger  = -(level * 11);
+    const belowStagger  =   level * 11;
+    const nameY  = isPlus ? ktop - 4 + aboveStagger : kbot + 10 + belowStagger;
+    const locusY = isPlus ? kbot + 10 + belowStagger  : ktop - 4 + aboveStagger;
 
     const nameEl = isNamed
       ? `<text x="${midX}" y="${nameY}" text-anchor="middle"
-               font-family="DM Sans,sans-serif" font-size="${isTarget ? 13 : 10}"
+               font-family="DM Sans,sans-serif" font-size="${isTarget ? 9 : 7.5}"
                font-weight="600" fill="${isTarget ? '#222' : '#888'}">${g.gene_name}</text>`
       : '';
 
     const locusEl = `<text x="${midX}" y="${locusY}" text-anchor="middle"
-                          font-family="DM Mono,monospace" font-size="${isTarget ? 11 : 9}"
+                          font-family="DM Mono,monospace" font-size="${isTarget ? 8 : 7}"
                           font-weight="${isTarget ? '700' : '400'}"
                           fill="${isTarget ? '#111' : '#bbb'}">${g.locus_tag}</text>`;
 
