@@ -117,22 +117,37 @@ async function batchUpdate(table, rows, valueField) {
   return updated;
 }
 
+// ── Paginated fetch helper ────────────────────────────────────────────────────
+// Supabase REST API caps responses at 1000 rows by default. This fetches all
+// pages and concatenates them.
+async function fetchAll(query) {
+  const PAGE = 1000;
+  let all = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await query.range(from, from + PAGE - 1);
+    if (error) throw error;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   // 1. Load all genes from DB: id, locus_tag, strain common_name
   console.log('Loading genes from Supabase…');
-  const { data: genes, error: gErr } = await sb
-    .from('genes')
-    .select('id, locus_tag, strains!inner(common_name)');
-  if (gErr) { console.error(gErr); process.exit(1); }
+  const genes = await fetchAll(
+    sb.from('genes').select('id, locus_tag, strains!inner(common_name)')
+  );
   console.log(`  ${genes.length} genes loaded`);
 
   // 2. Load all proteins from DB: id, gene_id
   console.log('Loading proteins from Supabase…');
-  const { data: proteins, error: pErr } = await sb
-    .from('proteins')
-    .select('id, gene_id');
-  if (pErr) { console.error(pErr); process.exit(1); }
+  const proteins = await fetchAll(
+    sb.from('proteins').select('id, gene_id')
+  );
   const proteinByGeneId = new Map(proteins.map(p => [p.gene_id, p.id]));
   console.log(`  ${proteins.length} proteins loaded`);
 
