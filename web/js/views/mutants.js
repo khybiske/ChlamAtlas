@@ -1,5 +1,5 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
-import { sb, state, toggleFavoriteDB } from '../client.js?v=78';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=79';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
@@ -213,6 +213,29 @@ function wireControls() {
       _searchTerm = e.target.value.trim();
       fetchList();
     }, 300);
+  });
+
+  // Fav star delegation for mutant list rows
+  document.getElementById('mut-list').addEventListener('click', async e => {
+    const favBtn = e.target.closest('.fav-btn');
+    if (!favBtn) return;
+    e.stopPropagation();
+    if (!state.user) { window.__showAuthModal?.('signin'); return; }
+    const mutantId = favBtn.dataset.id;
+    const nowFav   = await toggleFavoriteDB('mutant', mutantId);
+    favBtn.textContent = nowFav ? '★' : '☆';
+    favBtn.style.color = nowFav ? '#f59e0b' : '#e5e7eb';
+    favBtn.title       = nowFav ? 'Remove from favorites' : 'Add to favorites';
+    // Sync hero star if this mutant is open
+    const heroFav = document.getElementById('mut-fav-btn');
+    if (heroFav && String(heroFav.dataset.id) === String(mutantId)) {
+      heroFav.textContent = nowFav ? '★' : '☆';
+      heroFav.style.color = nowFav ? '#f59e0b' : '#e5e7eb';
+    }
+    // If favorites filter is active, remove unfavorited rows from view
+    if (_filters.favorites && !nowFav) {
+      favBtn.closest('.mut-row')?.remove();
+    }
   });
 }
 
@@ -550,15 +573,22 @@ function mutantRowHTML(m, locusTagStr = '') {
   const labPill = !m.is_published
     ? `<span class="mut-lab-pill" style="margin-left:auto;flex-shrink:0;">🔒 Lab</span>`
     : '';
+  const isFav = state.favorites.mutants.has(String(m.id));
+  const starEl = state.user
+    ? `<button class="fav-btn" data-id="${m.id}"
+         style="font-size:11px;color:${isFav ? '#f59e0b' : '#e5e7eb'};background:none;border:none;cursor:pointer;flex-shrink:0;padding:0 0 0 4px;"
+         title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>`
+    : '';
   return `
-    <button class="mut-row" data-id="${m.id}">
+    <div class="mut-row" data-id="${m.id}" role="button" tabindex="0">
       <div style="flex:1;min-width:0;">
         ${showId}
         <div class="mut-row-name">${displayName}</div>
         ${locusLabel}
       </div>
       ${labPill}
-    </button>`;
+      ${starEl}
+    </div>`;
 }
 
 

@@ -1,5 +1,5 @@
 // ChlamAtlas — Genomes tab
-import { sb, state, toggleFavoriteDB } from '../client.js?v=78';
+import { sb, state, toggleFavoriteDB } from '../client.js?v=79';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434' },
@@ -2326,10 +2326,11 @@ function showGeneDetailDesktop(gene, container) {
   // Wire favorite button in detail panel
   detail.querySelector('#detail-fav-btn').addEventListener('click', async e => {
     if (!state.user) { window.__showAuthModal?.('signin'); return; }
-    const id    = e.currentTarget.dataset.id;
+    const btn    = e.currentTarget;
+    const id     = btn.dataset.id;
     const nowFav = await toggleFavoriteDB('gene', id);
-    e.currentTarget.textContent = nowFav ? '★' : '☆';
-    e.currentTarget.style.color  = nowFav ? '#f59e0b' : '#d1d5db';
+    btn.textContent = nowFav ? '★' : '☆';
+    btn.style.color  = nowFav ? '#f59e0b' : '#d1d5db';
     // Sync star in list panel
     const listBtn = container.querySelector(`.fav-btn[data-id="${id}"]`);
     if (listBtn) {
