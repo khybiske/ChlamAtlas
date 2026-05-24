@@ -630,7 +630,8 @@ async function loadDetail(mutantUUID) {
 
   // Resolve target genes (with sort_index + strain_id for the locus map)
   let genes = [];
-  let neighborhood = [];
+  let neighborhood  = [];
+  let neighborhoods = [];
   if (m.target_gene_ids?.length) {
     const { data: geneData } = await sb
       .from('genes')
@@ -640,26 +641,27 @@ async function loadDetail(mutantUUID) {
       .in('id', m.target_gene_ids);
     genes = (geneData ?? []).sort((a, b) => (a.locus_tag ?? '').localeCompare(b.locus_tag ?? ''));
 
-    // Fetch genomic neighborhood (±6 flanking) for the locus map
-    if (genes.length) {
-      const strainId  = genes[0].strain_id;
-      const validIdx  = genes.map(g => g.sort_index).filter(i => i != null);
-      if (validIdx.length && strainId) {
-        const minIdx = Math.min(...validIdx);
-        const maxIdx = Math.max(...validIdx);
-        // Plasmid genes cluster at high sort_index — show all 8; chromosome: ±6
-        const isPlasmid  = minIdx >= 871;
-        const lo = isPlasmid ? 871 : Math.max(0, minIdx - 4);
-        const hi = isPlasmid ? 878 : maxIdx + 4;
-        const { data: nbData } = await sb
+    // Fetch genomic neighborhood for locus map.
+    // 1 gene: single fetch ±4 around that gene.
+    // 2 genes: two parallel fetches, one per gene (independent ±4 each).
+    // 3+ genes: no fetch (list layout, no maps).
+    if (genes.length === 1 || genes.length === 2) {
+      const fetchNb = async (g) => {
+        if (g.sort_index == null || !g.strain_id) return [];
+        const isPlasmid = g.sort_index >= 871;
+        const lo = isPlasmid ? 871 : Math.max(0, g.sort_index - 4);
+        const hi = isPlasmid ? 878 : g.sort_index + 4;
+        const { data } = await sb
           .from('genes')
           .select('id,locus_tag,gene_name,functional_category,start_bp,end_bp,strand,sort_index')
-          .eq('strain_id', strainId)
+          .eq('strain_id', g.strain_id)
           .gte('sort_index', lo)
           .lte('sort_index', hi)
           .order('sort_index');
-        neighborhood = nbData ?? [];
-      }
+        return data ?? [];
+      };
+      neighborhoods = await Promise.all(genes.map(fetchNb));
+      neighborhood  = neighborhoods[0] ?? [];  // keep for 1-gene geneLociMapHTML call
     }
   }
 
@@ -669,8 +671,8 @@ async function loadDetail(mutantUUID) {
     ${isMobile ? `<div class="mut-mobile-back"><button class="back-btn" id="mut-back-btn">‹ Back</button></div>` : ''}
 
     ${heroHTML(m, genes)}
-    ${geneCardsHTML(genes)}
-    ${geneLociMapHTML(genes, neighborhood, m.mutation_type)}
+    ${geneCardsHTML(genes, neighborhoods, m.mutation_type)}
+    ${genes.length === 1 ? geneLociMapHTML(genes, neighborhood, m.mutation_type) : ''}
     ${recombInfoHTML(m, pipe, isLabMember)}
     ${pipe || isLabMember ? pipelineHTML(pipe, isLabMember) : ''}
     ${phenoHTML(phenos)}
@@ -789,30 +791,39 @@ function heroHTML(m, genes = []) {
     </div>`;
 }
 
-function geneCardsHTML(genes) {
+function geneCardsHTML(genes, neighborhoods = [], mutationType = '') {
   if (!genes.length) return '';
 
   const title = `Target Gene${genes.length > 1 ? `s (${genes.length})` : ''}`;
 
   // 1–2 genes: full cards (side by side if 2)
   if (genes.length <= 2) {
-    const cards = genes.map(g => {
+    const cards = genes.map((g, i) => {
       const af = g.proteins?.alphafold_results?.[0];
       const thumb = af?.thumbnail_path
         ? `<img class="mut-gene-thumb" src="${af.thumbnail_path}" alt="">`
         : `<div class="mut-gene-thumb-placeholder">${(g.locus_tag || '?').slice(-2)}</div>`;
+      const nb = neighborhoods[i] ?? [];
+      const mapStrip = genes.length === 2 && nb.length
+        ? `<div style="border-top:1px solid #f3f4f6;padding:6px 10px 4px;background:#fafafa;">
+             ${singleGeneMapSVG(g, nb, mutationType)}
+           </div>`
+        : '';
       return `
-        <div class="mut-gene-card" style="flex:1;min-width:0;">
-          ${thumb}
-          <div style="flex:1;min-width:0;">
-            <div class="mut-gene-tag">${g.locus_tag}</div>
-            ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
-            ${funcCategoryPill(g.functional_category)}
+        <div class="mut-gene-card" style="flex:1;min-width:0;flex-direction:column;align-items:stretch;padding:0;overflow:hidden;">
+          <div style="display:flex;align-items:flex-start;padding:10px 12px;">
+            ${thumb}
+            <div style="flex:1;min-width:0;">
+              <div class="mut-gene-tag">${g.locus_tag}</div>
+              ${g.product ? `<div class="mut-gene-desc">${g.product}</div>` : ''}
+              ${funcCategoryPill(g.functional_category)}
+            </div>
+            <button class="mut-gene-link" data-gene-nav="${g.id}"
+              style="align-self:center;flex-shrink:0;margin-left:8px;white-space:nowrap;
+                     padding:3px 8px;border-radius:5px;border:1px solid #c7ddd3;
+                     font-size:0.6875rem;">View in Genomes →</button>
           </div>
-          <button class="mut-gene-link" data-gene-nav="${g.id}"
-            style="align-self:center;flex-shrink:0;margin-left:8px;white-space:nowrap;
-                   padding:3px 8px;border-radius:5px;border:1px solid #c7ddd3;
-                   font-size:0.6875rem;">View in Genomes →</button>
+          ${mapStrip}
         </div>`;
     }).join('');
 
@@ -843,6 +854,112 @@ function geneCardsHTML(genes) {
       <div style="max-height:12rem;overflow-y:auto;">${rows}</div>
     </div>
   </div>`;
+}
+
+// ─── Single-gene map SVG (used inside 2-gene card strips) ────────────────────
+function singleGeneMapSVG(gene, neighborhood, mutationType) {
+  if (!neighborhood.length) return '';
+
+  const targetIds = new Set([gene.id]);
+
+  const typeStroke = {
+    transposon: '#047857',
+    deletion:   '#b91c1c',
+    chemical:   '#6d28d9',
+    chimera:    '#0e7490',
+  };
+  const hitStroke = typeStroke[mutationType] ?? typeStroke.deletion;
+
+  const VB_W    = 600;
+  const VB_H    = 94;
+  const SPINE_Y = 46;
+  const P_TOP   = 34; const P_BOT = 46;
+  const N_TOP   = 48; const N_BOT = 60;
+  const TGT_PAD = 3;
+  const TIP     = 9;
+  const MIN_W   = 26;
+
+  const hasStrand = neighborhood.some(g => g.strand);
+
+  const gLen = g => (g.start_bp != null && g.end_bp != null)
+    ? g.end_bp - g.start_bp
+    : (g.end_bp ?? 600) * 3;
+
+  const totalBp = neighborhood.reduce((s, g) => s + Math.max(gLen(g), 1), 0);
+  const scale   = (VB_W - 20) / Math.max(totalBp, 1);
+
+  let cx = 10;
+  const defs = neighborhood.map(g => {
+    const w   = Math.max(Math.round(gLen(g) * scale), MIN_W);
+    const def = { g, x: cx, w };
+    cx += w + 2;
+    return def;
+  });
+  const actualVbW = cx + 8;
+
+  const backbone = `<line x1="10" y1="${SPINE_Y}" x2="${actualVbW - 10}" y2="${SPINE_Y}" stroke="#d9d9d9" stroke-width="1.2"/>`;
+
+  const strandLabels = hasStrand ? `
+    <text x="5" y="${(P_TOP + P_BOT) / 2 + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">+</text>
+    <text x="5" y="${(N_TOP + N_BOT) / 2 + 1}" font-family="DM Sans,sans-serif" font-size="7" fill="#c0c0c0" text-anchor="middle">−</text>` : '';
+
+  const arrows = defs.map(({ g, x, w }, idx) => {
+    const isTarget  = targetIds.has(g.id);
+    const isPlus    = !hasStrand || g.strand !== '-';
+    const top       = isPlus ? P_TOP : N_TOP;
+    const bot       = isPlus ? P_BOT : N_BOT;
+    const ktop      = isTarget ? top - TGT_PAD : top;
+    const kbot      = isTarget ? bot + TGT_PAD : bot;
+    const mid       = (ktop + kbot) / 2;
+    const fill      = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const opacity   = isTarget ? '1' : '0.82';
+
+    const pts = isPlus
+      ? `${x},${ktop} ${x + w - TIP},${ktop} ${x + w},${mid} ${x + w - TIP},${kbot} ${x},${kbot}`
+      : `${x + w},${ktop} ${x + TIP},${ktop} ${x},${mid} ${x + TIP},${kbot} ${x + w},${kbot}`;
+
+    const strokeEl = isTarget
+      ? `<polygon points="${pts}" fill="none" stroke="${hitStroke}" stroke-width="1.5"/>`
+      : '';
+
+    const midX = x + w / 2;
+    const isNamed = g.gene_name && g.gene_name !== g.locus_tag;
+    const staggerLevels = w < 35 ? 4 : 2;
+    const level         = idx % staggerLevels;
+    const aboveStagger  = -(level * 8);
+    const belowStagger  =   level * 8;
+    const nameY  = isPlus ? ktop - 4 + aboveStagger : kbot + 9 + belowStagger;
+    const locusY = isPlus ? kbot + 9 + belowStagger  : ktop - 4 + aboveStagger;
+
+    const nameEl = isNamed
+      ? `<text x="${midX}" y="${nameY}" text-anchor="middle"
+               font-family="DM Sans,sans-serif" font-size="${isTarget ? 9 : 7.5}"
+               font-weight="600" fill="${isTarget ? '#222' : '#888'}">${g.gene_name}</text>`
+      : '';
+
+    const locusEl = `<text x="${midX}" y="${locusY}" text-anchor="middle"
+                          font-family="DM Mono,monospace" font-size="${isTarget ? 8 : 7}"
+                          font-weight="${isTarget ? '700' : '400'}"
+                          fill="${isTarget ? '#111' : '#bbb'}">${g.locus_tag}</text>`;
+
+    const tip = `${g.locus_tag}${isNamed ? ' · ' + g.gene_name : ''}${g.strand ? ' (' + g.strand + ')' : ''}`;
+
+    return `
+      <g style="cursor:default;">
+        <title>${tip}</title>
+        <polygon points="${pts}" fill="${fill}" opacity="${opacity}"/>
+        ${strokeEl}
+        ${nameEl}
+        ${locusEl}
+      </g>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
+               style="width:100%;height:auto;display:block;overflow:visible;">
+    ${backbone}
+    ${strandLabels}
+    ${arrows}
+  </svg>`;
 }
 
 // ─── Genomic locus map ────────────────────────────────────
