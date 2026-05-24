@@ -5,6 +5,7 @@ import { renderGenomes } from './views/genomes.js?v=84';
 import { renderMutants } from './views/mutants.js?v=88';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=90';
+import { renderAlignment } from './views/alignment.js?v=91';
 
 export { sb, state };
 
@@ -19,13 +20,14 @@ function wireNavStubs() {
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment'];
 const RENDERERS = {
-  home:     renderHome,
-  genomes:  renderGenomes,
-  mutants:  renderMutants,
-  pipeline: renderPipeline,
-  roadmap:  renderRoadmap,
+  home:      renderHome,
+  genomes:   renderGenomes,
+  mutants:   renderMutants,
+  pipeline:  renderPipeline,
+  roadmap:   renderRoadmap,
+  alignment: renderAlignment,
 };
 
 function activateTab(name) {
