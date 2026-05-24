@@ -31,9 +31,21 @@ export function renderAlignment(container) {
 function render() {
   _container.innerHTML = `
     <div style="max-width:800px;margin:0 auto;padding:32px 24px 64px;">
-      <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:700;color:#0f4530;margin-bottom:6px;">
-        Sequence Alignment
-      </h1>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;">
+        <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:700;color:#0f4530;margin:0;">
+          Sequence Alignment
+        </h1>
+        ${alignState.entries.length > 0 || alignState.results ? `
+        <button onclick="window._alnReset()"
+          style="flex-shrink:0;margin-top:6px;display:inline-flex;align-items:center;gap:5px;
+                 font-size:11px;font-weight:600;color:#64748b;background:white;
+                 border:1.5px solid #e2e8f0;border-radius:7px;padding:5px 12px;
+                 cursor:pointer;font-family:'DM Sans',sans-serif;"
+          onmouseover="this.style.borderColor='#cbd5e1'"
+          onmouseout="this.style.borderColor='#e2e8f0'">
+          ↺ Start over
+        </button>` : ''}
+      </div>
       <p style="color:#64748b;font-size:13px;margin-bottom:28px;">
         Align orthologous or arbitrary Chlamydia gene sequences using Clustal Omega.
       </p>
@@ -490,6 +502,13 @@ function wirePickerEvents() {
     reRenderEntries();
   };
   window._alnRun = () => runAlignment();
+  window._alnReset = () => {
+    alignState.entries = [];
+    alignState.results = null;
+    alignState.running = false;
+    alignState.diffOnly = false;
+    render();
+  };
 
   // Search input
   const input = document.getElementById('aln-search');
@@ -658,7 +677,7 @@ async function fetchSequences() {
       const row = seqMap[entry.gene.id];
       if (!row?.dna_sequence) missing.push(entry.gene.locus_tag);
     }
-    if (missing.length) throw new Error(`No DNA sequence on file for: ${missing.join(', ')}`);
+    if (missing.length) throw new Error(`No DNA sequence on file for: ${missing.join(', ')}. Try switching to Amino Acid mode, or these genes may not have sequence data loaded.`);
 
     return alignState.entries.map(e => {
       const row = seqMap[e.gene.id];
@@ -679,7 +698,7 @@ async function fetchSequences() {
       const row = seqMap[entry.gene.id];
       if (!row?.proteins?.[0]?.aa_sequence) missing.push(entry.gene.locus_tag);
     }
-    if (missing.length) throw new Error(`No amino acid sequence on file for: ${missing.join(', ')}`);
+    if (missing.length) throw new Error(`No amino acid sequence on file for: ${missing.join(', ')}. Try switching to DNA mode, or these genes may not have sequence data loaded.`);
 
     return alignState.entries.map(e => {
       const row = seqMap[e.gene.id];

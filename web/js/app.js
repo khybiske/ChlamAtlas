@@ -5,7 +5,7 @@ import { renderGenomes } from './views/genomes.js?v=84';
 import { renderMutants } from './views/mutants.js?v=88';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=90';
-import { renderAlignment } from './views/alignment.js?v=91';
+import { renderAlignment } from './views/alignment.js?v=92';
 
 export { sb, state };
 
@@ -16,6 +16,29 @@ function wireNavStubs() {
   });
   document.getElementById('btn-nav-saved')?.addEventListener('click', (e) => {
     showSavedPopover(e.currentTarget);
+  });
+  document.getElementById('nav-tools-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showToolsPopover(e.currentTarget);
+  });
+}
+
+function showToolsPopover(anchor) {
+  const pop = openNavPopover(anchor, `
+    <div class="nav-popover-label">Tools</div>
+    <button class="nav-popover-row" id="tools-pop-seq">
+      <span class="nav-popover-row-icon">🧬</span>
+      <span class="nav-popover-row-name">Sequence Alignment</span>
+    </button>
+    <button class="nav-popover-row" disabled style="opacity:0.4;cursor:not-allowed;">
+      <span class="nav-popover-row-icon">🔬</span>
+      <span class="nav-popover-row-name">Structure Alignment</span>
+      <span class="nav-popover-row-count">soon</span>
+    </button>
+  `, 'tools-nav-popover');
+  pop?.querySelector('#tools-pop-seq')?.addEventListener('click', () => {
+    pop.remove();
+    activateTab('alignment');
   });
 }
 
@@ -50,6 +73,9 @@ function activateTab(name) {
   document.querySelectorAll('.nav-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
+  // Tools button has no data-tab (it's a dropdown trigger); mark it active when on alignment
+  const toolsBtn = document.getElementById('nav-tools-btn');
+  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment');
   document.querySelectorAll('.mobile-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
