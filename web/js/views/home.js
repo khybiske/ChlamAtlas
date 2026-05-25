@@ -151,7 +151,7 @@ function renderGenomesColumn(container) {
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3c4 3 4 6 0 9s-4 6 0 9"/><path d="M19 3c-4 3-4 6 0 9s4 6 0 9"/><line x1="7.5" y1="6" x2="16.5" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="7.5" y1="18" x2="16.5" y2="18"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2C8 5 16 7 16 10C16 13 8 15 8 18C8 21 16 22 16 22"/><path d="M16 2C16 5 8 7 8 10C8 13 16 15 16 18C16 21 8 22 8 22"/><line x1="8" y1="2" x2="16" y2="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
       Genomes
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;">
