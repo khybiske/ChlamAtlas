@@ -196,8 +196,9 @@ function renderLoadedPhase() {
         <button id="str-superpose-btn" onclick="window._strAlnSuperpose()"
           style="margin-left:auto;font-size:12px;font-weight:700;color:white;
                  background:#0f4530;border:none;border-radius:7px;padding:6px 14px;cursor:pointer;
-                 font-family:'DM Sans',sans-serif;flex-shrink:0;display:flex;align-items:center;gap:5px;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                 font-family:'DM Sans',sans-serif;flex-shrink:0;display:flex;align-items:center;gap:5px;
+                 min-width:108px;justify-content:center;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
           Superpose
         </button>
         <button onclick="window._strAlnReset()"
@@ -269,23 +270,68 @@ function wireEvents() {
   window._strAlnRetryLoad = () => {
     initViewer();
   };
+  const SUPERPOSE_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>';
+  const SPIN_DIV = '<div style="width:12px;height:12px;border:1.5px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0"></div>';
+
   window._strAlnSuperpose = async () => {
     const plugin = strState.viewer?.plugin;
     if (!plugin) return;
     const btn = document.getElementById('str-superpose-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Superposing…'; }
-    let succeeded = false;
+    if (btn?.disabled) return; // prevent double-click
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `${SPIN_DIV} Superposing…`;
+    }
+
     try {
       const structures = plugin.managers.structure.hierarchy.current.structures;
-      if (structures.length < 2) throw new Error('Load at least 2 structures first');
-      // Mol* v3: apply the superposition preset through the hierarchy manager
-      await plugin.managers.structure.hierarchy.applyPreset(structures, 'superposition');
-      succeeded = true;
+      if (structures.length < 2) throw new Error('Need at least 2 loaded structures');
+
+      const s1 = structures[0].cell.obj?.data;
+      const s2 = structures[1].cell.obj?.data;
+      if (!s1 || !s2) throw new Error('Structure data not ready — try again in a moment');
+
+      // Access Mol* utilities via the CDN lib namespace (molstar.lib.*)
+      const lib = window.molstar.lib;
+      const MS   = lib.molScript.language.builder.MolScriptBuilder;
+      const { compile }                 = lib.molScript.runtime.query.compiler;
+      const { StructureSelection, QueryContext } = lib.molModel.structure;
+      const { tmAlign }                 = lib.molModel.structure.structure.util;
+      const { StateTransforms }         = lib.molPluginState.transforms;
+
+      // C-alpha atom query (backbone anchors for alignment)
+      const caQuery = compile(MS.struct.generator.atomGroups({
+        'atom-test': MS.core.rel.eq([
+          MS.struct.atomProperty.macromolecular.label_atom_id(), 'CA'
+        ])
+      }));
+
+      const sel1 = StructureSelection.toLociWithCurrentUnits(caQuery(new QueryContext(s1)));
+      const sel2 = StructureSelection.toLociWithCurrentUnits(caQuery(new QueryContext(s2)));
+
+      // Compute optimal rigid-body transform (TM-align)
+      const result = tmAlign(sel1, sel2);
+      if (!result?.bTransform) throw new Error('TM-align returned no transform');
+
+      // Apply transform to structure 2 in the Mol* state tree
+      const update = plugin.state.data.build()
+        .to(structures[1].cell)
+        .insert(StateTransforms.Model.TransformStructureConformation, {
+          transform: { name: 'matrix', params: { data: result.bTransform, transpose: false } }
+        });
+      await plugin.runTask(plugin.state.data.updateTree(update));
+
+      // Brief success state
+      if (btn) btn.innerHTML = '✓ Superposed';
+      setTimeout(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = `${SUPERPOSE_ICON} Superpose`; }
+      }, 1800);
+
     } catch (e) {
-      console.warn('[Superpose] programmatic superpose failed:', e.message);
-    }
-    if (!succeeded) {
-      // Fallback: show a brief overlay guiding right-click workflow
+      console.error('[Superpose]', e);
+      if (btn) { btn.disabled = false; btn.innerHTML = `${SUPERPOSE_ICON} Superpose`; }
+      // Show brief fallback tip
       const outer = document.getElementById('str-viewer-outer');
       if (outer) {
         const tip = document.createElement('div');
@@ -293,12 +339,11 @@ function wireEvents() {
           'background:rgba(0,0,0,0.88);color:white;padding:10px 18px;border-radius:10px;' +
           'font-size:12px;z-index:100;white-space:nowrap;pointer-events:none;text-align:center;' +
           'font-family:\'DM Sans\',sans-serif;';
-        tip.textContent = 'Click any residue to select it, then right-click → Superpose';
+        tip.textContent = 'Click a residue to select it, then right-click → Superpose';
         outer.appendChild(tip);
         setTimeout(() => tip.remove(), 4500);
       }
     }
-    if (btn) { btn.disabled = false; btn.textContent = 'Superpose'; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Superpose'; }
   };
 
   // Typeahead (building phase only)

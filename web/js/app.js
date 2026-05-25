@@ -6,7 +6,7 @@ import { renderMutants } from './views/mutants.js?v=88';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=90';
 import { renderAlignment } from './views/alignment.js?v=96';
-import { renderStructureAlignment } from './views/structure-alignment.js?v=3';
+import { renderStructureAlignment } from './views/structure-alignment.js?v=4';
 
 export { sb, state };
 
