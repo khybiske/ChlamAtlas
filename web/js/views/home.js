@@ -150,8 +150,9 @@ function renderGenomesColumn(container) {
   if (!el) return;
 
   el.innerHTML = `
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
-      🧬 Genomes
+    <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3c4 3 4 6 0 9s-4 6 0 9"/><path d="M19 3c-4 3-4 6 0 9s4 6 0 9"/><line x1="7.5" y1="6" x2="16.5" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="7.5" y1="18" x2="16.5" y2="18"/></svg>
+      Genomes
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;">
       ${ORGANISMS.map(org => `
@@ -203,8 +204,9 @@ function renderMutantsColumn(container) {
   if (!el) return;
 
   el.innerHTML = `
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
-      🔬 Mutants
+    <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:8px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13H11L10 22L19.5 11H13L13 2Z"/></svg>
+      Mutants
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;">
       ${COLLECTIONS.map(c => `
@@ -261,8 +263,9 @@ function renderCommunityColumn(container) {
   if (!el) return;
 
   el.innerHTML = `
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
-      🌍 Community
+    <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Community
     </div>
 
     <!-- World map (Leaflet + CartoDB tiles) -->

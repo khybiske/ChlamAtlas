@@ -197,8 +197,7 @@ function showGeneList(container) {
         <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:10px 14px 0;flex-shrink:0;">
           ${STRAINS.map(s => `
             <button data-strain="${s.id}" aria-label="View ${s.label} genes"
-              style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:5px 11px 8px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
-              <img src="${s.icon}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;opacity:${s.id === _strain ? '1' : '0.5'};">
+              style="font-size:11.5px;font-weight:600;padding:5px 11px 8px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
               ${s.label}
             </button>`).join('')}
         </div>

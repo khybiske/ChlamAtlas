@@ -307,7 +307,7 @@ function hideUserDropdown() {
 // ─── Shared nav popover helper ─────────────────────────────
 function openNavPopover(anchorEl, contentHtml, id = 'nav-popover') {
   if (!anchorEl) return null;
-  document.getElementById(id)?.remove();
+  document.querySelectorAll('.nav-popover').forEach(p => p.remove());
 
   const pop = document.createElement('div');
   pop.id = id;
@@ -1165,7 +1165,7 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
   activateTab('home');
 });
 
-document.addEventListener('chlamatlas:navigate', (e) => {
+window.addEventListener('chlamatlas:navigate', (e) => {
   const { tab } = e.detail ?? {};
   if (tab) activateTab(tab);
 });
