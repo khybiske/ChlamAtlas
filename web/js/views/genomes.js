@@ -1097,6 +1097,12 @@ function renderDetailMutants(detail, gene, mutants) {
   });
 }
 
+// ── Cross-view navigation: seed structure alignment from gene detail ──────────
+window._seedStructureAlignment = (geneId) => {
+  state.structureAlignmentSeedGeneId = geneId;
+  document.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'structure-alignment' } }));
+};
+
 function renderDetailOrthologs(detail, orthoRows, gene) {
   const el = detail.querySelector('#d-orthologs');
   if (!el) return;
@@ -1892,7 +1898,15 @@ function renderDetailStructure(detail, gene, protein, afRows) {
           ${scoreHtml}
           ${homologHtml}
           ${inferredHtml}
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">${linksHtml}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            ${linksHtml}
+            <button onclick="window._seedStructureAlignment('${esc(gene.id)}')"
+              style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+                     color:#0f4530;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;
+                     padding:5px 11px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+              🔬 Compare structures
+            </button>
+          </div>
         </div>
       </div>`;
   }
