@@ -172,8 +172,126 @@ function wireEvents() {
   }, { capture: true, signal: _clickOutsideController.signal });
 }
 
-// Placeholder — implemented in Task 3
-function searchGenes(q) {}
+// ── Gene search ───────────────────────────────────────────────
+async function searchGenes(q) {
+  const resultsEl = document.getElementById('str-search-results');
+  if (!resultsEl) return;
+  resultsEl.innerHTML = `<div style="padding:8px 12px;font-size:12px;color:#94a3b8;">Searching…</div>`;
+  resultsEl.style.display = 'block';
+
+  const term = q.toLowerCase();
+  const { data, error } = await sb
+    .from('genes')
+    .select('id,locus_tag,gene_name,gene_symbol,strain_id')
+    .or(`locus_tag.ilike.%${term}%,gene_name.ilike.%${term}%,gene_symbol.ilike.%${term}%`)
+    .order('strain_id')
+    .limit(20);
+
+  if (error || !data?.length) {
+    resultsEl.innerHTML = `<div style="padding:8px 12px;font-size:12px;color:#94a3b8;">No genes found</div>`;
+    return;
+  }
+
+  resultsEl.innerHTML = data.map(g => {
+    const label = [g.locus_tag, g.gene_name].filter(Boolean).join(' · ');
+    const sc = strainColor(g.strain_id);
+    const sn = strainName(g.strain_id);
+    const gStr = esc(JSON.stringify(JSON.stringify(g)));
+    return `
+      <div data-gene-id="${g.id}"
+           style="padding:9px 12px;font-size:12px;border-bottom:1px solid #f1f5f9;
+                  display:flex;justify-content:space-between;align-items:center;cursor:pointer;"
+           onmouseover="this.style.background='#f8fafc'"
+           onmouseout="this.style.background='white'"
+           onclick="window._strAlnPickGene(${gStr})">
+        <div>
+          <span style="font-weight:700;color:#0f4530;">${esc(g.locus_tag)}</span>
+          ${g.gene_name ? `<span style="color:#64748b;margin-left:5px;">${esc(g.gene_name)}</span>` : ''}
+        </div>
+        <span style="font-size:9px;font-weight:700;background:#f1f5f9;color:${sc};
+                     padding:2px 7px;border-radius:4px;">${esc(sn)}</span>
+      </div>
+    `;
+  }).join('');
+
+  window._strAlnPickGene = (gStr) => {
+    const g = JSON.parse(gStr);
+    document.getElementById('str-search').value = '';
+    document.getElementById('str-search-results').style.display = 'none';
+    addPrimaryGene(g);
+  };
+}
+
+// ── Adding genes ──────────────────────────────────────────────
+async function addPrimaryGene(gene) {
+  const hasPrimary = strState.entries.some(e => e.isPrimary);
+  if (strState.entries.find(e => e.gene.id === gene.id)) return; // no duplicates
+
+  const entry = {
+    id: `entry-${Date.now()}-${gene.id}`,
+    gene,
+    modelType: 'af2',    // default; quick-add buttons in suggestion panel can change this
+    urlData: null,       // { uniprotId } | { mmcifPath } | { pdbId } — resolved at load time
+    status: 'confirmed',
+    isPrimary: !hasPrimary,
+  };
+  strState.entries.push(entry);
+  reRenderEntries();
+
+  // Fetch suggestion panel data for the primary pick only
+  if (!hasPrimary) {
+    await fetchAndRenderSuggestions(gene);
+  }
+}
+
+function addManualEntry(gene, modelType, urlData) {
+  const existingKey = `${gene.id}-${modelType}`;
+  if (strState.entries.find(e => `${e.gene.id}-${e.modelType}` === existingKey)) return;
+  if (strState.entries.length >= MAX_STRUCTURES) return;
+
+  strState.entries.push({
+    id: `entry-${Date.now()}-${gene.id}-${modelType}`,
+    gene,
+    modelType,
+    urlData,
+    status: 'confirmed',
+    isPrimary: false,
+  });
+  reRenderEntries();
+  updateLoadBtn();
+}
+
+function reRenderEntries() {
+  const list = document.getElementById('str-entry-list');
+  if (!list) return;
+  list.innerHTML = strState.entries.length === 0
+    ? `<div style="font-size:12px;color:#cbd5e1;font-style:italic;padding:8px 0;">Search above to add the first structure…</div>`
+    : strState.entries.map(renderEntryCard).join('');
+  updateLoadBtn();
+}
+
+function updateLoadBtn() {
+  const btn = document.getElementById('str-load-btn');
+  if (!btn) return;
+  const canLoad = strState.entries.filter(e => e.status === 'confirmed').length >= 2;
+  btn.disabled = !canLoad;
+  btn.style.background = canLoad ? '#0f4530' : '#e2e8f0';
+  btn.style.color = canLoad ? 'white' : '#94a3b8';
+  btn.style.cursor = canLoad ? 'pointer' : 'not-allowed';
+}
+
+window._strAlnRemove = (id) => {
+  strState.entries = strState.entries.filter(e => e.id !== id);
+  reRenderEntries();
+  updateLoadBtn();
+};
+
+// ── Suggestion panel ──────────────────────────────────────────
+async function fetchAndRenderSuggestions(primaryGene) {
+  // Placeholder — Task 4 implements this
+  const panel = document.getElementById('str-suggestion-panel');
+  if (panel) panel.innerHTML = `<div style="font-size:12px;color:#94a3b8;padding:8px 0;">Loading suggestions…</div>`;
+}
 
 // ── Entry card ────────────────────────────────────────────────
 function renderEntryCard(entry) {
