@@ -131,9 +131,80 @@ function renderPickerSection() {
 
 // ── Loaded phase ──────────────────────────────────────────────
 function renderLoadedPhase() {
-  return `<div style="max-width:900px;margin:0 auto;padding:20px 16px 64px;">
-    <div style="font-size:13px;color:#94a3b8;padding:32px 0;text-align:center;">Loading viewer…</div>
-  </div>`;
+  const confirmedEntries = strState.entries.filter(e => e.status === 'confirmed');
+  const modelLabels = { af2: 'AF2', af3: 'AF3', crystal: 'Crystal' };
+
+  const chips = confirmedEntries.map(e => {
+    const sc = strainColor(e.gene.strain_id);
+    const sn = strainName(e.gene.strain_id);
+    const ml = modelLabels[e.modelType] ?? e.modelType;
+    return `
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;
+                  border:1.5px solid #86efac;border-radius:99px;padding:5px 12px;
+                  font-size:12px;font-weight:700;color:#0f4530;white-space:nowrap;">
+        <span style="width:7px;height:7px;border-radius:50%;background:${sc};display:inline-block;"></span>
+        ${esc(e.gene.locus_tag)} · ${esc(sn)}
+        <span style="font-size:9px;background:white;border-radius:4px;padding:1px 5px;
+                     color:${sc};border:1px solid ${sc}30;">${esc(ml)}</span>
+      </div>
+    `;
+  }).join('');
+
+  const hint = strState.hintDismissed ? '' : `
+    <div id="str-superpose-hint"
+         style="display:flex;align-items:flex-start;gap:10px;background:#fffbeb;
+                border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;
+                font-size:12px;color:#92400e;margin-bottom:12px;">
+      <span style="flex-shrink:0;">💡</span>
+      <span>Right-click any chain or structure in the viewer and choose <strong>Superpose</strong> to align structures.</span>
+      <button onclick="window._strAlnDismissHint()"
+        style="flex-shrink:0;margin-left:auto;background:none;border:none;cursor:pointer;
+               color:#b45309;font-size:14px;line-height:1;padding:0 0 0 8px;">×</button>
+    </div>
+  `;
+
+  return `
+    <div style="max-width:900px;margin:0 auto;padding:20px 16px 64px;">
+
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+                  background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;
+                  padding:12px 16px;margin-bottom:14px;">
+        ${chips}
+        ${strState.entries.length < MAX_STRUCTURES ? `
+          <button onclick="window._strAlnAddMore()"
+            style="font-size:12px;color:#64748b;border:1.5px dashed #cbd5e1;border-radius:99px;
+                   padding:5px 12px;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            ＋ Add structure
+          </button>` : ''}
+        <button onclick="window._strAlnReset()"
+          style="margin-left:auto;font-size:11px;font-weight:600;color:#64748b;background:white;
+                 border:1.5px solid #e2e8f0;border-radius:7px;padding:5px 12px;cursor:pointer;
+                 font-family:'DM Sans',sans-serif;flex-shrink:0;">
+          ↺ Start over
+        </button>
+      </div>
+
+      ${hint}
+
+      <div style="position:relative;border-radius:12px;overflow:hidden;
+                  background:${strState.bgDark ? '#0a1628' : '#ffffff'};
+                  border:1px solid #e2e8f0;" id="str-viewer-outer">
+
+        <button onclick="window._strAlnToggleBg()"
+          title="${strState.bgDark ? 'Switch to light background' : 'Switch to dark background'}"
+          style="position:absolute;top:10px;right:10px;z-index:10;
+                 background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);
+                 border:1px solid rgba(255,255,255,0.2);border-radius:7px;
+                 width:32px;height:32px;cursor:pointer;font-size:15px;
+                 display:flex;align-items:center;justify-content:center;">
+          ${strState.bgDark ? '☀️' : '🌙'}
+        </button>
+
+        <div id="str-viewer-wrap" style="height:480px;"></div>
+      </div>
+
+    </div>
+  `;
 }
 
 // ── Wire events ───────────────────────────────────────────────
@@ -145,6 +216,28 @@ function wireEvents() {
   window._strAlnLoad = () => {
     strState.loaded = true;
     render();
+    initViewer();
+  };
+  window._strAlnDismissHint = () => {
+    strState.hintDismissed = true;
+    document.getElementById('str-superpose-hint')?.remove();
+  };
+  window._strAlnAddMore = () => {
+    strState.loaded = false;
+    render();
+  };
+  window._strAlnToggleBg = () => {
+    strState.bgDark = !strState.bgDark;
+    const outer = document.getElementById('str-viewer-outer');
+    if (outer) outer.style.background = strState.bgDark ? '#0a1628' : '#ffffff';
+    const btn = outer?.querySelector('button[title]');
+    if (btn) {
+      btn.title = strState.bgDark ? 'Switch to light background' : 'Switch to dark background';
+      btn.textContent = strState.bgDark ? '☀️' : '🌙';
+    }
+  };
+  window._strAlnRetryLoad = () => {
+    initViewer();
   };
 
   // Typeahead (building phase only)
@@ -519,4 +612,122 @@ function renderEntryCard(entry) {
       ` : ''}
     </div>
   `;
+}
+
+// ── Mol* bundle ───────────────────────────────────────────────
+let _bundlePromise = null;
+
+function _loadMolstarBundle() {
+  if (window.molstar) return Promise.resolve();
+  if (_bundlePromise) return _bundlePromise;
+  _bundlePromise = new Promise((resolve, reject) => {
+    const s   = document.createElement('script');
+    s.src     = 'https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.js';
+    s.onload  = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+    const l  = document.createElement('link');
+    l.rel    = 'stylesheet';
+    l.href   = 'https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.css';
+    document.head.appendChild(l);
+  });
+  return _bundlePromise;
+}
+
+// ── URL resolution ────────────────────────────────────────────
+async function resolveUrl(entry) {
+  if (entry.modelType === 'af3' && entry.urlData?.mmcifPath) {
+    return entry.urlData.mmcifPath;
+  }
+  if (entry.modelType === 'crystal' && entry.urlData?.pdbId) {
+    return `https://files.rcsb.org/download/${encodeURIComponent(entry.urlData.pdbId)}.cif`;
+  }
+  if (entry.modelType === 'af2' && entry.urlData?.uniprotId) {
+    const res = await fetch(
+      `https://alphafold.ebi.ac.uk/api/prediction/${encodeURIComponent(entry.urlData.uniprotId)}`
+    );
+    if (!res.ok) throw new Error(`AFDB API error for ${entry.urlData.uniprotId}: ${res.status}`);
+    const data = await res.json();
+    const cifUrl = data[0]?.cifUrl;
+    if (!cifUrl) throw new Error(`No cifUrl returned for ${entry.urlData.uniprotId}`);
+    return cifUrl;
+  }
+  throw new Error(`Cannot resolve URL for entry ${entry.id} (modelType: ${entry.modelType})`);
+}
+
+// ── Viewer init ───────────────────────────────────────────────
+async function initViewer() {
+  const container = document.getElementById('str-viewer-wrap');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:32px 20px;">
+      <div style="width:18px;height:18px;border:2px solid #0f4530;border-top-color:transparent;
+                  border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <span id="str-viewer-status" style="font-size:13px;color:#64748b;">Resolving structure URLs…</span>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  `;
+
+  const confirmedEntries = strState.entries.filter(e => e.status === 'confirmed');
+
+  try {
+    const urls = await Promise.all(confirmedEntries.map(resolveUrl));
+    setViewerStatus('Loading Mol* viewer…');
+
+    await _loadMolstarBundle();
+    setViewerStatus('Initializing viewer…');
+
+    const vpId  = 'str-vp-' + Date.now();
+    const vpDiv = document.createElement('div');
+    vpDiv.id    = vpId;
+    vpDiv.style.cssText = 'position:absolute;inset:0;';
+    container.style.position = 'relative';
+    container.innerHTML = '';
+    container.appendChild(vpDiv);
+
+    const v = await molstar.Viewer.create(vpId, {
+      layoutIsExpanded:          false,
+      layoutShowControls:        false,
+      layoutShowRemoteState:     false,
+      layoutShowSequence:        false,
+      layoutShowLog:             false,
+      layoutShowLeftPanel:       false,
+      viewportShowExpand:        true,
+      viewportShowSelectionMode: false,
+      viewportShowAnimation:     false,
+    });
+
+    for (let i = 0; i < urls.length; i++) {
+      setViewerStatus(`Loading structure ${i + 1} of ${urls.length}…`);
+      await v.loadStructureFromUrl(urls[i], 'mmcif');
+    }
+
+    strState.viewer = v;
+
+    const suppress = document.createElement('style');
+    suppress.textContent = `
+      #${vpId} button[title="Screenshot / State Snapshot"],
+      #${vpId} button[title="Toggle Controls Panel"],
+      #${vpId} button[title="Settings / Controls Info"] { display:none !important; }`;
+    document.head.appendChild(suppress);
+
+  } catch (err) {
+    console.error('[StructureAlignment] viewer init failed:', err);
+    if (document.getElementById('str-viewer-wrap')) {
+      container.innerHTML = `
+        <div style="padding:24px;color:#be123c;font-size:13px;background:#fff1f2;
+                    border:1.5px solid #fecdd3;border-radius:10px;margin:16px;">
+          ⚠ ${esc(err.message)}
+          <button onclick="window._strAlnRetryLoad()"
+            style="margin-left:12px;background:#0f4530;color:white;border:none;border-radius:6px;
+                   padding:4px 12px;font-size:12px;cursor:pointer;">Retry</button>
+        </div>`;
+    }
+  }
+}
+
+function setViewerStatus(msg) {
+  const el = document.getElementById('str-viewer-status');
+  if (el) el.textContent = msg;
 }
