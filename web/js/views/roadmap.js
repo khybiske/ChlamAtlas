@@ -17,6 +17,7 @@ const CHANGELOG = [
 ];
 
 const PLANNED_FEATURES = [
+  { id: 'genome-comparison', label: 'Genome comparison tool',                    description: 'Side-by-side synteny viewer: pick a reference genome and a query genome, orthologs are aligned row-by-row with gaps where orthologs are absent. On-demand pairwise % identity per gene pair.' },
   { id: 'af3-models',       label: 'AlphaFold 3 models for all proteins',        description: 'Upgrade the structure library from AF2 to AF3 predictions across the full proteome.' },
   { id: 'chemical-mutants', label: 'Chemical mutant collection',                 description: 'Add the chemical mutagenesis collection to the mutant browser with full phenotype data.' },
   { id: 'phenotype-images', label: 'Phenotype images on mutant detail pages',    description: 'Microscopy and assay images attached to in vitro and in vivo phenotype records.' },
