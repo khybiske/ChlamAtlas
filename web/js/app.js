@@ -6,6 +6,7 @@ import { renderMutants } from './views/mutants.js?v=88';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=90';
 import { renderAlignment } from './views/alignment.js?v=96';
+import { renderStructureAlignment } from './views/structure-alignment.js?v=1';
 
 export { sb, state };
 
@@ -30,20 +31,23 @@ function showToolsPopover(anchor) {
       <span class="nav-popover-row-icon">🧬</span>
       <span class="nav-popover-row-name">Sequence Alignment</span>
     </button>
-    <button class="nav-popover-row" disabled style="opacity:0.4;cursor:not-allowed;">
+    <button class="nav-popover-row" id="tools-pop-struct">
       <span class="nav-popover-row-icon">🔬</span>
       <span class="nav-popover-row-name">Structure Alignment</span>
-      <span class="nav-popover-row-count">soon</span>
     </button>
   `, 'tools-nav-popover');
   pop?.querySelector('#tools-pop-seq')?.addEventListener('click', () => {
     pop.remove();
     activateTab('alignment');
   });
+  pop?.querySelector('#tools-pop-struct')?.addEventListener('click', () => {
+    pop.remove();
+    activateTab('structure-alignment');
+  });
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment', 'structure-alignment'];
 const RENDERERS = {
   home:      renderHome,
   genomes:   renderGenomes,
@@ -51,6 +55,7 @@ const RENDERERS = {
   pipeline:  renderPipeline,
   roadmap:   renderRoadmap,
   alignment: renderAlignment,
+  'structure-alignment': renderStructureAlignment,
 };
 
 function activateTab(name) {
@@ -75,7 +80,7 @@ function activateTab(name) {
   });
   // Tools button has no data-tab (it's a dropdown trigger); mark it active when on alignment
   const toolsBtn = document.getElementById('nav-tools-btn');
-  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment');
+  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment');
   document.querySelectorAll('.mobile-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
@@ -1155,6 +1160,10 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
 });
 
 window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab));
+document.addEventListener('chlamatlas:navigate', (e) => {
+  const { tab } = e.detail ?? {};
+  if (tab) activateTab(tab);
+});
 
 // ─── Boot ─────────────────────────────────────────────────
 // Render immediately as guest — onAuthStateChange(INITIAL_SESSION) will fire
