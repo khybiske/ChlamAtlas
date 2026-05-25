@@ -3,6 +3,65 @@ import { sb, state } from '../client.js?v=80';
 
 // ── Constants ─────────────────────────────────────────────────
 const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#4b2e83', 'CM': '#2563eb' };
+
+// ── Kabsch superposition (self-contained, no Mol* internals) ──
+// 3×3 matrix helpers (row-major: M[row][col])
+function _m3T(A){return[[A[0][0],A[1][0],A[2][0]],[A[0][1],A[1][1],A[2][1]],[A[0][2],A[1][2],A[2][2]]];}
+function _m3mul(A,B){const C=[[0,0,0],[0,0,0],[0,0,0]];for(let r=0;r<3;r++)for(let c=0;c<3;c++)for(let k=0;k<3;k++)C[r][c]+=A[r][k]*B[k][c];return C;}
+function _m3det(A){return A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1])-A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0])+A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0]);}
+
+// One-sided Jacobi SVD: decomposes A = U * diag(S) * V^T
+function _svd3(A){
+  let M=[A[0].slice(),A[1].slice(),A[2].slice()],V=[[1,0,0],[0,1,0],[0,0,1]];
+  for(let iter=0;iter<60;iter++){
+    let changed=false;
+    for(let p=0;p<2;p++)for(let q=p+1;q<3;q++){
+      let app=0,aqq=0,apq=0;
+      for(let r=0;r<3;r++){app+=M[r][p]*M[r][p];aqq+=M[r][q]*M[r][q];apq+=M[r][p]*M[r][q];}
+      if(Math.abs(apq)<1e-12)continue;
+      changed=true;
+      const z=(aqq-app)/(2*apq),t2=Math.sign(z)/(Math.abs(z)+Math.sqrt(1+z*z));
+      const c=1/Math.sqrt(1+t2*t2),s=c*t2;
+      for(let r=0;r<3;r++){const mp=M[r][p],mq=M[r][q];M[r][p]=c*mp+s*mq;M[r][q]=-s*mp+c*mq;}
+      for(let r=0;r<3;r++){const vp=V[r][p],vq=V[r][q];V[r][p]=c*vp+s*vq;V[r][q]=-s*vp+c*vq;}
+    }
+    if(!changed)break;
+  }
+  const S=[0,1,2].map(i=>{let n=0;for(let r=0;r<3;r++)n+=M[r][i]*M[r][i];return Math.sqrt(n)||1;});
+  return{U:M.map(row=>[row[0]/S[0],row[1]/S[1],row[2]/S[2]]),V};
+}
+
+// Kabsch: returns 4×4 column-major matrix (Mol* Mat4) mapping pB → pA frame
+function _kabsch(pA,pB){
+  const n=Math.min(pA.length,pB.length);
+  if(n<3)return null;
+  let cA=[0,0,0],cB=[0,0,0];
+  for(let i=0;i<n;i++)for(let j=0;j<3;j++){cA[j]+=pA[i][j];cB[j]+=pB[i][j];}
+  cA=cA.map(v=>v/n);cB=cB.map(v=>v/n);
+  // Covariance H = dB^T * dA  (maps B onto A)
+  const H=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let i=0;i<n;i++){
+    const da=pA[i].map((v,j)=>v-cA[j]),db=pB[i].map((v,j)=>v-cB[j]);
+    for(let r=0;r<3;r++)for(let c=0;c<3;c++)H[r][c]+=db[r]*da[c];
+  }
+  const{U,V}=_svd3(H);
+  const d=Math.sign(_m3det(_m3mul(V,_m3T(U)))||1);
+  const R=_m3mul(V,_m3mul([[1,0,0],[0,1,0],[0,0,d]],_m3T(U)));
+  const RcB=[0,1,2].map(r=>R[r].reduce((s,v,j)=>s+v*cB[j],0));
+  const t=cA.map((v,i)=>v-RcB[i]);
+  // Column-major 4×4: p' = M * p  (OpenGL/glMatrix convention)
+  return[R[0][0],R[1][0],R[2][0],0,R[0][1],R[1][1],R[2][1],0,R[0][2],R[1][2],R[2][2],0,t[0],t[1],t[2],1];
+}
+
+// Extract Cα positions from a Mol* Structure object
+function _extractCA(struct){
+  const atomId=struct.model.atomicHierarchy.atoms.label_atom_id;
+  const c=struct.model.atomicConformation;
+  const pts=[];
+  for(let i=0;i<atomId.rowCount;i++)
+    if(atomId.value(i)==='CA')pts.push([c.x[i],c.y[i],c.z[i]]);
+  return pts;
+}
 const MAX_STRUCTURES = 3;
 
 // ── Module state ──────────────────────────────────────────────
@@ -277,12 +336,9 @@ function wireEvents() {
     const plugin = strState.viewer?.plugin;
     if (!plugin) return;
     const btn = document.getElementById('str-superpose-btn');
-    if (btn?.disabled) return; // prevent double-click
+    if (btn?.disabled) return;
 
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = `${SPIN_DIV} Superposing…`;
-    }
+    if (btn) { btn.disabled = true; btn.innerHTML = `${SPIN_DIV} Superposing…`; }
 
     try {
       const structures = plugin.managers.structure.hierarchy.current.structures;
@@ -292,37 +348,71 @@ function wireEvents() {
       const s2 = structures[1].cell.obj?.data;
       if (!s1 || !s2) throw new Error('Structure data not ready — try again in a moment');
 
-      // Access Mol* utilities via the CDN lib namespace (molstar.lib.*)
-      const lib = window.molstar.lib;
-      const MS   = lib.molScript.language.builder.MolScriptBuilder;
-      const { compile }                 = lib.molScript.runtime.query.compiler;
-      const { StructureSelection, QueryContext } = lib.molModel.structure;
-      const { tmAlign }                 = lib.molModel.structure.structure.util;
-      const { StateTransforms }         = lib.molPluginState.transforms;
+      // Extract Cα positions and compute Kabsch superposition matrix
+      const pA = _extractCA(s1), pB = _extractCA(s2);
+      if (pA.length < 3 || pB.length < 3) throw new Error('Not enough Cα atoms found');
+      const matrix = _kabsch(pA, pB);
+      if (!matrix) throw new Error('Kabsch alignment failed');
 
-      // C-alpha atom query (backbone anchors for alignment)
-      const caQuery = compile(MS.struct.generator.atomGroups({
-        'atom-test': MS.core.rel.eq([
-          MS.struct.atomProperty.macromolecular.label_atom_id(), 'CA'
-        ])
-      }));
+      // Apply via Mol* state snapshot: inject TransformStructureConformation by string ID
+      // (avoids needing internal CK.Model.TransformStructureConformation reference)
+      const TRANSFORMER_ID = 'ms-plugin.transform-structure-conformation';
+      const uid = () => Math.random().toString(36).substr(2, 10);
+      const newParams = { transform: { name: 'matrix', params: { data: matrix, transpose: false } } };
 
-      const sel1 = StructureSelection.toLociWithCurrentUnits(caQuery(new QueryContext(s1)));
-      const sel2 = StructureSelection.toLociWithCurrentUnits(caQuery(new QueryContext(s2)));
+      const structCell = structures[1].cell;
+      const snap = plugin.state.data.getSnapshot();
+      const transforms = snap.tree.transforms;
 
-      // Compute optimal rigid-body transform (TM-align)
-      const result = tmAlign(sel1, sel2);
-      if (!result?.bTransform) throw new Error('TM-align returned no transform');
+      // Helper: bump versions of all descendants so they re-render with new geometry
+      const bumpDescendants = (parentRef) => {
+        const queue = [parentRef];
+        while (queue.length) {
+          const ref = queue.shift();
+          for (const t of transforms) {
+            if (t.parent === ref) { t.version = uid(); queue.push(t.ref); }
+          }
+        }
+      };
 
-      // Apply transform to structure 2 in the Mol* state tree
-      const update = plugin.state.data.build()
-        .to(structures[1].cell)
-        .insert(StateTransforms.Model.TransformStructureConformation, {
-          transform: { name: 'matrix', params: { data: result.bTransform, transpose: false } }
-        });
-      await plugin.runTask(plugin.state.data.updateTree(update));
+      // Case A: structure cell is already a TransformStructureConformation (re-superpose)
+      if (structCell.transform.transformer?.id === TRANSFORMER_ID) {
+        const entry = transforms.find(t => t.ref === structCell.transform.ref);
+        if (entry) {
+          entry.params = newParams;
+          entry.version = uid();
+          bumpDescendants(entry.ref);
+        }
+      } else {
+        // Case B: look for existing SuperpositionTransform child
+        const structRef = structCell.transform.ref;
+        const existing = transforms.find(t =>
+          t.parent === structRef && t.transformer === TRANSFORMER_ID
+        );
+        if (existing) {
+          existing.params = newParams;
+          existing.version = uid();
+          bumpDescendants(existing.ref);
+        } else {
+          // Case C: insert new node between structure cell and its children
+          const newRef = 'sp_' + uid();
+          for (const t of transforms) {
+            if (t.parent === structRef) { t.parent = newRef; t.version = uid(); }
+          }
+          transforms.push({
+            parent: structRef, transformer: TRANSFORMER_ID,
+            params: newParams, state: {}, ref: newRef,
+            version: uid(), tags: ['SuperpositionTransform'],
+          });
+        }
+      }
 
-      // Brief success state
+      await plugin.runTask(plugin.state.data.setSnapshot(snap));
+
+      // Reset camera after one frame
+      await new Promise(r => requestAnimationFrame(r));
+      plugin.canvas3d?.requestCameraReset?.();
+
       if (btn) btn.innerHTML = '✓ Superposed';
       setTimeout(() => {
         if (btn) { btn.disabled = false; btn.innerHTML = `${SUPERPOSE_ICON} Superpose`; }
@@ -331,7 +421,6 @@ function wireEvents() {
     } catch (e) {
       console.error('[Superpose]', e);
       if (btn) { btn.disabled = false; btn.innerHTML = `${SUPERPOSE_ICON} Superpose`; }
-      // Show brief fallback tip
       const outer = document.getElementById('str-viewer-outer');
       if (outer) {
         const tip = document.createElement('div');
@@ -339,7 +428,7 @@ function wireEvents() {
           'background:rgba(0,0,0,0.88);color:white;padding:10px 18px;border-radius:10px;' +
           'font-size:12px;z-index:100;white-space:nowrap;pointer-events:none;text-align:center;' +
           'font-family:\'DM Sans\',sans-serif;';
-        tip.textContent = 'Click a residue to select it, then right-click → Superpose';
+        tip.textContent = 'Alignment failed — try right-click → Superpose manually';
         outer.appendChild(tip);
         setTimeout(() => tip.remove(), 4500);
       }
