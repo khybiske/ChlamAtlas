@@ -1159,7 +1159,6 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
   activateTab('home');
 });
 
-window.addEventListener('chlamatlas:navigate', (e) => activateTab(e.detail.tab));
 document.addEventListener('chlamatlas:navigate', (e) => {
   const { tab } = e.detail ?? {};
   if (tab) activateTab(tab);
