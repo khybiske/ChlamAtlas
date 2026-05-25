@@ -1,6 +1,7 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
+  { version: 'v0.9.3', date: 'May 25, 2026', type: 'feat', description: 'Structure alignment tool: interactive 3D superposition of homologous proteins using AlphaFold models, multi-structure support, structural conservation highlighting, and superposition metrics.' },
   { version: 'v0.9.2', date: 'May 24, 2026', type: 'feat', description: 'Sequence alignment tool: DNA and AA multiple sequence alignment via Clustal Omega (EBI), with ortholog auto-fill, conservation bars, diff-only view, and FASTA/Clustal/Phylip export.' },
   { version: 'v0.9.1', date: 'May 24, 2026', type: 'fix',  description: 'Search → gene nav, search → mutant nav, and mutant "View in Genomes" navigation fixed.' },
   { version: 'v0.9.0', date: 'May 22, 2026', type: 'feat', description: 'Hero meridian arcs, authoritative strain blurbs, mutant panel polish, Tools nav item, Supabase keepalive ping.' },
@@ -15,7 +16,6 @@ const CHANGELOG = [
 ];
 
 const PLANNED_FEATURES = [
-  { id: 'structure-align',  label: 'Structure alignment tool',                   description: '3D structural superposition of homologous proteins using AlphaFold models.' },
   { id: 'af3-models',       label: 'AlphaFold 3 models for all proteins',        description: 'Upgrade the structure library from AF2 to AF3 predictions across the full proteome.' },
   { id: 'chemical-mutants', label: 'Chemical mutant collection',                 description: 'Add the chemical mutagenesis collection to the mutant browser with full phenotype data.' },
   { id: 'phenotype-images', label: 'Phenotype images on mutant detail pages',    description: 'Microscopy and assay images attached to in vitro and in vivo phenotype records.' },
