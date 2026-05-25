@@ -471,8 +471,10 @@ function renderSearchResults(genes, mutants) {
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   const COLL_ICONS = {
-    CT_L2: '/design/L2icon.jpg', CM: '/design/CMicon.jpg',
-    Lucky17: '/design/L17icon.jpg', Chimeras: '/design/Chimeraicon.jpg',
+    CT_L2: '/design/icons_transparent/L2icon_transparent.png',
+    CM: '/design/icons_transparent/CMicon_transparent.png',
+    Lucky17: '/design/icons_transparent/L17icon_transparent.png',
+    Chimeras: '/design/icons_transparent/Chimeraicon_transparent.png',
   };
 
   const genesHtml = genes.length ? `
@@ -496,7 +498,7 @@ function renderSearchResults(genes, mutants) {
     ${mutants.map(m => {
       const iconSrc = COLL_ICONS[m.collection];
       const icon = iconSrc
-        ? `<img src="${iconSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        ? `<img src="${iconSrc}" style="width:30px;height:30px;object-fit:contain;flex-shrink:0;">`
         : `<span class="nav-search-row-icon">🔬</span>`;
       return `
       <div class="nav-search-row" data-type="mutant" data-id="${m.id}" style="cursor:pointer;">
@@ -559,8 +561,10 @@ async function showSavedPopover(anchor) {
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   const SAVED_COLL_ICONS = {
-    CT_L2: '/design/L2icon.jpg', CM: '/design/CMicon.jpg',
-    Lucky17: '/design/L17icon.jpg', Chimeras: '/design/Chimeraicon.jpg',
+    CT_L2: '/design/icons_transparent/L2icon_transparent.png',
+    CM: '/design/icons_transparent/CMicon_transparent.png',
+    Lucky17: '/design/icons_transparent/L17icon_transparent.png',
+    Chimeras: '/design/icons_transparent/Chimeraicon_transparent.png',
   };
 
   const genesHtml = genes.length
@@ -581,7 +585,7 @@ async function showSavedPopover(anchor) {
     ? mutants.map(m => {
         const iconSrc = SAVED_COLL_ICONS[m.collection];
         const icon = iconSrc
-          ? `<img src="${esc(iconSrc)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+          ? `<img src="${esc(iconSrc)}" style="width:26px;height:26px;object-fit:contain;flex-shrink:0;">`
           : `<span class="nav-popover-row-icon">🔬</span>`;
         return `
         <button class="nav-popover-row" data-type="mutant" data-id="${m.id}">
@@ -1085,10 +1089,10 @@ document.getElementById('auth-modal').addEventListener('click', (e) => {
 
 // ─── Mutants collection picker ───────────────────────────
 const MUTANT_COLLECTIONS = [
-  { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
-  { id: 'CM',       label: 'C. muridarum',   icon: '/design/CMicon.jpg' },
-  { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/L17icon.jpg' },
-  { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
+  { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CM',       label: 'C. muridarum',   icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/icons_transparent/L17icon_transparent.png' },
+  { id: 'Chimeras', label: 'Chimeras',        icon: '/design/icons_transparent/Chimeraicon_transparent.png' },
 ];
 
 function showMutantCollectionPicker(anchor) {
@@ -1096,7 +1100,7 @@ function showMutantCollectionPicker(anchor) {
     <div class="nav-popover-label">Collections</div>
     ${MUTANT_COLLECTIONS.map(c => `
       <button class="nav-popover-row" data-collection="${c.id}">
-        <img style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;" src="${c.icon}" alt="">
+        <img style="width:24px;height:24px;object-fit:contain;flex-shrink:0;" src="${c.icon}" alt="">
         <span class="nav-popover-row-name">${c.label}</span>
       </button>`).join('')}
   `;
@@ -1114,9 +1118,9 @@ function showMutantCollectionPicker(anchor) {
 
 // ─── Genomes strain picker ────────────────────────────────
 const STRAINS = [
-  { id: 'CT-L2', label: 'C. trachomatis L2', emoji: '🦠' },
-  { id: 'CT-D',  label: 'C. trachomatis D',  emoji: '🔬' },
-  { id: 'CM',    label: 'C. muridarum',       emoji: '🐭' },
+  { id: 'CT-L2', label: 'C. trachomatis L2', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CT-D',  label: 'C. trachomatis D',  icon: '/design/icons_transparent/CTDicon_transparent.png' },
+  { id: 'CM',    label: 'C. muridarum',       icon: '/design/icons_transparent/CMicon_transparent.png' },
 ];
 
 function showGenomesStrainPicker(anchor) {
@@ -1124,7 +1128,7 @@ function showGenomesStrainPicker(anchor) {
     <div class="nav-popover-label">Select strain</div>
     ${STRAINS.map(s => `
       <button class="nav-popover-row" data-strain="${s.id}">
-        <span class="nav-popover-row-icon">${s.emoji}</span>
+        <img src="${s.icon}" alt="" style="width:24px;height:24px;object-fit:contain;flex-shrink:0;">
         <span class="nav-popover-row-name">${s.label}</span>
       </button>`).join('')}
   `;

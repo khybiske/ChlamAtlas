@@ -209,8 +209,8 @@
   background: #fff; flex-shrink: 0;
 }
 .mut-strip-icon {
-  width: 2rem; height: 2rem; border-radius: 9999px;
-  object-fit: cover; flex-shrink: 0;
+  width: 2rem; height: 2rem;
+  object-fit: contain; flex-shrink: 0;
 }
 .mut-strip-name { font-weight: 600; font-size: 0.9375rem; color: #111; flex: 1; }
 .mut-strip-count { font-size: 0.75rem; color: #9ca3af; }
@@ -253,7 +253,7 @@
   justify-content: center; height: 100%; gap: 1rem;
   color: #9ca3af; font-size: 0.9375rem;
 }
-.mut-placeholder-icon { width: 4rem; height: 4rem; border-radius: 9999px; object-fit: cover; opacity: 0.5; }
+.mut-placeholder-icon { width: 4rem; height: 4rem; object-fit: contain; opacity: 0.5; }
 
 /* Lab-access pill — indigo outline, appears on lab-only section headers and unpublished list rows */
 .mut-lab-pill {

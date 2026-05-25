@@ -8,6 +8,7 @@ const ORGANISMS = [
     label:   'CT-L2',
     desc:    'Primary experimental strain',
     color:   '#16a34a',
+    icon:    '/design/icons_transparent/L2icon_transparent.png',
   },
   {
     id:      'CT-D',
@@ -15,6 +16,7 @@ const ORGANISMS = [
     label:   'CT-D',
     desc:    'Discovered at UW',
     color:   '#4b2e83',
+    icon:    '/design/icons_transparent/CTDicon_transparent.png',
   },
   {
     id:      'CM',
@@ -22,14 +24,15 @@ const ORGANISMS = [
     label:   'CM',
     desc:    'Mouse model strain',
     color:   '#2563eb',
+    icon:    '/design/icons_transparent/CMicon_transparent.png',
   },
 ];
 
 const COLLECTIONS = [
-  { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   avatarBg: '#dcfce7', icon: '/design/L2icon.jpg' },
-  { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      avatarBg: '#dbeafe', icon: '/design/CMicon.jpg' },
-  { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', avatarBg: '#fef9c3', icon: '/design/L17icon.jpg' },
-  { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', icon: '/design/Chimeraicon.jpg' },
+  { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   avatarBg: '#dcfce7', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      avatarBg: '#dbeafe', icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', avatarBg: '#fef9c3', icon: '/design/icons_transparent/L17icon_transparent.png' },
+  { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', avatarBg: '#fdf4ff', icon: '/design/icons_transparent/Chimeraicon_transparent.png' },
 ];
 
 const COUNTRY_CENTROIDS = {
@@ -153,13 +156,17 @@ function renderGenomesColumn(container) {
     <div style="display:flex;flex-direction:column;gap:7px;">
       ${ORGANISMS.map(org => `
         <button data-strain="${org.id}"
-          style="display:flex;flex-direction:column;align-items:flex-start;width:100%;
+          style="display:flex;align-items:center;gap:12px;width:100%;
                  background:white;border:1px solid #e5e7eb;border-left:3px solid ${org.color};
-                 border-radius:7px;padding:12px 14px;cursor:pointer;text-align:left;transition:background 0.15s;"
+                 border-radius:7px;padding:11px 13px;cursor:pointer;text-align:left;transition:background 0.15s;"
           onmouseenter="this.style.background='#fafafa'" onmouseleave="this.style.background='white'">
-          <div style="font-size:13px;font-weight:700;color:${org.color};margin-bottom:3px;">${org.label}</div>
-          <div style="font-size:12px;font-style:italic;color:#444;">${org.species}</div>
-          <div id="gene-count-${org.id}" style="font-size:11px;color:#bbb;font-family:var(--font-mono,'DM Mono',monospace);margin-top:5px;">— genes</div>
+          <img src="${org.icon}" alt="${org.label}"
+            style="width:36px;height:36px;object-fit:contain;flex-shrink:0;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:${org.color};margin-bottom:2px;">${org.label}</div>
+            <div style="font-size:12px;font-style:italic;color:#444;">${org.species}</div>
+            <div id="gene-count-${org.id}" style="font-size:11px;color:#bbb;font-family:var(--font-mono,'DM Mono',monospace);margin-top:3px;">— genes</div>
+          </div>
         </button>`).join('')}
     </div>`;
 
@@ -206,12 +213,9 @@ function renderMutantsColumn(container) {
                  background:white;border:1px solid #e5e7eb;border-radius:7px;
                  padding:11px 13px;cursor:pointer;text-align:left;transition:background 0.15s;"
           onmouseenter="this.style.background='#fafafa'" onmouseleave="this.style.background='white'">
-          <div style="width:36px;height:36px;border-radius:50%;background:${c.avatarBg};
-                      flex-shrink:0;overflow:hidden;">
-            <img src="${c.icon}" alt="${c.label}"
-              style="width:100%;height:100%;object-fit:cover;border-radius:50%;"
-              onerror="this.style.display='none'">
-          </div>
+          <img src="${c.icon}" alt="${c.label}"
+            style="width:38px;height:38px;object-fit:contain;flex-shrink:0;"
+            onerror="this.style.display='none'">
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:600;color:#111;">${c.label}</div>
             <div style="font-size:11px;color:#9ca3af;margin-top:2px;">

@@ -2,9 +2,9 @@
 import { sb, state, toggleFavoriteDB } from '../client.js?v=82';
 
 const STRAINS = [
-  { id: 'CT-L2', label: 'CT L2/434' },
-  { id: 'CT-D',  label: 'CT D/UW-3' },
-  { id: 'CM',    label: 'CM'         },
+  { id: 'CT-L2', label: 'CT L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CT-D',  label: 'CT D/UW-3', icon: '/design/icons_transparent/CTDicon_transparent.png' },
+  { id: 'CM',    label: 'CM',         icon: '/design/icons_transparent/CMicon_transparent.png' },
 ];
 
 const ORGANISM_FULL = {
@@ -197,7 +197,8 @@ function showGeneList(container) {
         <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:10px 14px 0;flex-shrink:0;">
           ${STRAINS.map(s => `
             <button data-strain="${s.id}" aria-label="View ${s.label} genes"
-              style="font-size:11.5px;font-weight:600;padding:5px 11px 8px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
+              style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:5px 11px 8px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
+              <img src="${s.icon}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;opacity:${s.id === _strain ? '1' : '0.5'};">
               ${s.label}
             </button>`).join('')}
         </div>
@@ -1033,10 +1034,10 @@ function renderDetailMutants(detail, gene, mutants) {
   }
 
   const COLL_ICONS = {
-    CT_L2:    '/design/L2icon.jpg',
-    CM:       '/design/CMicon.jpg',
-    Lucky17:  '/design/L17icon.jpg',
-    Chimeras: '/design/Chimeraicon.jpg',
+    CT_L2:    '/design/icons_transparent/L2icon_transparent.png',
+    CM:       '/design/icons_transparent/CMicon_transparent.png',
+    Lucky17:  '/design/icons_transparent/L17icon_transparent.png',
+    Chimeras: '/design/icons_transparent/Chimeraicon_transparent.png',
   };
 
   const TYPE_ACCENT_LOCAL = {
@@ -1052,7 +1053,7 @@ function renderDetailMutants(detail, gene, mutants) {
     const accent = TYPE_ACCENT_LOCAL[m.mutation_type] ?? { color: '#6b7280', bg: 'rgba(243,244,246,0.5)', border: 'rgba(107,114,128,0.25)' };
     const typeLabel = (m.mutation_type ?? '').charAt(0).toUpperCase() + (m.mutation_type ?? '').slice(1);
     const collIcon = COLL_ICONS[m.collection]
-      ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.12);">`
+      ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:24px;height:24px;object-fit:contain;flex-shrink:0;">`
       : `<div style="width:22px;height:22px;border-radius:50%;background:#e5e7eb;flex-shrink:0;"></div>`;
     const pubBadge = m.is_published
       ? `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(5,150,105,0.09);color:#059669;border:1px solid rgba(5,150,105,0.22);">Published</span>`

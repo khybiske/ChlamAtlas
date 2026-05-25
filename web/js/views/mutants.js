@@ -2,10 +2,10 @@
 import { sb, state, toggleFavoriteDB } from '../client.js?v=82';
 
 const COLLECTIONS = [
-  { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/L2icon.jpg' },
-  { id: 'CM',       label: 'C. muridarum',   icon: '/design/CMicon.jpg' },
-  { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/L17icon.jpg' },
-  { id: 'Chimeras', label: 'Chimeras',        icon: '/design/Chimeraicon.jpg' },
+  { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CM',       label: 'C. muridarum',   icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'Lucky17',  label: 'Lucky 17',        icon: '/design/icons_transparent/L17icon_transparent.png' },
+  { id: 'Chimeras', label: 'Chimeras',        icon: '/design/icons_transparent/Chimeraicon_transparent.png' },
 ];
 
 const TYPE_LABELS = { transposon: 'Transposon', chimera: 'Chimera', deletion: 'Deletion', chemical: 'Chemical', intron: 'Intron', recombination: 'Recombination' };
@@ -247,7 +247,7 @@ function showCollectionDropdown(anchor) {
     <div class="nav-popover-label">Collections</div>
     ${COLLECTIONS.map(c => `
       <button class="nav-popover-row" data-collection="${c.id}">
-        <img style="width:22px;height:22px;border-radius:50%;object-fit:cover;" src="${c.icon}" alt="">
+        <img style="width:24px;height:24px;object-fit:contain;" src="${c.icon}" alt="">
         <span class="nav-popover-row-name">${c.label}</span>
       </button>`).join('')}
   `, 'mut-coll-popover');
@@ -765,7 +765,7 @@ function heroHTML(m, genes = []) {
   const btnBase   = 'background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;padding-top:2px;';
 
   const collIcon = col?.icon
-    ? `<img src="${col.icon}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.08);">`
+    ? `<img src="${col.icon}" alt="" style="width:48px;height:48px;object-fit:contain;flex-shrink:0;">`
     : '';
 
   return `
