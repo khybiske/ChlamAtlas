@@ -394,12 +394,16 @@ function wireEvents() {
           existing.version = uid();
           bumpDescendants(existing.ref);
         } else {
-          // Case C: insert new node between structure cell and its children
+          // Case C: insert new node between structure cell and its children.
+          // IMPORTANT: parent must appear before its children in the array
+          // (dy.fromJSON processes them sequentially and assumes parent-first order).
           const newRef = 'sp_' + uid();
           for (const t of transforms) {
             if (t.parent === structRef) { t.parent = newRef; t.version = uid(); }
           }
-          transforms.push({
+          // Splice right after the structure cell entry (not push to end)
+          const structIdx = transforms.findIndex(t => t.ref === structRef);
+          transforms.splice(structIdx >= 0 ? structIdx + 1 : transforms.length, 0, {
             parent: structRef, transformer: TRANSFORMER_ID,
             params: newParams, state: {}, ref: newRef,
             version: uid(), tags: ['SuperpositionTransform'],
