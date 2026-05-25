@@ -42,6 +42,11 @@ function esc(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function hexToMolColor(hex) {
+  // Mol* Color is just a branded integer (RGB packed as 0xRRGGBB)
+  return parseInt((hex || '#64748b').replace('#',''), 16);
+}
+
 // ── Entry point ───────────────────────────────────────────────
 export function renderStructureAlignment(container) {
   _container = container;
@@ -168,7 +173,7 @@ function renderLoadedPhase() {
                 border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;
                 font-size:12px;color:#92400e;margin-bottom:12px;">
       <span style="flex-shrink:0;">💡</span>
-      <span>Right-click any chain or structure in the viewer and choose <strong>Superpose</strong> to align structures.</span>
+      <span>Use the <strong>Superpose</strong> button above, or click a residue in the viewer to select it, then right-click and choose <strong>Superpose</strong>.</span>
       <button onclick="window._strAlnDismissHint()"
         style="flex-shrink:0;margin-left:auto;background:none;border:none;cursor:pointer;
                color:#b45309;font-size:14px;line-height:1;padding:0 0 0 8px;">×</button>
@@ -188,8 +193,15 @@ function renderLoadedPhase() {
                    padding:5px 12px;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;">
             ＋ Add structure
           </button>` : ''}
+        <button id="str-superpose-btn" onclick="window._strAlnSuperpose()"
+          style="margin-left:auto;font-size:12px;font-weight:700;color:white;
+                 background:#0f4530;border:none;border-radius:7px;padding:6px 14px;cursor:pointer;
+                 font-family:'DM Sans',sans-serif;flex-shrink:0;display:flex;align-items:center;gap:5px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          Superpose
+        </button>
         <button onclick="window._strAlnReset()"
-          style="margin-left:auto;font-size:11px;font-weight:600;color:#64748b;background:white;
+          style="font-size:11px;font-weight:600;color:#64748b;background:white;
                  border:1.5px solid #e2e8f0;border-radius:7px;padding:5px 12px;cursor:pointer;
                  font-family:'DM Sans',sans-serif;flex-shrink:0;">
           ↺ Start over
@@ -243,6 +255,9 @@ function wireEvents() {
   };
   window._strAlnToggleBg = () => {
     strState.bgDark = !strState.bgDark;
+    const bgColor = strState.bgDark ? 0x0a1628 : 0xffffff;
+    // Mol* renders opaquely; must set via canvas3d API
+    strState.viewer?.plugin?.canvas3d?.setProps({ renderer: { backgroundColor: bgColor } });
     const outer = document.getElementById('str-viewer-outer');
     if (outer) outer.style.background = strState.bgDark ? '#0a1628' : '#ffffff';
     const btn = outer?.querySelector('button[title]');
@@ -253,6 +268,37 @@ function wireEvents() {
   };
   window._strAlnRetryLoad = () => {
     initViewer();
+  };
+  window._strAlnSuperpose = async () => {
+    const plugin = strState.viewer?.plugin;
+    if (!plugin) return;
+    const btn = document.getElementById('str-superpose-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Superposing…'; }
+    let succeeded = false;
+    try {
+      const structures = plugin.managers.structure.hierarchy.current.structures;
+      if (structures.length < 2) throw new Error('Load at least 2 structures first');
+      // Mol* v3: apply the superposition preset through the hierarchy manager
+      await plugin.managers.structure.hierarchy.applyPreset(structures, 'superposition');
+      succeeded = true;
+    } catch (e) {
+      console.warn('[Superpose] programmatic superpose failed:', e.message);
+    }
+    if (!succeeded) {
+      // Fallback: show a brief overlay guiding right-click workflow
+      const outer = document.getElementById('str-viewer-outer');
+      if (outer) {
+        const tip = document.createElement('div');
+        tip.style.cssText = 'position:absolute;bottom:52px;left:50%;transform:translateX(-50%);' +
+          'background:rgba(0,0,0,0.88);color:white;padding:10px 18px;border-radius:10px;' +
+          'font-size:12px;z-index:100;white-space:nowrap;pointer-events:none;text-align:center;' +
+          'font-family:\'DM Sans\',sans-serif;';
+        tip.textContent = 'Click any residue to select it, then right-click → Superpose';
+        outer.appendChild(tip);
+        setTimeout(() => tip.remove(), 4500);
+      }
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Superpose'; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Superpose'; }
   };
 
   // Typeahead (building phase only)
@@ -728,12 +774,29 @@ async function initViewer() {
       viewportShowAnimation:     false,
     });
 
+    // Set canvas background before loading structures
+    v.plugin.canvas3d?.setProps({ renderer: { backgroundColor: strState.bgDark ? 0x0a1628 : 0xffffff } });
+
     for (let i = 0; i < urls.length; i++) {
       setViewerStatus(`Loading structure ${i + 1} of ${urls.length}…`);
       await v.loadStructureFromUrl(urls[i], 'mmcif');
     }
 
     strState.viewer = v;
+
+    // Apply per-strain colors so structures are visually distinguishable
+    try {
+      const loaded = v.plugin.managers.structure.hierarchy.current.structures;
+      for (let i = 0; i < Math.min(loaded.length, confirmedEntries.length); i++) {
+        const color = hexToMolColor(strainColor(confirmedEntries[i].gene.strain_id));
+        await v.plugin.managers.structure.component.updateRepresentationsTheme(
+          loaded[i].components,
+          { color: { name: 'uniform', params: { value: color } } }
+        );
+      }
+    } catch (e) {
+      console.warn('[StructureAlignment] per-strain coloring failed:', e.message);
+    }
 
     const suppress = document.createElement('style');
     suppress.textContent = `

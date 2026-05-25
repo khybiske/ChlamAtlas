@@ -6,7 +6,7 @@ import { renderMutants } from './views/mutants.js?v=88';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=90';
 import { renderAlignment } from './views/alignment.js?v=96';
-import { renderStructureAlignment } from './views/structure-alignment.js?v=2';
+import { renderStructureAlignment } from './views/structure-alignment.js?v=3';
 
 export { sb, state };
 
@@ -25,14 +25,16 @@ function wireNavStubs() {
 }
 
 function showToolsPopover(anchor) {
+  const seqIcon = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="display:block;flex-shrink:0;opacity:0.7"><line x1="1" y1="4" x2="11" y2="4"/><line x1="4" y1="7.5" x2="14" y2="7.5"/><line x1="2" y1="11" x2="12" y2="11"/></svg>`;
+  const structIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;opacity:0.7"><path d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>`;
   const pop = openNavPopover(anchor, `
     <div class="nav-popover-label">Tools</div>
     <button class="nav-popover-row" id="tools-pop-seq">
-      <span class="nav-popover-row-icon">🧬</span>
+      <span class="nav-popover-row-icon">${seqIcon}</span>
       <span class="nav-popover-row-name">Sequence Alignment</span>
     </button>
     <button class="nav-popover-row" id="tools-pop-struct">
-      <span class="nav-popover-row-icon">🔬</span>
+      <span class="nav-popover-row-icon">${structIcon}</span>
       <span class="nav-popover-row-name">Structure Alignment</span>
     </button>
   `, 'tools-nav-popover');
