@@ -1,7 +1,7 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
-  { version: 'v0.9.3', date: 'May 25, 2026', type: 'feat', description: 'Structure alignment tool: interactive 3D superposition of homologous proteins using AlphaFold models, multi-structure support, structural conservation highlighting, and superposition metrics.' },
+  { version: 'v0.9.3', date: 'May 25, 2026', type: 'feat', description: 'Structure alignment tool: load 2–3 AlphaFold (AF2/AF3) or crystal structures into an interactive Mol* 3D viewer. Use right-click → Superpose to align chains.' },
   { version: 'v0.9.2', date: 'May 24, 2026', type: 'feat', description: 'Sequence alignment tool: DNA and AA multiple sequence alignment via Clustal Omega (EBI), with ortholog auto-fill, conservation bars, diff-only view, and FASTA/Clustal/Phylip export.' },
   { version: 'v0.9.1', date: 'May 24, 2026', type: 'fix',  description: 'Search → gene nav, search → mutant nav, and mutant "View in Genomes" navigation fixed.' },
   { version: 'v0.9.0', date: 'May 22, 2026', type: 'feat', description: 'Hero meridian arcs, authoritative strain blurbs, mutant panel polish, Tools nav item, Supabase keepalive ping.' },

@@ -161,7 +161,8 @@ function renderLoadedPhase() {
     `;
   }).join('');
 
-  const hint = strState.hintDismissed ? '' : `
+  const hintDismissed = strState.hintDismissed || (function(){ try { return sessionStorage.getItem('str-hint-dismissed') === '1'; } catch { return false; } }());
+  const hint = hintDismissed ? '' : `
     <div id="str-superpose-hint"
          style="display:flex;align-items:flex-start;gap:10px;background:#fffbeb;
                 border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;
@@ -221,16 +222,19 @@ function renderLoadedPhase() {
 // ── Wire events ───────────────────────────────────────────────
 function wireEvents() {
   window._strAlnReset = () => {
+    if (strState.viewer) { try { strState.viewer.dispose?.(); } catch {} }
     strState = { entries: [], loaded: false, bgDark: true, hintDismissed: false, viewer: null };
     render();
   };
   window._strAlnLoad = () => {
+    if (strState.entries.filter(e => e.status === 'confirmed').length < 2) return;
     strState.loaded = true;
     render();
     initViewer();
   };
   window._strAlnDismissHint = () => {
     strState.hintDismissed = true;
+    try { sessionStorage.setItem('str-hint-dismissed', '1'); } catch {}
     document.getElementById('str-superpose-hint')?.remove();
   };
   window._strAlnAddMore = () => {
@@ -659,7 +663,14 @@ async function resolveUrl(entry) {
   if (entry.modelType === 'crystal' && entry.urlData?.pdbId) {
     return `https://files.rcsb.org/download/${encodeURIComponent(entry.urlData.pdbId)}.cif`;
   }
-  if (entry.modelType === 'af2' && entry.urlData?.uniprotId) {
+  if (entry.modelType === 'af2') {
+    // urlData may be null if the entry was added via search before availability resolved;
+    // fetch the uniprot_id on-demand in that case
+    if (!entry.urlData?.uniprotId) {
+      const avail = await fetchGeneAvailability(entry.gene.id);
+      if (!avail.af2?.uniprotId) throw new Error(`No AlphaFold 2 model available for ${entry.gene.locus_tag}`);
+      entry.urlData = avail.af2;
+    }
     const res = await fetch(
       `https://alphafold.ebi.ac.uk/api/prediction/${encodeURIComponent(entry.urlData.uniprotId)}`
     );
@@ -676,6 +687,8 @@ async function resolveUrl(entry) {
 async function initViewer() {
   const container = document.getElementById('str-viewer-wrap');
   if (!container) return;
+
+  if (strState.viewer) { try { strState.viewer.dispose?.(); } catch {} strState.viewer = null; }
 
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:32px 20px;">
