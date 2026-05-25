@@ -388,6 +388,12 @@ async function fetchAndRenderSuggestions(primaryGene) {
   // 1. Fetch availability for primary gene
   const primaryAvail = await fetchGeneAvailability(primaryGene.id);
 
+  // Update the primary entry's urlData so resolveUrl can work at load time
+  const primaryEntry = strState.entries.find(e => e.isPrimary && e.gene.id === primaryGene.id);
+  if (primaryEntry && primaryAvail.af2) {
+    primaryEntry.urlData = primaryAvail.af2;
+  }
+
   // 2. Fetch orthologs
   const { data: orthoRows } = await sb
     .from('orthologs')
