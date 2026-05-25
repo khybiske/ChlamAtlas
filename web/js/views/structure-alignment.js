@@ -47,6 +47,16 @@ function _kabsch(pA,pB){
   const{U,V}=_svd3(H);
   const d=Math.sign(_m3det(_m3mul(V,_m3T(U)))||1);
   const R=_m3mul(V,_m3mul([[1,0,0],[0,1,0],[0,0,d]],_m3T(U)));
+  // Gram-Schmidt orthonormalize R rows to guarantee det = 1 exactly
+  // (floating-point in SVD can push det slightly outside Mol*'s 0.005 tolerance)
+  const n0=Math.sqrt(R[0].reduce((s,v)=>s+v*v,0))||1;
+  R[0]=R[0].map(v=>v/n0);
+  const dp=R[0].reduce((s,v,i)=>s+v*R[1][i],0);
+  R[1]=R[1].map((v,i)=>v-dp*R[0][i]);
+  const n1=Math.sqrt(R[1].reduce((s,v)=>s+v*v,0))||1;
+  R[1]=R[1].map(v=>v/n1);
+  // Row 2 = Row 0 × Row 1 (cross product forces det = +1)
+  R[2]=[R[0][1]*R[1][2]-R[0][2]*R[1][1],R[0][2]*R[1][0]-R[0][0]*R[1][2],R[0][0]*R[1][1]-R[0][1]*R[1][0]];
   const RcB=[0,1,2].map(r=>R[r].reduce((s,v,j)=>s+v*cB[j],0));
   const t=cA.map((v,i)=>v-RcB[i]);
   // Column-major 4×4: p' = M * p  (OpenGL/glMatrix convention)
