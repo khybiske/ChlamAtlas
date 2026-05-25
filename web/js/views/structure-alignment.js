@@ -288,9 +288,196 @@ window._strAlnRemove = (id) => {
 
 // ── Suggestion panel ──────────────────────────────────────────
 async function fetchAndRenderSuggestions(primaryGene) {
-  // Placeholder — Task 4 implements this
   const panel = document.getElementById('str-suggestion-panel');
-  if (panel) panel.innerHTML = `<div style="font-size:12px;color:#94a3b8;padding:8px 0;">Loading suggestions…</div>`;
+  if (!panel) return;
+  panel.innerHTML = `<div style="font-size:12px;color:#94a3b8;padding:8px 0;">Loading suggestions…</div>`;
+
+  // 1. Fetch availability for primary gene
+  const primaryAvail = await fetchGeneAvailability(primaryGene.id);
+
+  // 2. Fetch orthologs
+  const { data: orthoRows } = await sb
+    .from('orthologs')
+    .select('gene_id_a,gene_id_b')
+    .or(`gene_id_a.eq.${primaryGene.id},gene_id_b.eq.${primaryGene.id}`);
+
+  const orthologGeneIds = (orthoRows || [])
+    .map(r => r.gene_id_a === primaryGene.id ? r.gene_id_b : r.gene_id_a)
+    .filter(id => id !== primaryGene.id);
+
+  // 3. Fetch ortholog gene info + availability
+  let orthologData = [];
+  if (orthologGeneIds.length) {
+    const { data: orthoGenes } = await sb
+      .from('genes')
+      .select('id,locus_tag,gene_name,strain_id')
+      .in('id', orthologGeneIds);
+
+    orthologData = await Promise.all(
+      (orthoGenes || []).map(async (og) => ({
+        gene: og,
+        avail: await fetchGeneAvailability(og.id),
+      }))
+    );
+  }
+
+  if (!panel.isConnected) return; // user navigated away
+  panel.innerHTML = renderSuggestionPanel(primaryGene, primaryAvail, orthologData);
+  wireSuggestionButtons(primaryGene, primaryAvail, orthologData);
+}
+
+async function fetchGeneAvailability(geneId) {
+  const { data } = await sb
+    .from('genes')
+    .select('id,proteins(uniprot_id,alphafold_results(af_version,mmcif_path,top_homolog_pdb_id))')
+    .eq('id', geneId)
+    .single();
+
+  const protein = data?.proteins;
+  const afRows  = protein?.alphafold_results ?? [];
+
+  const af3Row     = afRows.find(r => r.af_version === 'AF3');
+  const crystalRow = afRows.find(r => r.af_version === 'crystal');
+
+  return {
+    af2:     protein?.uniprot_id
+               ? { uniprotId: protein.uniprot_id }
+               : null,
+    af3:     af3Row?.mmcif_path
+               ? { mmcifPath: af3Row.mmcif_path }
+               : null,
+    crystal: crystalRow?.top_homolog_pdb_id
+               ? { pdbId: crystalRow.top_homolog_pdb_id }
+               : null,
+  };
+}
+
+function renderSuggestionPanel(primaryGene, primaryAvail, orthologData) {
+  const alreadyAdded = (geneId, modelType) =>
+    strState.entries.some(e => e.gene.id === geneId && e.modelType === modelType);
+
+  const atMax = strState.entries.length >= MAX_STRUCTURES;
+
+  function modelBtn(geneId, modelType, avail) {
+    const labels   = { af2: 'AF2', af3: 'AF3', crystal: 'Crystal' };
+    const colors   = {
+      af2:     { color: '#1d4ed8', border: '#bfdbfe' },
+      af3:     { color: '#7c3aed', border: '#e9d5ff' },
+      crystal: { color: '#c2410c', border: '#fed7aa' },
+    };
+    const c        = colors[modelType];
+    const added    = alreadyAdded(geneId, modelType);
+    const disabled = !avail || added || atMax;
+
+    let title = '';
+    if (!avail)    title = 'Not available for this protein';
+    else if (added) title = 'Already in list';
+    else if (atMax) title = `Maximum ${MAX_STRUCTURES} structures`;
+
+    return `
+      <button
+        data-gene-id="${esc(geneId)}" data-model="${esc(modelType)}"
+        ${disabled ? 'disabled' : ''}
+        title="${esc(title)}"
+        style="font-size:11px;font-weight:700;padding:4px 11px;border-radius:99px;border:1.5px solid;
+               cursor:${disabled ? 'not-allowed' : 'pointer'};background:white;
+               font-family:'DM Sans',sans-serif;
+               color:${disabled ? '#d1d5db' : c.color};
+               border-color:${disabled ? '#e5e7eb' : c.border};
+               opacity:${disabled ? '0.5' : '1'};">
+        ${added ? `${labels[modelType]} ✓` : `+ ${labels[modelType]}`}
+      </button>
+    `;
+  }
+
+  const sameGeneRow = `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#374151;">
+          ${esc(primaryGene.locus_tag)}${primaryGene.gene_name ? ` · ${esc(primaryGene.gene_name)}` : ''}
+        </div>
+        <div style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:5px;margin-top:1px;">
+          <span style="width:7px;height:7px;border-radius:50%;background:${strainColor(primaryGene.strain_id)};display:inline-block;"></span>
+          ${esc(strainName(primaryGene.strain_id))}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${modelBtn(primaryGene.id, 'af2', primaryAvail.af2)}
+        ${modelBtn(primaryGene.id, 'af3', primaryAvail.af3)}
+        ${modelBtn(primaryGene.id, 'crystal', primaryAvail.crystal)}
+      </div>
+    </div>
+  `;
+
+  const divider = orthologData.length ? `
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;
+                color:#cbd5e1;text-align:center;margin:8px 0 6px;display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+      or pick an ortholog
+      <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+    </div>
+  ` : '';
+
+  const orthologRows = orthologData.map(({ gene, avail }) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#374151;">
+          ${esc(gene.locus_tag)}${gene.gene_name ? ` · ${esc(gene.gene_name)}` : ''}
+        </div>
+        <div style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:5px;margin-top:1px;">
+          <span style="width:7px;height:7px;border-radius:50%;background:${strainColor(gene.strain_id)};display:inline-block;"></span>
+          ${esc(strainName(gene.strain_id))}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${modelBtn(gene.id, 'af2', avail.af2)}
+        ${modelBtn(gene.id, 'af3', avail.af3)}
+        ${modelBtn(gene.id, 'crystal', avail.crystal)}
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div style="max-width:680px;background:white;border:1.5px solid #e2e8f0;border-radius:12px;
+                padding:14px 16px;margin-top:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;
+                  color:#94a3b8;margin-bottom:10px;">Quick add</div>
+      ${sameGeneRow}
+      ${divider}
+      ${orthologRows}
+    </div>
+  `;
+}
+
+function wireSuggestionButtons(primaryGene, primaryAvail, orthologData) {
+  const panel = document.getElementById('str-suggestion-panel');
+  if (!panel) return;
+
+  const geneMap = new Map();
+  geneMap.set(primaryGene.id, { gene: primaryGene, avail: primaryAvail });
+  for (const { gene, avail } of orthologData) {
+    geneMap.set(gene.id, { gene, avail });
+  }
+
+  panel.querySelectorAll('button[data-gene-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const geneId    = btn.dataset.geneId;
+      const modelType = btn.dataset.model;
+      const entry     = geneMap.get(geneId);
+      if (!entry) return;
+
+      const urlData =
+        modelType === 'af2'     ? entry.avail.af2 :
+        modelType === 'af3'     ? entry.avail.af3 :
+        modelType === 'crystal' ? entry.avail.crystal : null;
+
+      addManualEntry(entry.gene, modelType, urlData);
+
+      // Re-render suggestion panel to reflect new state (e.g. mark button as ✓)
+      panel.innerHTML = renderSuggestionPanel(primaryGene, primaryAvail, orthologData);
+      wireSuggestionButtons(primaryGene, primaryAvail, orthologData);
+    });
+  });
 }
 
 // ── Entry card ────────────────────────────────────────────────
