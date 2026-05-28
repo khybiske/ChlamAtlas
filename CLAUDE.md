@@ -194,47 +194,6 @@ Four primary tabs (matching the AppSheet prototype, preserve this structure):
 
 ---
 
-## Key Features (by priority)
-
-### Phase 1 — Core (parity with AppSheet prototype)
-- [ ] Strain browser → gene list with structure thumbnails → gene detail page
-- [ ] Gene detail: orthologs, protein info, expression chart, structure viewer (Mol*), external DB links
-- [ ] Mutant browser by collection → mutant detail page
-- [ ] Mutant detail: target genes (linked), mutation info, genotyping, in vitro/in vivo phenotypes with images
-- [ ] Pipeline overview with lab assignments and per-mutant progress dots
-- [ ] Supabase auth with three-tier access control (public / lab member / admin)
-- [ ] `is_published` flag on mutants enforced via RLS
-
-### Phase 2 — Upgrades over prototype
-- [ ] Interactive Mol* 3D structure viewer (mmCIF from GitHub)
-- [ ] Interactive expression charts with cross-strain ortholog comparison
-- [ ] Cross-strain ortholog navigation from any gene page
-- [ ] Full-text search across genes, proteins, mutants
-- [ ] Admin dashboard: user management, bug triage, feature requests
-
-### Phase 3 — Community/publication features
-- [ ] Evidence-based annotation submission (with PubMed ID requirement)
-- [ ] Downloadable FASTA sequences per gene/protein
-- [ ] API endpoints for programmatic access
-- [ ] Additional strain support (Cpn, ocular CT, rectal CT)
-
----
-
-## Project Status
-
-### Session 1 — 2026-03-16 (completed)
-- Homebrew, GitHub CLI installed and authenticated
-- Local repo (`/Users/khybiske/Developer/web/ChlamAtlas`) connected to `github.com/khybiske/ChlamAtlas`
-- `.gitignore` added
-- Supabase project `ChlamAtlas` created (free tier, RLS enabled, data API enabled)
-- Vercel account created
-- **Next:** Export Google Sheets as CSVs, then build Supabase schema (Step 1)
-
-### Design philosophy note
-The AppSheet screenshots are a reference for *what data to show*, not a constraint on how to show it. The new stack opens up capabilities that AppSheet could not support: interactive 3D structure browsing, genome/chromosome browsers (e.g. JBrowse2), interactive pipeline views, and live connections to external databases. The pipeline UI in particular should be rethought from scratch using modern web tools — the AppSheet version was heavily constrained by the platform. Let the science and data drive design decisions.
-
----
-
 ## Data Migration Notes
 
 All current data lives in Google Sheets (maintained by Kevin and lab members). Migration to Supabase will be done via CSV export + import scripts. The Google Sheets are the authoritative data source until migration is complete and validated.
