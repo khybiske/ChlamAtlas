@@ -490,3 +490,149 @@
   .mut-list-panel  { width: 100%; }
   .mut-detail-panel { width: 100%; }
 }
+
+/* ─── Chimera: genome map ruler + exchange panel ─────────── */
+.chimera-map-wrap {
+  background: #fafafa;
+  border: 1px solid #efefef;
+  border-radius: 6px;
+  padding: 10px 12px 12px;
+  overflow: hidden;
+}
+
+.chimera-exchange-panel {
+  height: 420px;
+  overflow-y: auto;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.chimera-exchange-header {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: grid;
+  grid-template-columns: 1fr 28px 1fr;
+  gap: 0;
+  z-index: 2;
+  padding: 6px 10px;
+}
+
+.chimera-exchange-col-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #6b7280;
+}
+
+.chimera-exchange-row {
+  display: grid;
+  grid-template-columns: 1fr 28px 1fr;
+  border-bottom: 1px solid #f3f4f6;
+  min-height: 44px;
+  transition: background 0.1s;
+}
+
+.chimera-exchange-row:hover {
+  background: #f9fafb;
+}
+
+.chimera-exchange-row.no-ortholog {
+  background: #fffbeb;
+}
+
+.chimera-exchange-row.no-ortholog:hover {
+  background: #fef3c7;
+}
+
+.chimera-gene-cell {
+  padding: 6px 10px;
+  border-left: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+}
+
+.chimera-gene-cell.right {
+  border-left: 3px solid transparent;
+  border-right: none;
+}
+
+.chimera-gene-locus {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #374151;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(55,65,81,0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.chimera-gene-locus:hover {
+  color: #1a6b4a;
+  text-decoration-color: #1a6b4a;
+}
+
+.chimera-gene-name-inline {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.chimera-gene-name {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chimera-gene-product {
+  font-size: 0.625rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chimera-no-ortholog-pill {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  padding: 1px 5px;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.chimera-exchange-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
