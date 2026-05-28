@@ -1230,6 +1230,175 @@ async function chimeraGenomeMapHTML(m) {
   </div>`;
 }
 
+// ─── Chimera gene exchange panel ─────────────────────────────────
+async function chimeraGeneExchangeHTML(m) {
+  const startTag = m.recombination_start;
+  const endTag   = m.recombination_end;
+  if (!startTag || !endTag) return '';
+
+  const backboneStrain = m.strains?.common_name ?? 'CT-L2';
+  const otherStrain    = backboneStrain === 'CT-L2' ? 'CM' : 'CT-L2';
+  const isL2Backbone   = backboneStrain === 'CT-L2';
+
+  // Fetch both strain UUIDs
+  const { data: strainRows } = await sb
+    .from('strains')
+    .select('id,common_name')
+    .in('common_name', [backboneStrain, otherStrain]);
+
+  const strainById = Object.fromEntries((strainRows ?? []).map(s => [s.common_name, s.id]));
+  const backboneId = strainById[backboneStrain];
+  const otherId    = strainById[otherStrain];
+  if (!backboneId || !otherId) return '';
+
+  // Resolve sort_index range for start/end locus tags
+  const [startRes, endRes] = await Promise.all([
+    sb.from('genes').select('sort_index').eq('locus_tag', startTag).eq('strain_id', backboneId).single(),
+    sb.from('genes').select('sort_index').eq('locus_tag', endTag  ).eq('strain_id', backboneId).single(),
+  ]);
+
+  const si = startRes.data?.sort_index;
+  const ei = endRes.data?.sort_index;
+  if (si == null || ei == null) return '';
+
+  const isCircular = ei < si;
+
+  // Fetch backbone genes in range — two queries for circular case
+  const geneFields = 'id,locus_tag,gene_name,product,functional_category';
+  let backboneGenes = [];
+
+  if (isCircular) {
+    const { data: maxRow } = await sb
+      .from('genes')
+      .select('sort_index')
+      .eq('strain_id', backboneId)
+      .order('sort_index', { ascending: false })
+      .limit(1)
+      .single();
+    const maxIdx = maxRow?.sort_index ?? 870;
+
+    const [segA, segB] = await Promise.all([
+      sb.from('genes').select(geneFields).eq('strain_id', backboneId)
+        .gte('sort_index', si).lte('sort_index', maxIdx).order('sort_index'),
+      sb.from('genes').select(geneFields).eq('strain_id', backboneId)
+        .gte('sort_index', 0).lte('sort_index', ei).order('sort_index'),
+    ]);
+    backboneGenes = [...(segA.data ?? []), ...(segB.data ?? [])];
+  } else {
+    const { data } = await sb.from('genes').select(geneFields)
+      .eq('strain_id', backboneId)
+      .gte('sort_index', si).lte('sort_index', ei)
+      .order('sort_index');
+    backboneGenes = data ?? [];
+  }
+
+  if (!backboneGenes.length) return '';
+
+  const backboneGeneIds = backboneGenes.map(g => g.id);
+
+  // Batch-fetch orthologs in both directions (orthologs table has no enforced direction)
+  const [orthA, orthB] = await Promise.all([
+    sb.from('orthologs')
+      .select('gene_id_a,genes!gene_id_b(id,locus_tag,gene_name,product,functional_category)')
+      .in('gene_id_a', backboneGeneIds)
+      .eq('strain_id_b', otherId),
+    sb.from('orthologs')
+      .select('gene_id_b,genes!gene_id_a(id,locus_tag,gene_name,product,functional_category)')
+      .in('gene_id_b', backboneGeneIds)
+      .eq('strain_id_a', otherId),
+  ]);
+
+  // Build map: backbone gene UUID → ortholog gene data
+  const orthologMap = new Map();
+  for (const o of (orthA.data ?? [])) {
+    if (o.genes) orthologMap.set(o.gene_id_a, o.genes);
+  }
+  for (const o of (orthB.data ?? [])) {
+    if (o.genes) orthologMap.set(o.gene_id_b, o.genes);
+  }
+
+  const withOrtholog    = backboneGenes.filter(g => orthologMap.has(g.id)).length;
+  const withoutOrtholog = backboneGenes.length - withOrtholog;
+
+  const BACKBONE_COLOR = isL2Backbone ? '#16a34a' : '#2563eb';
+  const OTHER_COLOR    = isL2Backbone ? '#2563eb' : '#16a34a';
+  const BACKBONE_ICON  = isL2Backbone
+    ? '/design/icons_transparent/L2icon_transparent.png'
+    : '/design/icons_transparent/CMicon_transparent.png';
+  const OTHER_ICON     = isL2Backbone
+    ? '/design/icons_transparent/CMicon_transparent.png'
+    : '/design/icons_transparent/L2icon_transparent.png';
+
+  const iconStyle = 'width:18px;height:18px;object-fit:contain;vertical-align:middle;';
+
+  const catCell = (g, side) => {
+    const isRight = side === 'right';
+    if (!g) {
+      return isRight
+        ? `<div class="chimera-gene-cell right" style="border-right-color:#f3f4f6;justify-content:center;">
+             <span class="chimera-no-ortholog-pill">no ortholog</span>
+           </div>`
+        : `<div class="chimera-gene-cell" style="border-left-color:#f3f4f6;"></div>`;
+    }
+    const catColor   = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const borderProp = isRight ? 'border-right-color' : 'border-left-color';
+    const nameEl     = g.gene_name
+      ? `<div class="chimera-gene-name">${esc(g.gene_name)}</div>` : '';
+    const productEl  = g.product
+      ? `<div class="chimera-gene-product">${esc(g.product.substring(0, 45))}${g.product.length > 45 ? '…' : ''}</div>` : '';
+    return `
+      <div class="chimera-gene-cell${isRight ? ' right' : ''}" style="${borderProp}:${catColor};">
+        <span class="chimera-gene-locus" data-gene-nav="${g.id}">${esc(g.locus_tag ?? '?')}</span>
+        ${nameEl}
+        ${productEl}
+      </div>`;
+  };
+
+  const rows = backboneGenes.map(bg => {
+    const og     = orthologMap.get(bg.id) ?? null;
+    const noOrth = !og;
+    return `
+      <div class="chimera-exchange-row${noOrth ? ' no-ortholog' : ''}">
+        ${catCell(bg, 'left')}
+        <div class="chimera-exchange-divider">↔</div>
+        ${catCell(og, 'right')}
+      </div>`;
+  }).join('');
+
+  const noOrthLabel = withoutOrtholog
+    ? ` · <span style="color:#92400e;">${withoutOrtholog} without ortholog</span>`
+    : '';
+  const summary = `<span style="font-size:0.75rem;color:#6b7280;font-weight:400;">
+    ${backboneGenes.length} genes · ${withOrtholog} with ${otherStrain} ortholog${withOrtholog !== 1 ? 's' : ''}${noOrthLabel}
+  </span>`;
+
+  const header = `
+    <div class="chimera-exchange-header">
+      <div class="chimera-exchange-col-head">
+        <img src="${BACKBONE_ICON}" alt="" style="${iconStyle}">
+        <span style="color:${BACKBONE_COLOR};">${backboneStrain}</span>
+        <span style="color:#9ca3af;font-weight:400;">backbone</span>
+      </div>
+      <div></div>
+      <div class="chimera-exchange-col-head">
+        <img src="${OTHER_ICON}" alt="" style="${iconStyle}">
+        <span style="color:${OTHER_COLOR};">${otherStrain}</span>
+        <span style="color:#9ca3af;font-weight:400;">recombined in</span>
+      </div>
+    </div>`;
+
+  return `
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Gene Exchange Region', summary)}
+    <div style="padding:0 16px 14px;">
+      <div class="chimera-exchange-panel">
+        ${header}
+        ${rows}
+      </div>
+    </div>
+  </div>`;
+}
+
 function recombInfoHTML(m, pipe, isLabMember) {
   const creator = m.creator_name || '—';
   const plasmid = m.plasmid_used || '—';
