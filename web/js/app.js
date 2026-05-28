@@ -960,6 +960,20 @@ async function requestLabAccess() {
   if (error) { alert('Something went wrong. Please try again.'); return; }
   state.userProfile = { ...state.userProfile, role_request: 'lab_member' };
   renderAuthArea();
+
+  // Notify admin via Edge Function (fire-and-forget)
+  fetch(`${SUPABASE_URL}/functions/v1/notify-role-request`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${state.session.access_token}`,
+    },
+    body: JSON.stringify({
+      display_name:    state.userProfile?.display_name,
+      email:           state.user?.email,
+      lab_affiliation: state.userProfile?.lab_affiliation,
+    }),
+  }).catch(() => {}); // non-blocking, failure is silent to user
   // Small confirmation
   const area = document.getElementById('auth-area');
   const orig = area.innerHTML;
