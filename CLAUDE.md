@@ -1,5 +1,22 @@
 # ChlamAtlas — Project Brief for Claude Code
 
+## Branch Workflow (IMPORTANT)
+
+**Never commit directly to `main`.** Always work on the `dev` branch or a feature branch.
+
+- `main` = production (chlamatlas.org) — protected, merge via PR only
+- `dev` = default working branch for all new work
+- Feature branches (e.g. `feature/genome-alignment`) branch off `dev` for larger isolated tasks
+
+**Standard flow:**
+1. Start each session: `git checkout dev && git pull`
+2. Do work on `dev` (or create a feature branch off `dev`)
+3. Push to `origin/dev` — Vercel auto-builds a preview URL
+4. When Kevin approves the preview, merge `dev` → `main` via PR on GitHub
+5. Merging to `main` auto-deploys to chlamatlas.org
+
+---
+
 ## What This Is
 
 ChlamAtlas is a model organism database (MOD) and research tool for the Chlamydia research community, built and maintained by the Hybiske Lab at the University of Washington. It is a **published, community-facing scientific resource** — design, code quality, and data integrity should reflect that standard at all times.
