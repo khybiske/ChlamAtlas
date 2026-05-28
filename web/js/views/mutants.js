@@ -1087,6 +1087,149 @@ function geneLociMapHTML(genes, neighborhood, mutationType) {
   </div>`;
 }
 
+// ─── Chimera genome map ───────────────────────────────────
+// Shows the backbone genome as a full-width bar with the recombined block
+// overlaid at the proportional genomic position. Handles circular chromosomes
+// (block wraps end→start) by drawing two segments.
+async function chimeraGenomeMapHTML(m) {
+  const start = m.recombination_start;
+  const end   = m.recombination_end;
+  if (!start || !end) return '';
+
+  const backboneStrain = m.strains?.common_name ?? 'CT-L2';
+  const isL2Backbone   = backboneStrain === 'CT-L2';
+
+  const GENOME_LEN      = isL2Backbone ? 1_044_459 : 1_072_949;
+  const BACKBONE_COLOR  = isL2Backbone ? '#16a34a' : '#2563eb';
+  const RECOMB_COLOR    = isL2Backbone ? '#2563eb' : '#16a34a';
+  const BACKBONE_LABEL  = isL2Backbone ? 'CT-L2' : 'CM';
+  const RECOMB_LABEL    = isL2Backbone ? 'CM' : 'CT-L2';
+
+  // Fetch start gene and end gene positions
+  const strainColName = 'strains!inner(common_name)';
+  const [startRes, endRes] = await Promise.all([
+    sb.from('genes')
+      .select(`start_bp,end_bp,sort_index,${strainColName}`)
+      .eq('locus_tag', start)
+      .eq('strains.common_name', backboneStrain)
+      .single(),
+    sb.from('genes')
+      .select(`start_bp,end_bp,sort_index,${strainColName}`)
+      .eq('locus_tag', end)
+      .eq('strains.common_name', backboneStrain)
+      .single(),
+  ]);
+
+  const startGene = startRes.data;
+  const endGene   = endRes.data;
+  if (!startGene || !endGene) return '';
+
+  // Fetch landmark gene positions for ruler (best-effort — skip any not found)
+  const LANDMARKS = ['ompA', 'incA', 'gyrA', 'rpoB', 'secY'];
+  const { data: lmData } = await sb
+    .from('genes')
+    .select(`gene_name,start_bp,${strainColName}`)
+    .in('gene_name', LANDMARKS)
+    .eq('strains.common_name', backboneStrain);
+
+  const landmarks = (lmData ?? [])
+    .filter(g => g.start_bp != null)
+    .map(g => ({ name: g.gene_name, bp: g.start_bp }))
+    .sort((a, b) => a.bp - b.bp);
+
+  const startBp = startGene.start_bp ?? 0;
+  const endBp   = endGene.end_bp   ?? startGene.end_bp ?? 0;
+
+  // Detect circular wrap: end gene sorts before start gene
+  const isCircular = endGene.sort_index < startGene.sort_index;
+
+  // SVG dimensions
+  const W      = 560;
+  const BAR_Y  = 38;
+  const BAR_H  = 18;
+  const RULER_Y = BAR_Y - 8;
+
+  const bpToX = bp => Math.round((bp / GENOME_LEN) * W);
+
+  // Build recombined block(s)
+  let blocks = '';
+  if (isCircular) {
+    const x1 = bpToX(startBp);
+    const x4 = bpToX(endBp);
+    blocks = `
+      <rect x="${x1}" y="${BAR_Y}" width="${W - x1}" height="${BAR_H}" fill="${RECOMB_COLOR}" rx="2"/>
+      <rect x="0" y="${BAR_Y}" width="${x4}" height="${BAR_H}" fill="${RECOMB_COLOR}" rx="2"/>`;
+  } else {
+    const x1 = bpToX(startBp);
+    const x2 = bpToX(endBp);
+    blocks = `<rect x="${x1}" y="${BAR_Y}" width="${Math.max(x2 - x1, 4)}" height="${BAR_H}" fill="${RECOMB_COLOR}" rx="2"/>`;
+  }
+
+  // Ruler tick marks + labels for landmark genes
+  const rulerTicks = landmarks.map(lm => {
+    const x = bpToX(lm.bp);
+    return `
+      <line x1="${x}" y1="${RULER_Y}" x2="${x}" y2="${RULER_Y + 5}" stroke="#bbb" stroke-width="1"/>
+      <text x="${x}" y="${RULER_Y - 2}" text-anchor="middle"
+            font-family="DM Mono,monospace" font-size="7" fill="#888">${lm.name}</text>`;
+  }).join('');
+
+  const kbLabel = `${(GENOME_LEN / 1000).toFixed(0)} kb`;
+
+  const spanBp = isCircular
+    ? (GENOME_LEN - startBp) + endBp
+    : endBp - startBp;
+  const pct    = ((spanBp / GENOME_LEN) * 100).toFixed(1);
+  const spanKb = (spanBp / 1000).toFixed(0);
+
+  const lx1  = bpToX(startBp);
+  const lx2  = bpToX(endBp);
+  const tagY = BAR_Y + BAR_H + 12;
+
+  const tagLabels = `
+    <text x="${lx1}" y="${tagY}" text-anchor="middle"
+          font-family="DM Mono,monospace" font-size="7.5" fill="#555">${start}</text>
+    <text x="${lx2}" y="${tagY}" text-anchor="middle"
+          font-family="DM Mono,monospace" font-size="7.5" fill="#555">${end}</text>`;
+
+  const svgH = BAR_Y + BAR_H + 26;
+
+  const svg = `<svg viewBox="0 0 ${W} ${svgH}" xmlns="http://www.w3.org/2000/svg"
+                    style="width:100%;height:auto;display:block;overflow:visible;">
+    <line x1="0" y1="${RULER_Y}" x2="${W}" y2="${RULER_Y}" stroke="#e5e7eb" stroke-width="1"/>
+    ${rulerTicks}
+    <text x="${W}" y="${RULER_Y - 2}" text-anchor="end"
+          font-family="DM Mono,monospace" font-size="7" fill="#bbb">${kbLabel}</text>
+    <rect x="0" y="${BAR_Y}" width="${W}" height="${BAR_H}" fill="${BACKBONE_COLOR}" rx="3" opacity="0.85"/>
+    ${blocks}
+    ${tagLabels}
+  </svg>`;
+
+  const legend = `
+    <div style="display:flex;gap:12px;align-items:center;margin-top:6px;font-size:0.625rem;color:#6b7280;">
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="display:inline-block;width:12px;height:8px;background:${BACKBONE_COLOR};border-radius:2px;"></span>
+        ${BACKBONE_LABEL} backbone
+      </span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="display:inline-block;width:12px;height:8px;background:${RECOMB_COLOR};border-radius:2px;"></span>
+        ${RECOMB_LABEL} recombined
+      </span>
+      <span style="color:#9ca3af;">${spanKb} kb · ${pct}% of genome${isCircular ? ' · circular wrap' : ''}</span>
+    </div>`;
+
+  return `
+  <div style="background:white;border-bottom:1px solid #f0f0f0;">
+    ${mutSectionHead('Recombined Region')}
+    <div style="padding:10px 16px 14px;">
+      <div class="chimera-map-wrap">
+        ${svg}
+        ${legend}
+      </div>
+    </div>
+  </div>`;
+}
+
 function recombInfoHTML(m, pipe, isLabMember) {
   const creator = m.creator_name || '—';
   const plasmid = m.plasmid_used || '—';
