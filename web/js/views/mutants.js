@@ -605,6 +605,7 @@ async function loadDetail(mutantUUID) {
       .select(`id,mutant_id,name,mutation_type,mutation_method,plasmid_used,marker,
                creator,creator_name,contributed_by,background_strain_id,
                is_published,notes,target_gene_ids,
+               recombination_start,recombination_end,ortholog_span_cm,
                strains!background_strain_id(common_name,species)`)
       .eq('id', mutantUUID)
       .single(),
@@ -666,14 +667,23 @@ async function loadDetail(mutantUUID) {
     }
   }
 
-  const isMobile = window.innerWidth < 768;
+  const isMobile  = window.innerWidth < 768;
+  const isChimera = m.mutation_type === 'chimera';
+
+  const chimeraPlaceholder = isChimera
+    ? `<div id="chimera-sections-placeholder">
+         <div style="padding:10px 16px 14px;font-size:0.8125rem;color:#9ca3af;">Loading recombination data…</div>
+       </div>`
+    : '';
 
   rightEl.innerHTML = `
     ${isMobile ? `<div class="mut-mobile-back"><button class="back-btn" id="mut-back-btn">‹ Back</button></div>` : ''}
 
     ${heroHTML(m, genes)}
-    ${geneCardsHTML(genes, neighborhoods, m.mutation_type)}
-    ${genes.length === 1 ? geneLociMapHTML(genes, neighborhood, m.mutation_type) : ''}
+    ${isChimera
+      ? chimeraPlaceholder
+      : geneCardsHTML(genes, neighborhoods, m.mutation_type) +
+        (genes.length === 1 ? geneLociMapHTML(genes, neighborhood, m.mutation_type) : '')}
     ${recombInfoHTML(m, pipe, isLabMember)}
     ${pipe || isLabMember ? pipelineHTML(pipe, isLabMember) : ''}
     ${phenoHTML(phenos)}
@@ -688,14 +698,33 @@ async function loadDetail(mutantUUID) {
     });
   }
 
-  // Wire "View in Genomes →" buttons
-  rightEl.querySelectorAll('[data-gene-nav]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const geneId = btn.dataset.geneNav;
-      window.__geneDetailId = geneId;
-      window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+  // Async: inject chimera genome map + gene exchange panel, then wire nav
+  if (isChimera) {
+    const placeholder = document.getElementById('chimera-sections-placeholder');
+    if (placeholder) {
+      const [mapHTML, exchangeHTML] = await Promise.all([
+        chimeraGenomeMapHTML(m),
+        chimeraGeneExchangeHTML(m),
+      ]);
+      placeholder.outerHTML = mapHTML + exchangeHTML;
+    }
+    // Wire locus-tag navigation for chimera gene exchange panel
+    rightEl.querySelectorAll('[data-gene-nav]').forEach(el => {
+      el.addEventListener('click', () => {
+        window.__geneDetailId = el.dataset.geneNav;
+        window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+      });
     });
-  });
+  } else {
+    // Wire "View in Genomes →" buttons for non-chimera mutants
+    rightEl.querySelectorAll('[data-gene-nav]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const geneId = btn.dataset.geneNav;
+        window.__geneDetailId = geneId;
+        window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+      });
+    });
+  }
 
   // Edit button — wire to modal; visibility revealed by getSession check
   const editBtn = rightEl.querySelector('#mut-edit-btn');
