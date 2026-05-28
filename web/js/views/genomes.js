@@ -1048,44 +1048,64 @@ function renderDetailMutants(detail, gene, mutants) {
     recombination: { color: '#db2777', bg: 'rgba(252,231,243,0.5)',  border: 'rgba(219,39,119,0.3)'   },
   };
 
-  const rows = mutants.map(m => {
-    const accent = TYPE_ACCENT_LOCAL[m.mutation_type] ?? { color: '#6b7280', bg: 'rgba(243,244,246,0.5)', border: 'rgba(107,114,128,0.25)' };
-    const typeLabel = (m.mutation_type ?? '').charAt(0).toUpperCase() + (m.mutation_type ?? '').slice(1);
-    const collIcon = COLL_ICONS[m.collection]
-      ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:24px;height:24px;object-fit:contain;flex-shrink:0;">`
-      : `<div style="width:22px;height:22px;border-radius:50%;background:#e5e7eb;flex-shrink:0;"></div>`;
-    const pubBadge = m.is_published
-      ? `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(5,150,105,0.09);color:#059669;border:1px solid rgba(5,150,105,0.22);">Published</span>`
-      : `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:rgba(180,83,9,0.08);color:#b45309;border:1px solid rgba(180,83,9,0.2);">Lab</span>`;
-    const typeBadge = typeLabel
-      ? `<span style="font-size:8.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:5px;background:${accent.bg};color:${accent.color};border:1px solid ${accent.border};">${esc(typeLabel)}</span>`
-      : '';
+  // Group mutants by mutation_type; preferred display order
+  const TYPE_ORDER = ['chimera', 'transposon', 'deletion', 'chemical', 'intron', 'recombination'];
+  const TYPE_LABELS_LOCAL = {
+    chimera: 'Chimeras', transposon: 'Transposons', deletion: 'Deletions',
+    chemical: 'Chemical', intron: 'Targetron', recombination: 'Recombination',
+  };
+  const grouped = new Map();
+  for (const t of TYPE_ORDER) grouped.set(t, []);
+  for (const m of mutants) {
+    const t = m.mutation_type ?? 'other';
+    if (!grouped.has(t)) grouped.set(t, []);
+    grouped.get(t).push(m);
+  }
+
+  const pubPill = published =>
+    published
+      ? `<span style="font-size:7.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:4px;background:rgba(5,150,105,0.09);color:#059669;border:1px solid rgba(5,150,105,0.22);white-space:nowrap;">Published</span>`
+      : `<span style="font-size:7.5px;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:4px;background:rgba(180,83,9,0.08);color:#b45309;border:1px solid rgba(180,83,9,0.2);white-space:nowrap;">Lab</span>`;
+
+  const makeRow = m => {
+    const isChimera = m.mutation_type === 'chimera';
+    // Primary display: chimeras use short RC-style ID; others use the descriptive name
+    const primary   = isChimera ? m.mutant_id : (m.name || m.mutant_id);
+    // Secondary: chimeras show nothing extra; others show the short ID
+    const secondary = isChimera ? '' : (m.name ? m.mutant_id : '');
+    const collIcon  = COLL_ICONS[m.collection]
+      ? `<img src="${COLL_ICONS[m.collection]}" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;">`
+      : `<div style="width:18px;height:18px;border-radius:50%;background:#e5e7eb;flex-shrink:0;"></div>`;
     return `
       <button class="d-mutant-row" data-mutant-id="${esc(m.id)}" data-collection="${esc(m.collection ?? 'CT_L2')}"
-        style="display:flex;align-items:center;gap:9px;width:100%;text-align:left;cursor:pointer;
-               background:white;border:none;border-left:3px solid ${accent.color};
-               border-radius:6px;padding:8px 10px;margin-bottom:5px;
-               box-shadow:0 1px 3px rgba(0,0,0,0.06);transition:background 0.12s,box-shadow 0.12s;"
-        onmouseenter="this.style.background='${accent.bg}';this.style.boxShadow='0 2px 6px rgba(0,0,0,0.1)'"
-        onmouseleave="this.style.background='white';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)'">
+        style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;
+               background:none;border:none;border-bottom:1px solid #f3f4f6;
+               padding:6px 0;transition:background 0.1s;"
+        onmouseenter="this.style.background='#f9fafb'"
+        onmouseleave="this.style.background='none'">
         ${collIcon}
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:11px;font-weight:700;color:#111;font-family:'DM Mono',monospace;letter-spacing:0.01em;">${esc(m.mutant_id)}</div>
-          ${m.name ? `<div style="font-size:9.5px;color:#6b7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.name)}</div>` : ''}
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <span style="font-size:12px;font-weight:700;color:#111;">${esc(primary)}</span>
+          ${secondary ? `<span style="font-size:10px;color:#9ca3af;margin-left:5px;">${esc(secondary)}</span>` : ''}
         </div>
-        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0;">
-          ${typeBadge}
-          ${pubBadge}
-        </div>
+        ${pubPill(m.is_published)}
       </button>`;
-  }).join('');
+  };
+
+  const sections = [...grouped.entries()]
+    .filter(([, ms]) => ms.length > 0)
+    .map(([type, ms]) => {
+      const label = TYPE_LABELS_LOCAL[type] ?? type;
+      const subhead = `<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#9ca3af;padding:8px 0 3px;border-top:1px solid #f0f0f0;margin-top:4px;">${label} (${ms.length})</div>`;
+      return subhead + ms.map(makeRow).join('');
+    }).join('');
 
   el.innerHTML = `
-    <div style="padding:14px 16px 10px;">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:10px;">
+    <div style="padding:12px 16px 10px;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:4px;">
         Mutants (${mutants.length})
       </div>
-      <div>${rows}</div>
+      ${sections}
     </div>`;
 
   el.querySelectorAll('.d-mutant-row').forEach(btn => {

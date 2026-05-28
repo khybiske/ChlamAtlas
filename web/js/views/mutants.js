@@ -1218,7 +1218,7 @@ async function chimeraGenomeMapHTML(m) {
   const rulerTicks = landmarks.map((lm, i) => {
     const x = lmXs[i];
     // Alternate label rows when previous landmark is within 55px
-    const tooClose = i > 0 && Math.abs(x - lmXs[i - 1]) < 55;
+    const tooClose = i > 0 && Math.abs(x - lmXs[i - 1]) < 42;
     const labelY   = tooClose ? RULER_Y - 13 : RULER_Y - 3;
     const anchor   = x < 20 ? 'start' : x > W - 20 ? 'end' : 'middle';
     return `
