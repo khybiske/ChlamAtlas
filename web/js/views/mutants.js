@@ -565,9 +565,9 @@ async function fetchList() {
 }
 
 function mutantRowHTML(m, locusTagStr = '') {
+  const isChimera   = m.mutation_type === 'chimera';
   const displayName = m.name || m.mutant_id;
-  const showId = m.name ? `<div class="mut-row-id">${m.mutant_id}</div>` : '';
-  const locusLabel = locusTagStr
+  const locusLabel  = locusTagStr
     ? `<div style="font-size:0.625rem;font-family:'DM Mono',ui-monospace,monospace;color:#9ca3af;margin-top:1px;">${locusTagStr}</div>`
     : '';
   const labPill = !m.is_published
@@ -579,12 +579,18 @@ function mutantRowHTML(m, locusTagStr = '') {
          style="font-size:11px;color:${isFav ? '#f59e0b' : '#e5e7eb'};background:none;border:none;cursor:pointer;flex-shrink:0;padding:0 0 0 4px;"
          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>`
     : '';
+  // Chimeras: mutant_id (RC1203) is primary, long technical name is muted secondary.
+  // Other types: long name is primary, mutant_id is the small label above.
+  const nameBlock = isChimera
+    ? `<div class="mut-row-name">${m.mutant_id}</div>
+       ${m.name && m.name !== m.mutant_id ? `<div style="font-size:0.6875rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.name)}</div>` : ''}`
+    : `${m.name ? `<div class="mut-row-id">${m.mutant_id}</div>` : ''}
+       <div class="mut-row-name">${esc(displayName)}</div>
+       ${locusLabel}`;
   return `
     <div class="mut-row" data-id="${m.id}" role="button" tabindex="0">
-      <div style="flex:1;min-width:0;">
-        ${showId}
-        <div class="mut-row-name">${displayName}</div>
-        ${locusLabel}
+      <div style="flex:1;min-width:0;overflow:hidden;">
+        ${nameBlock}
       </div>
       ${labPill}
       ${starEl}
@@ -802,9 +808,12 @@ function heroHTML(m, genes = []) {
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
         ${collIcon}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${displayName}</div>
-          ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:2px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
-          ${locusTagStr ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#aaa;margin-top:1px;letter-spacing:0.02em;">${locusTagStr}</div>` : ''}
+          ${m.mutation_type === 'chimera'
+            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${m.mutant_id}</div>
+               ${m.name ? `<div style="font-size:11px;color:#9ca3af;margin-top:3px;line-height:1.3;word-break:break-all;">${esc(m.name)}</div>` : ''}`
+            : `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(displayName)}</div>
+               ${hasName ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#888;margin-top:2px;letter-spacing:0.02em;">${m.mutant_id}</div>` : ''}
+               ${locusTagStr ? `<div style="font-size:10px;font-family:'DM Mono',ui-monospace,monospace;color:#aaa;margin-top:1px;letter-spacing:0.02em;">${locusTagStr}</div>` : ''}`}
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:2px;">
           <button id="mut-edit-btn" style="${btnBase}color:#9ca3af;display:none;" title="Edit">${pencilSvg}</button>
@@ -1163,9 +1172,17 @@ async function chimeraGenomeMapHTML(m) {
     .eq('strain_id', m.background_strain_id)
     .or(lmOr);
 
+  // For landmark labels prefer gene_symbol (short, e.g. "ompA") over gene_name which
+  // may contain the locus_tag appended (e.g. "ompA CTL0368").
   const landmarks = (lmData ?? [])
     .filter(g => g.start_bp != null)
-    .map(g => ({ name: g.gene_name || g.gene_symbol, bp: g.start_bp }))
+    .map(g => {
+      const raw = g.gene_symbol || g.gene_name || '';
+      // Strip trailing locus-tag-like token (e.g. "ompA CTL0368" → "ompA")
+      const name = raw.replace(/\s+[A-Z]{2,4}L?\d{4,}$/i, '').trim() || raw;
+      return { name, bp: g.start_bp };
+    })
+    .filter((lm, i, arr) => arr.findIndex(x => x.name === lm.name) === i) // deduplicate
     .sort((a, b) => a.bp - b.bp);
 
   const startBp = startGene.start_bp ?? 0;
@@ -1196,13 +1213,18 @@ async function chimeraGenomeMapHTML(m) {
     blocks = `<rect x="${x1}" y="${BAR_Y}" width="${Math.max(x2 - x1, 4)}" height="${BAR_H}" fill="${RECOMB_COLOR}" rx="2"/>`;
   }
 
-  // Ruler tick marks + labels for landmark genes
-  const rulerTicks = landmarks.map(lm => {
-    const x = bpToX(lm.bp);
+  // Ruler tick marks + labels — stagger adjacent labels that would overlap.
+  const lmXs = landmarks.map(lm => bpToX(lm.bp));
+  const rulerTicks = landmarks.map((lm, i) => {
+    const x = lmXs[i];
+    // Alternate label rows when previous landmark is within 55px
+    const tooClose = i > 0 && Math.abs(x - lmXs[i - 1]) < 55;
+    const labelY   = tooClose ? RULER_Y - 13 : RULER_Y - 3;
+    const anchor   = x < 20 ? 'start' : x > W - 20 ? 'end' : 'middle';
     return `
       <line x1="${x}" y1="${RULER_Y}" x2="${x}" y2="${RULER_Y + 5}" stroke="#bbb" stroke-width="1"/>
-      <text x="${x}" y="${RULER_Y - 2}" text-anchor="middle"
-            font-family="DM Mono,monospace" font-size="7" fill="#888">${lm.name}</text>`;
+      <text x="${x}" y="${labelY}" text-anchor="${anchor}"
+            font-family="DM Sans,sans-serif" font-size="7.5" font-style="italic" fill="#888">${lm.name}</text>`;
   }).join('');
 
   const kbLabel = `${(GENOME_LEN / 1000).toFixed(0)} kb`;
@@ -1233,7 +1255,7 @@ async function chimeraGenomeMapHTML(m) {
 
   const svg = `<svg viewBox="0 0 ${W} ${svgH}" xmlns="http://www.w3.org/2000/svg"
                     style="width:100%;height:auto;display:block;overflow:visible;">
-    <line x1="0" y1="${RULER_Y}" x2="${W}" y2="${RULER_Y}" stroke="#e5e7eb" stroke-width="1"/>
+    <line x1="0" y1="${RULER_Y}" x2="${W}" y2="${RULER_Y}" stroke="#d1d5db" stroke-width="1.5"/>
     ${rulerTicks}
     <text x="${W}" y="${RULER_Y - 2}" text-anchor="end"
           font-family="DM Mono,monospace" font-size="7" fill="#bbb">${kbLabel}</text>
@@ -1379,12 +1401,15 @@ async function chimeraGeneExchangeHTML(m) {
         : `<div class="chimera-gene-cell" style="border-left-color:#f3f4f6;"></div>`;
     }
     const catColor = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
-    // Show gene_name inline only when it's genuinely different from the locus tag.
-    const showName = g.gene_name &&
-      g.gene_name !== g.locus_tag &&
-      !g.gene_name.includes(g.locus_tag ?? '~~');
-    const nameInline = showName
-      ? `<span class="chimera-gene-name-inline">${esc(g.gene_name)}</span>` : '';
+    // Gene names in CT-L2 are often stored as "geneName locusTag" (e.g. "map CTL0224").
+    // Extract just the gene name part by stripping any trailing locus-tag-like token.
+    let cleanName = g.gene_name ?? '';
+    if (g.locus_tag && cleanName.endsWith(g.locus_tag)) {
+      cleanName = cleanName.slice(0, -g.locus_tag.length).trim();
+    }
+    if (!cleanName || cleanName === g.locus_tag) cleanName = '';
+    const nameInline = cleanName
+      ? `<span class="chimera-gene-name-inline">${esc(cleanName)}</span>` : '';
     const productEl = g.product
       ? `<div class="chimera-gene-product">${esc(g.product.substring(0, 50))}${g.product.length > 50 ? '…' : ''}</div>` : '';
     return `
