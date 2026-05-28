@@ -1049,7 +1049,7 @@ function renderDetailMutants(detail, gene, mutants) {
   };
 
   // Group mutants by mutation_type; preferred display order
-  const TYPE_ORDER = ['chimera', 'transposon', 'deletion', 'chemical', 'intron', 'recombination'];
+  const TYPE_ORDER = ['transposon', 'deletion', 'chemical', 'intron', 'recombination', 'chimera'];
   const TYPE_LABELS_LOCAL = {
     chimera: 'Chimeras', transposon: 'Transposons', deletion: 'Deletions',
     chemical: 'Chemical', intron: 'Targetron', recombination: 'Recombination',
@@ -1101,11 +1101,13 @@ function renderDetailMutants(detail, gene, mutants) {
     }).join('');
 
   el.innerHTML = `
-    <div style="padding:12px 16px 10px;">
+    <div style="padding:12px 16px 4px;">
       <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:4px;">
         Mutants (${mutants.length})
       </div>
-      ${sections}
+      <div style="max-height:420px;overflow-y:auto;padding-bottom:8px;">
+        ${sections}
+      </div>
     </div>`;
 
   el.querySelectorAll('.d-mutant-row').forEach(btn => {
