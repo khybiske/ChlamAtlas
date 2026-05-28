@@ -562,14 +562,14 @@
 }
 
 .chimera-gene-cell.right {
-  border-left: none;
-  border-right: 3px solid transparent;
+  border-left: 3px solid transparent;
+  border-right: none;
 }
 
 .chimera-gene-locus {
-  font-family: 'DM Mono', ui-monospace, monospace;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
   color: #374151;
   cursor: pointer;
   text-decoration: underline;
@@ -578,11 +578,23 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .chimera-gene-locus:hover {
   color: #1a6b4a;
   text-decoration-color: #1a6b4a;
+}
+
+.chimera-gene-name-inline {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .chimera-gene-name {

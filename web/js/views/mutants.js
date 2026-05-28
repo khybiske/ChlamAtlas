@@ -1153,17 +1153,19 @@ async function chimeraGenomeMapHTML(m) {
   const endGene   = endRes.data;
   if (!startGene || !endGene) return '';
 
-  // Fetch landmark gene positions for ruler (best-effort — skip any not found)
+  // Fetch landmark gene positions for ruler using strain_id directly (avoids join filter issues).
+  // Query by both gene_name and gene_symbol to maximize hit rate.
   const LANDMARKS = ['ompA', 'incA', 'gyrA', 'rpoB', 'secY'];
+  const lmOr = LANDMARKS.map(n => `gene_name.eq.${n},gene_symbol.eq.${n}`).join(',');
   const { data: lmData } = await sb
     .from('genes')
-    .select(`gene_name,start_bp,${strainColName}`)
-    .in('gene_name', LANDMARKS)
-    .eq('strains.common_name', backboneStrain);
+    .select('gene_name,gene_symbol,start_bp')
+    .eq('strain_id', m.background_strain_id)
+    .or(lmOr);
 
   const landmarks = (lmData ?? [])
     .filter(g => g.start_bp != null)
-    .map(g => ({ name: g.gene_name, bp: g.start_bp }))
+    .map(g => ({ name: g.gene_name || g.gene_symbol, bp: g.start_bp }))
     .sort((a, b) => a.bp - b.bp);
 
   const startBp = startGene.start_bp ?? 0;
@@ -1215,13 +1217,19 @@ async function chimeraGenomeMapHTML(m) {
   const lx2  = bpToX(endBp);
   const tagY = BAR_Y + BAR_H + 12;
 
-  const tagLabels = `
-    <text x="${lx1}" y="${tagY}" text-anchor="middle"
-          font-family="DM Mono,monospace" font-size="7.5" fill="#555">${start}</text>
-    <text x="${lx2}" y="${tagY}" text-anchor="middle"
-          font-family="DM Mono,monospace" font-size="7.5" fill="#555">${end}</text>`;
+  // Stagger labels vertically if they'd overlap, and anchor edge labels to stay in-bounds.
+  const labelsOverlap = Math.abs(lx2 - lx1) < 70;
+  const anchor1 = lx1 < 35 ? 'start' : 'middle';
+  const anchor2 = lx2 > W - 35 ? 'end' : 'middle';
+  const tagY2   = labelsOverlap ? tagY + 11 : tagY;
 
-  const svgH = BAR_Y + BAR_H + 26;
+  const tagLabels = `
+    <text x="${lx1}" y="${tagY}" text-anchor="${anchor1}"
+          font-family="DM Sans,sans-serif" font-size="7.5" fill="#555">${start}</text>
+    <text x="${lx2}" y="${tagY2}" text-anchor="${anchor2}"
+          font-family="DM Sans,sans-serif" font-size="7.5" fill="#555">${end}</text>`;
+
+  const svgH = BAR_Y + BAR_H + (labelsOverlap ? 38 : 26);
 
   const svg = `<svg viewBox="0 0 ${W} ${svgH}" xmlns="http://www.w3.org/2000/svg"
                     style="width:100%;height:auto;display:block;overflow:visible;">
@@ -1358,27 +1366,33 @@ async function chimeraGeneExchangeHTML(m) {
     ? '/design/icons_transparent/CMicon_transparent.png'
     : '/design/icons_transparent/L2icon_transparent.png';
 
-  const iconStyle = 'width:18px;height:18px;object-fit:contain;vertical-align:middle;';
+  const iconStyle = 'width:24px;height:24px;object-fit:contain;vertical-align:middle;';
 
   const catCell = (g, side) => {
     const isRight = side === 'right';
+    // Both columns use border-left for the category color accent.
     if (!g) {
       return isRight
-        ? `<div class="chimera-gene-cell right" style="border-right-color:#f3f4f6;justify-content:center;">
+        ? `<div class="chimera-gene-cell right" style="border-left-color:#f3f4f6;justify-content:center;">
              <span class="chimera-no-ortholog-pill">no ortholog</span>
            </div>`
         : `<div class="chimera-gene-cell" style="border-left-color:#f3f4f6;"></div>`;
     }
-    const catColor   = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
-    const borderProp = isRight ? 'border-right-color' : 'border-left-color';
-    const nameEl     = g.gene_name
-      ? `<div class="chimera-gene-name">${esc(g.gene_name)}</div>` : '';
-    const productEl  = g.product
-      ? `<div class="chimera-gene-product">${esc(g.product.substring(0, 45))}${g.product.length > 45 ? '…' : ''}</div>` : '';
+    const catColor = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    // Show gene_name inline only when it's genuinely different from the locus tag.
+    const showName = g.gene_name &&
+      g.gene_name !== g.locus_tag &&
+      !g.gene_name.includes(g.locus_tag ?? '~~');
+    const nameInline = showName
+      ? `<span class="chimera-gene-name-inline">${esc(g.gene_name)}</span>` : '';
+    const productEl = g.product
+      ? `<div class="chimera-gene-product">${esc(g.product.substring(0, 50))}${g.product.length > 50 ? '…' : ''}</div>` : '';
     return `
-      <div class="chimera-gene-cell${isRight ? ' right' : ''}" style="${borderProp}:${catColor};">
-        <span class="chimera-gene-locus" data-gene-nav="${g.id}">${esc(g.locus_tag ?? '?')}</span>
-        ${nameEl}
+      <div class="chimera-gene-cell${isRight ? ' right' : ''}" style="border-left-color:${catColor};">
+        <div style="display:flex;align-items:baseline;gap:5px;flex-wrap:nowrap;overflow:hidden;">
+          <span class="chimera-gene-locus" data-gene-nav="${g.id}">${esc(g.locus_tag ?? '?')}</span>
+          ${nameInline}
+        </div>
         ${productEl}
       </div>`;
   };
@@ -1405,14 +1419,14 @@ async function chimeraGeneExchangeHTML(m) {
     <div class="chimera-exchange-header">
       <div class="chimera-exchange-col-head">
         <img src="${BACKBONE_ICON}" alt="" style="${iconStyle}">
-        <span style="color:${BACKBONE_COLOR};">${backboneStrain}</span>
-        <span style="color:#9ca3af;font-weight:400;">backbone</span>
+        <span style="color:${BACKBONE_COLOR};font-size:0.8125rem;">${backboneStrain}</span>
+        <span style="color:#9ca3af;font-weight:400;font-size:0.75rem;">backbone</span>
       </div>
       <div></div>
       <div class="chimera-exchange-col-head">
         <img src="${OTHER_ICON}" alt="" style="${iconStyle}">
-        <span style="color:${OTHER_COLOR};">${otherStrain}</span>
-        <span style="color:#9ca3af;font-weight:400;">recombined in</span>
+        <span style="color:${OTHER_COLOR};font-size:0.8125rem;">${otherStrain}</span>
+        <span style="color:#9ca3af;font-weight:400;font-size:0.75rem;">recombined in</span>
       </div>
     </div>`;
 
