@@ -614,15 +614,15 @@ function expandRowEl(rowEl, gene, catColor, isRef) {
     'box-shadow:0 4px 12px rgba(0,0,0,0.08)',
   ].join(';');
 
+  const protId = `ga-prot-${gene.id}`;
   body.innerHTML = [
     product ? `<div style="font-size:10px;color:#374151;margin-bottom:4px;">${escHtml(product)}</div>` : '',
     `<span style="display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;` +
       `background:${badge.bg};color:${badge.text};border:1px solid ${badge.border};margin-bottom:4px;">` +
       `${escHtml(catName)}</span>`,
-    isRef
-      ? `<div style="margin-top:4px;"><a href="#" class="ga-detail-link" data-gene-id="${gene.id}" ` +
-        `style="font-size:10px;color:#3b82f6;text-decoration:none;">→ Gene detail</a></div>`
-      : '',
+    `<div id="${protId}" style="font-size:9px;color:#9ca3af;margin-top:2px;"></div>`,
+    `<div style="margin-top:4px;"><a href="#" class="ga-detail-link" data-gene-id="${gene.id}" ` +
+      `style="font-size:10px;color:#3b82f6;text-decoration:none;">→ Gene detail</a></div>`,
   ].join('');
 
   body.querySelector('.ga-detail-link')?.addEventListener('click', (e) => {
@@ -633,6 +633,20 @@ function expandRowEl(rowEl, gene, catColor, isRef) {
 
   rowEl.style.position = 'relative';
   rowEl.appendChild(body);
+
+  // Lazy-load protein size data
+  sb.from('proteins')
+    .select('mass_kd,length_aa')
+    .eq('gene_id', gene.id)
+    .maybeSingle()
+    .then(({ data }) => {
+      const el = body.querySelector(`#${protId}`);
+      if (!el || !data) return;
+      const parts = [];
+      if (data.length_aa) parts.push(`${data.length_aa} aa`);
+      if (data.mass_kd)   parts.push(`${data.mass_kd} kDa`);
+      if (parts.length) el.textContent = parts.join(' · ');
+    });
 }
 
 function collapseExpanded() {
