@@ -158,6 +158,12 @@ export async function renderGenomeAlignment(container) {
     </div>
   `;
 
+  _container.querySelector('#ga-retry')?.addEventListener('click', () => {
+    showError(false);
+    loadStrains();
+  });
+  _container.querySelector('#ga-search')?.addEventListener('input', onSearch);
+
   await loadStrains();
 }
 
@@ -188,12 +194,6 @@ async function loadStrains() {
 
   refPicker.addEventListener('change', onPickerChange);
   cmpPicker.addEventListener('change', onPickerChange);
-
-  _container.querySelector('#ga-retry')?.addEventListener('click', () => {
-    showError(false);
-    onPickerChange();
-  });
-  _container.querySelector('#ga-search')?.addEventListener('input', onSearch);
 }
 
 function showError(visible) {
@@ -203,3 +203,7 @@ function showError(visible) {
 function showWarning(visible) {
   _container.querySelector('#ga-warning').style.display = visible ? 'block' : 'none';
 }
+
+// stubs — replaced in Task 3 and Task 6
+function onPickerChange() {}
+function onSearch() {}
