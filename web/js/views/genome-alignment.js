@@ -511,7 +511,8 @@ function toggleExpand(rowEl, gene, catColor, isRef) {
   const refRow     = refCol.querySelector(`.ga-row[data-ref-id="${refId}"]`);
   const cmpRow     = cmpCol.querySelector(`.ga-row[data-ref-id="${refId}"]`);
 
-  if (refRow) expandRowEl(refRow, gene, catColor, true);
+  const refGene = _refGenes.find(g => g.id === refId) ?? gene;
+  if (refRow) expandRowEl(refRow, refGene, catColor, true);
   if (cmpRow) {
     const cmpGeneId = _orthologMap.get(refId);
     const cmpGene   = cmpGeneId ? _cmpGeneMap.get(cmpGeneId) : null;
