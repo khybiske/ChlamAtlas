@@ -490,9 +490,120 @@ function buildGapRow() {
   return row;
 }
 
-// ── Expand / collapse (implemented in Task 8) ────────────────
+// ── Expand / collapse ────────────────────────────────────────
 function toggleExpand(rowEl, gene, catColor, isRef) {
-  // stub — replaced in Task 8
+  const refId = rowEl.dataset.refId;
+
+  // Collapse if clicking the already-expanded row
+  if (_expandedRefId === refId) {
+    collapseExpanded();
+    return;
+  }
+
+  // Collapse previous
+  if (_expandedRefId) collapseExpanded();
+
+  _expandedRefId = refId;
+
+  // Expand the ref row
+  const refCol     = _container.querySelector('#ga-ref-col');
+  const cmpCol     = _container.querySelector('#ga-cmp-col');
+  const refRow     = refCol.querySelector(`.ga-row[data-ref-id="${refId}"]`);
+  const cmpRow     = cmpCol.querySelector(`.ga-row[data-ref-id="${refId}"]`);
+
+  if (refRow) expandRowEl(refRow, gene, catColor, true);
+  if (cmpRow) {
+    const cmpGeneId = _orthologMap.get(refId);
+    const cmpGene   = cmpGeneId ? _cmpGeneMap.get(cmpGeneId) : null;
+    if (cmpGene) expandRowEl(cmpRow, cmpGene, catColor, false);
+  }
+
+  // Highlight ribbon path
+  const svgEl = _container.querySelector('#ga-svg');
+  svgEl.querySelectorAll(`[data-ref-id="${refId}"]`).forEach(el => {
+    el.setAttribute('stroke-width', '14');
+    el.setAttribute('opacity', '0.85');
+  });
+}
+
+function expandRowEl(rowEl, gene, catColor, isRef) {
+  rowEl.style.height   = 'auto';
+  rowEl.style.overflow = 'visible';
+
+  const badge   = CATEGORY_BADGE[gene.functional_category] ?? { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' };
+  const catName = FUNC_LABELS[gene.functional_category] ?? gene.functional_category ?? 'Unknown';
+  const product = gene.product ?? '';
+
+  const body = document.createElement('div');
+  body.className = 'ga-expand-body';
+  body.style.cssText = [
+    'position:absolute',
+    `top:${ROW_HEIGHT}px`,
+    'left:-4px',
+    'right:0',
+    'z-index:20',
+    `background:${badge.bg}`,
+    `border:1.5px solid ${badge.border}`,
+    'border-top:none',
+    'padding:6px 8px 8px',
+    'box-shadow:0 4px 12px rgba(0,0,0,0.08)',
+  ].join(';');
+
+  body.innerHTML = [
+    product ? `<div style="font-size:10px;color:#374151;margin-bottom:4px;">${escHtml(product)}</div>` : '',
+    `<span style="display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;` +
+      `background:${badge.bg};color:${badge.text};border:1px solid ${badge.border};margin-bottom:4px;">` +
+      `${escHtml(catName)}</span>`,
+    isRef
+      ? `<div style="margin-top:4px;"><a href="#" class="ga-detail-link" data-gene-id="${gene.id}" ` +
+        `style="font-size:10px;color:#3b82f6;text-decoration:none;">→ Gene detail</a></div>`
+      : '',
+  ].join('');
+
+  body.querySelector('.ga-detail-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.__openGeneId = gene.id;
+    window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+  });
+
+  rowEl.style.position = 'relative';
+  rowEl.appendChild(body);
+}
+
+function collapseExpanded() {
+  if (!_expandedRefId) return;
+
+  const refCol = _container.querySelector('#ga-ref-col');
+  const cmpCol = _container.querySelector('#ga-cmp-col');
+
+  [refCol, cmpCol].forEach(col => {
+    const row  = col.querySelector(`.ga-row[data-ref-id="${_expandedRefId}"]`);
+    const body = row?.querySelector('.ga-expand-body');
+    if (body) body.remove();
+    if (row) {
+      row.style.height   = `${ROW_HEIGHT}px`;
+      row.style.overflow = 'hidden';
+    }
+  });
+
+  // Restore ribbon
+  const svgEl = _container.querySelector('#ga-svg');
+  const refGene = _refGenes.find(g => g.id === _expandedRefId);
+  const strokeW = refGene?.gene_name ? 9 : 7;
+  svgEl.querySelectorAll(`[data-ref-id="${_expandedRefId}"]`).forEach(el => {
+    el.setAttribute('stroke-width', String(strokeW));
+    el.setAttribute('opacity', '0.55');
+  });
+
+  _expandedRefId = null;
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ── Pagination ───────────────────────────────────────────────
