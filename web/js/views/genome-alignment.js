@@ -496,3 +496,21 @@ function setupObserver() {
 
   _observer.observe(sentinel);
 }
+
+// ── Legend ───────────────────────────────────────────────────
+function buildLegend() {
+  const legendRow = _container.querySelector('#ga-legend-row');
+  legendRow.innerHTML = '';
+
+  Object.entries(FUNC_LABELS).forEach(([cat, label]) => {
+    const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLOR_DEFAULT;
+    const item  = document.createElement('span');
+    item.style.cssText = 'display:flex;align-items:center;gap:3px;white-space:nowrap;';
+    item.innerHTML =
+      `<span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block;"></span>` +
+      `<span style="color:#6b7280;">${label}</span>`;
+    legendRow.appendChild(item);
+  });
+
+  legendRow.style.display = 'flex';
+}
