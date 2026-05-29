@@ -308,12 +308,12 @@ async function loadGenes() {
     sb.from('genes')
       .select(GENE_COLS)
       .eq('strain_id', _refStrainId)
-      .lt('sort_index', 871)
+      .lt('sort_index', 873)
       .order('sort_index'),
     sb.from('genes')
       .select(GENE_COLS)
       .eq('strain_id', _cmpStrainId)
-      .lt('sort_index', 871)
+      .lt('sort_index', 873)
       .order('sort_index'),
   ]);
 
