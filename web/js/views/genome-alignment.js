@@ -117,22 +117,32 @@ export async function renderGenomeAlignment(container) {
       <!-- Center column -->
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;">
 
-        <!-- Sticky picker row -->
-        <div id="ga-picker-row" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
-          <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
-            <img id="ga-ref-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:8px;z-index:1;pointer-events:none;display:none;">
-            <select id="ga-ref-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
-              <option value="">Reference genome…</option>
-            </select>
+        <!-- Sticky picker + col-headers area -->
+        <div style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;">
+          <div id="ga-picker-row" style="padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
+            <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
+              <img id="ga-ref-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:9px;z-index:1;pointer-events:none;display:none;">
+              <select id="ga-ref-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
+                <option value="">Reference genome…</option>
+              </select>
+            </div>
+            <span style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
+            <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
+              <img id="ga-cmp-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:9px;z-index:1;pointer-events:none;display:none;">
+              <select id="ga-cmp-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
+                <option value="">Comparison genome…</option>
+              </select>
+            </div>
+            <input id="ga-search" placeholder="🔍 Search gene…" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;width:170px;outline:none;background:#f8fafc;">
           </div>
-          <span style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
-          <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
-            <img id="ga-cmp-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:8px;z-index:1;pointer-events:none;display:none;">
-            <select id="ga-cmp-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
-              <option value="">Comparison genome…</option>
-            </select>
+          <!-- Column labels — shown after genes load, always above scroll content -->
+          <div id="ga-col-headers" style="display:none;max-width:680px;margin:0 auto;width:100%;border-top:1px solid #f0f4f8;">
+            <div style="display:flex;">
+              <div style="flex:1;padding:3px 9px 4px;font-size:8px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;">Reference</div>
+              <div style="width:72px;flex-shrink:0;"></div>
+              <div style="flex:1;padding:3px 9px 4px;font-size:8px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;">Comparison</div>
+            </div>
           </div>
-          <input id="ga-search" placeholder="🔍 Search gene…" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;width:170px;outline:none;background:#f8fafc;">
         </div>
 
         <!-- Warning banner (same strain) -->
@@ -232,7 +242,7 @@ function updatePickerDisplay(pickerId, iconElId, strainId) {
   picker.style.borderColor = color;
   picker.style.color       = color;
   // Make room for icon when one exists
-  picker.style.paddingLeft = iconSrc ? '30px' : '10px';
+  picker.style.paddingLeft = iconSrc ? '34px' : '10px';
 
   if (iconSrc) {
     iconEl.src           = iconSrc;
@@ -279,8 +289,9 @@ async function onPickerChange() {
   _container.querySelector('#ga-svg').innerHTML      = '';
   _container.querySelector('#ga-svg').setAttribute('height', '0');
   _container.querySelector('#ga-svg').setAttribute('viewBox', '0 0 72 0');
-  _container.querySelector('#ga-list').style.display = 'none';
-  _container.querySelector('#ga-empty').style.display = 'flex';
+  _container.querySelector('#ga-list').style.display        = 'none';
+  _container.querySelector('#ga-col-headers').style.display = 'none';
+  _container.querySelector('#ga-empty').style.display       = 'flex';
   _container.querySelector('#ga-empty').textContent  = 'Loading…';
   _container.querySelector('#ga-legend-row').innerHTML = '';
   _container.querySelector('#ga-footer').style.display     = 'none';
@@ -358,9 +369,10 @@ async function loadGenes() {
   // Ready to render
   buildJumpChips();
   buildLegend();
-  _container.querySelector('#ga-empty').style.display = 'none';
-  _container.querySelector('#ga-list').style.display  = 'block';
-  _container.querySelector('#ga-footer').style.display = 'block';
+  _container.querySelector('#ga-empty').style.display      = 'none';
+  _container.querySelector('#ga-list').style.display       = 'block';
+  _container.querySelector('#ga-col-headers').style.display = 'block';
+  _container.querySelector('#ga-footer').style.display     = 'block';
   appendPage();
   setupObserver();
 }
@@ -457,15 +469,6 @@ function appendPage() {
   const cmpCol = _container.querySelector('#ga-cmp-col');
   const svgEl  = _container.querySelector('#ga-svg');
 
-  // Inject sticky column subheaders on first render
-  if (start === 0) {
-    const subheadStyle = 'position:sticky;top:0;z-index:5;padding:5px 9px;font-size:8.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid;';
-    refCol.insertAdjacentHTML('afterbegin',
-      `<div style="${subheadStyle}background:#eff6ff;color:#3b82f6;border-color:#dbeafe;">Reference ↓</div>`);
-    cmpCol.insertAdjacentHTML('afterbegin',
-      `<div style="${subheadStyle}background:#fffbeb;color:#d97706;border-color:#fde68a;">Comparison ↓</div>`);
-  }
-
   for (let i = start; i < end; i++) {
     const refGene   = _refGenes[i];
     const cmpGeneId = _orthologMap.get(refGene.id) ?? null;
@@ -479,7 +482,7 @@ function appendPage() {
     if (cmpGene) {
       svgEl.insertAdjacentHTML('beforeend',
         `<line data-ref-id="${refGene.id}" x1="0" y1="${y}" x2="72" y2="${y}"` +
-        ` stroke="${catColor}" stroke-width="1.5" opacity="0.65"/>`);
+        ` stroke="${catColor}" stroke-width="1.5" opacity="0.2"/>`);
     } else {
       svgEl.insertAdjacentHTML('beforeend',
         `<circle data-ref-id="${refGene.id}" cx="36" cy="${y}" r="4"` +
@@ -669,7 +672,7 @@ function collapseExpanded() {
   const svgEl = _container.querySelector('#ga-svg');
   svgEl.querySelectorAll(`[data-ref-id="${_expandedRefId}"]`).forEach(el => {
     el.setAttribute('stroke-width', '1.5');
-    el.setAttribute('opacity', '0.65');
+    el.setAttribute('opacity', '0.2');
   });
 
   _expandedRefId = null;
@@ -712,7 +715,7 @@ function buildLegend() {
   Object.entries(FUNC_LABELS).forEach(([cat, label]) => {
     const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLOR_DEFAULT;
     const item  = document.createElement('div');
-    item.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:8.5px;color:#64748b;padding:2.5px 0;';
+    item.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:10px;color:#64748b;padding:2.5px 0;';
     item.innerHTML =
       `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;` +
       (color === '#FFF100' || color === '#EBEBEB' ? 'border:1px solid #ccc;' : '') +
@@ -725,7 +728,7 @@ function buildLegend() {
   const connectorLegend = document.createElement('div');
   connectorLegend.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #e8edf2;';
   connectorLegend.innerHTML =
-    `<div style="display:flex;align-items:center;gap:5px;font-size:8.5px;color:#64748b;padding:2.5px 0;">` +
+    `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#64748b;padding:2.5px 0;">` +
       `<svg width="20" height="4" style="flex-shrink:0"><line x1="0" y1="2" x2="20" y2="2" stroke="#888" stroke-width="1.5" opacity="0.6"/></svg>` +
       `Ortholog` +
     `</div>` +
