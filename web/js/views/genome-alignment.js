@@ -63,6 +63,12 @@ const FUNC_LABELS = {
   'Unknown':                    'Unknown',
 };
 
+const STRAIN_ICONS = {
+  'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
+  'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
+  'CM':    '/design/icons_transparent/CMicon_transparent.png',
+};
+
 const ROW_HEIGHT = 22; // px — fixed row height for ribbon Y calculation
 const PAGE_SIZE  = 100;
 
@@ -203,7 +209,7 @@ async function loadStrains() {
   const cmpPicker = _container.querySelector('#ga-cmp-picker');
 
   data.forEach(s => {
-    const label = `${s.emoji_icon ?? ''} ${s.common_name}`.trim();
+    const label = s.common_name;
     refPicker.insertAdjacentHTML('beforeend',
       `<option value="${s.id}">${label}</option>`);
     cmpPicker.insertAdjacentHTML('beforeend',
@@ -212,6 +218,28 @@ async function loadStrains() {
 
   refPicker.addEventListener('change', onPickerChange);
   cmpPicker.addEventListener('change', onPickerChange);
+}
+
+function updatePickerDisplay(pickerId, iconElId, strainId) {
+  const strain  = _strains.find(s => s.id === strainId);
+  const picker  = _container.querySelector(`#${pickerId}`);
+  const iconEl  = _container.querySelector(`#${iconElId}`);
+  if (!strain || !picker || !iconEl) return;
+
+  const color   = strain.color_hex ?? '#374151';
+  const iconSrc = STRAIN_ICONS[strain.common_name] ?? '';
+
+  picker.style.borderColor = color;
+  picker.style.color       = color;
+  // Make room for icon when one exists
+  picker.style.paddingLeft = iconSrc ? '30px' : '10px';
+
+  if (iconSrc) {
+    iconEl.src           = iconSrc;
+    iconEl.style.display = '';
+  } else {
+    iconEl.style.display = 'none';
+  }
 }
 
 function showError(visible) {
@@ -227,9 +255,12 @@ async function onPickerChange() {
   const refId = _container.querySelector('#ga-ref-picker').value;
   const cmpId = _container.querySelector('#ga-cmp-picker').value;
 
+  if (refId) updatePickerDisplay('ga-ref-picker', 'ga-ref-icon', refId);
+  if (cmpId) updatePickerDisplay('ga-cmp-picker', 'ga-cmp-icon', cmpId);
+
   if (!refId || !cmpId) return;
 
-  if (refId === cmpId) {
+  if (refId === cmpId && refId !== '') {
     showWarning(true);
     return;
   }
