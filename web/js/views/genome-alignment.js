@@ -369,11 +369,11 @@ async function loadGenes() {
 function buildJumpChips() {
   if (!_refGenes.length) return;
   const chipsEl = _container.querySelector('#ga-jump-chips');
+  if (!chipsEl) return;
   chipsEl.innerHTML = '';
 
   const indices = [];
   for (let i = 0; i < _refGenes.length; i += 100) indices.push(i);
-  // Always include the last gene
   if (indices[indices.length - 1] !== _refGenes.length - 1) {
     indices.push(_refGenes.length - 1);
   }
@@ -387,20 +387,34 @@ function buildJumpChips() {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.style.cssText = [
-      'background:#f1f5f9',
+      'display:block',
+      'width:100%',
+      'background:#f8fafc',
       'border:1px solid #e2e8f0',
-      'border-radius:4px',
-      'padding:2px 7px',
-      'font-size:9px',
+      'border-radius:5px',
+      'padding:4px 5px',
+      'font-size:8.5px',
       'color:#475569',
       'cursor:pointer',
       'font-family:monospace',
+      'text-align:center',
+      'white-space:nowrap',
+      'overflow:hidden',
+      'text-overflow:ellipsis',
     ].join(';');
+    btn.addEventListener('mouseenter', () => {
+      btn.style.background = '#eff6ff';
+      btn.style.borderColor = '#93c5fd';
+      btn.style.color = '#1d4ed8';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.background = '#f8fafc';
+      btn.style.borderColor = '#e2e8f0';
+      btn.style.color = '#475569';
+    });
     btn.addEventListener('click', () => jumpToIndex(idx));
     chipsEl.appendChild(btn);
   });
-
-  // chips are always visible in the left sidebar — no show/hide needed
 }
 
 function jumpToIndex(targetIdx) {
