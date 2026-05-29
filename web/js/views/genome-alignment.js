@@ -79,6 +79,7 @@ let _renderedCount = 0;
 let _expandedRefId = null;     // currently expanded reference gene id
 let _observer     = null;      // IntersectionObserver for pagination
 let _container    = null;      // root container div
+let _closePickersListener = null; // document click handler for custom pickers
 
 // ── Entry point ──────────────────────────────────────────────
 export async function renderGenomeAlignment(container) {
@@ -93,67 +94,79 @@ export async function renderGenomeAlignment(container) {
   _renderedCount = 0;
   _expandedRefId = null;
   if (_observer) { _observer.disconnect(); _observer = null; }
+  if (_closePickersListener) {
+    document.removeEventListener('click', _closePickersListener);
+    _closePickersListener = null;
+  }
 
   container.innerHTML = `
-    <div id="ga-wrap" style="display:flex;flex-direction:column;height:calc(100vh - 56px);font-family:system-ui,sans-serif;">
+    <div id="ga-wrap" style="display:flex;height:calc(100vh - 56px);font-family:system-ui,sans-serif;background:#fff;overflow:hidden;">
 
-      <!-- Sticky top bar -->
-      <div id="ga-topbar" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;">
+      <!-- Left sidebar: Jump chips -->
+      <div id="ga-sidebar-left" style="width:88px;flex-shrink:0;position:sticky;top:0;height:calc(100vh - 56px);display:flex;flex-direction:column;align-items:center;padding:24px 8px 16px;overflow-y:auto;border-right:1px solid #f0f4f8;">
+        <div style="font-size:8px;font-weight:700;letter-spacing:0.1em;color:#94a3b8;text-transform:uppercase;margin-bottom:10px;">Jump to</div>
+        <div id="ga-jump-chips" style="display:flex;flex-direction:column;width:100%;gap:4px;"></div>
+      </div>
 
-        <!-- Row 1: strain pickers + search -->
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;flex-wrap:wrap;">
-          <select id="ga-ref-picker" style="border:1.5px solid #3b82f6;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;color:#1d4ed8;background:#fff;cursor:pointer;">
-            <option value="">Reference genome…</option>
-          </select>
+      <!-- Center column -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;">
+
+        <!-- Sticky picker row -->
+        <div id="ga-picker-row" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
+          <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
+            <img id="ga-ref-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:8px;z-index:1;pointer-events:none;display:none;">
+            <select id="ga-ref-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
+              <option value="">Reference genome…</option>
+            </select>
+          </div>
           <span style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
-          <select id="ga-cmp-picker" style="border:1.5px solid #d97706;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;color:#b45309;background:#fff;cursor:pointer;">
-            <option value="">Comparison genome…</option>
-          </select>
-          <input id="ga-search" placeholder="🔍 Search gene…" style="margin-left:auto;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:12px;color:#374151;width:180px;outline:none;">
+          <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
+            <img id="ga-cmp-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:8px;z-index:1;pointer-events:none;display:none;">
+            <select id="ga-cmp-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
+              <option value="">Comparison genome…</option>
+            </select>
+          </div>
+          <input id="ga-search" placeholder="🔍 Search gene…" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;width:170px;outline:none;background:#f8fafc;">
         </div>
-
-        <!-- Row 2: jump chips (populated after gene load) -->
-        <div id="ga-jump-row" style="display:none;align-items:center;gap:5px;padding:3px 12px 4px;flex-wrap:wrap;font-size:10px;">
-          <span style="color:#94a3b8;font-weight:700;flex-shrink:0;letter-spacing:0.05em;">JUMP TO:</span>
-          <div id="ga-jump-chips" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-        </div>
-
-        <!-- Row 3: category legend (populated after gene load) -->
-        <div id="ga-legend-row" style="display:none;align-items:center;gap:6px;padding:3px 12px 5px;flex-wrap:wrap;font-size:9px;"></div>
 
         <!-- Warning banner (same strain) -->
-        <div id="ga-warning" style="display:none;padding:4px 12px;background:#fef9c3;color:#854d0e;font-size:11px;border-top:1px solid #fde68a;">
+        <div id="ga-warning" style="display:none;padding:4px 16px;background:#fef9c3;color:#854d0e;font-size:11px;border-bottom:1px solid #fde68a;">
           ⚠️ Select two different genomes to compare.
         </div>
 
         <!-- Error banner -->
-        <div id="ga-error" style="display:none;padding:6px 12px;background:#fef2f2;color:#991b1b;font-size:11px;border-top:1px solid #fecaca;">
+        <div id="ga-error" style="display:none;padding:6px 16px;background:#fef2f2;color:#991b1b;font-size:11px;border-bottom:1px solid #fecaca;">
           Failed to load genome data.
           <button id="ga-retry" style="margin-left:8px;font-size:11px;color:#1d4ed8;background:none;border:none;cursor:pointer;text-decoration:underline;">Retry</button>
         </div>
-      </div>
 
-      <!-- Empty state -->
-      <div id="ga-empty" style="display:flex;align-items:center;justify-content:center;flex:1;color:#94a3b8;font-size:14px;">
-        Select two genomes above to begin.
-      </div>
+        <!-- Empty state -->
+        <div id="ga-empty" style="display:flex;align-items:center;justify-content:center;flex:1;color:#94a3b8;font-size:14px;">
+          Select two genomes above to begin.
+        </div>
 
-      <!-- Gene list (hidden until data loaded) -->
-      <div id="ga-list" style="display:none;flex:1;overflow-y:auto;">
-        <div id="ga-columns" style="display:flex;min-height:100%;">
-          <div id="ga-ref-col" style="width:38%;border-right:1px solid #f0f0f0;"></div>
-          <div id="ga-ribbon-col" style="width:24%;position:relative;overflow:visible;">
-            <svg id="ga-svg" width="100%" height="0"
-              viewBox="0 0 100 0"
-              preserveAspectRatio="none"
-              style="position:absolute;top:0;left:0;pointer-events:none;"></svg>
+        <!-- Gene list -->
+        <div id="ga-list" style="display:none;flex:1;overflow-y:auto;padding:16px 0 24px;">
+          <div style="max-width:680px;margin:0 auto;display:flex;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07),0 0 0 1px #e2e8f0;">
+            <div id="ga-ref-col" style="flex:1;min-width:0;"></div>
+            <div id="ga-ribbon-col" style="width:72px;flex-shrink:0;position:relative;background:#fafafa;border-left:1px solid #ececec;border-right:1px solid #ececec;">
+              <svg id="ga-svg" width="72" height="0" viewBox="0 0 72 0"
+                style="position:absolute;top:0;left:0;pointer-events:none;"></svg>
+            </div>
+            <div id="ga-cmp-col" style="flex:1;min-width:0;"></div>
           </div>
-          <div id="ga-cmp-col" style="width:38%;border-left:1px solid #f0f0f0;"></div>
+          <div id="ga-sentinel" style="height:1px;"></div>
+          <div id="ga-footer" style="display:none;padding:6px 12px;font-size:10px;color:#9ca3af;text-align:center;">
+            Plasmid genes excluded from this view.
+          </div>
         </div>
-        <div id="ga-sentinel" style="height:1px;"></div>
-        <div id="ga-footer" style="display:none;padding:6px 12px;font-size:10px;color:#9ca3af;text-align:center;">
-          Plasmid genes excluded from this view.
-        </div>
+
+      </div>
+
+      <!-- Right sidebar: Legend -->
+      <div id="ga-sidebar-right" style="width:110px;flex-shrink:0;position:sticky;top:0;height:calc(100vh - 56px);display:flex;flex-direction:column;padding:24px 10px 16px;overflow-y:auto;border-left:1px solid #f0f4f8;">
+        <div style="font-size:8px;font-weight:700;letter-spacing:0.1em;color:#94a3b8;text-transform:uppercase;margin-bottom:10px;text-align:center;">Key</div>
+        <div id="ga-legend-row"></div>
       </div>
 
     </div>
@@ -234,12 +247,11 @@ async function onPickerChange() {
   _container.querySelector('#ga-cmp-col').innerHTML  = '';
   _container.querySelector('#ga-svg').innerHTML      = '';
   _container.querySelector('#ga-svg').setAttribute('height', '0');
-  _container.querySelector('#ga-svg').setAttribute('viewBox', '0 0 100 0');
+  _container.querySelector('#ga-svg').setAttribute('viewBox', '0 0 72 0');
   _container.querySelector('#ga-list').style.display = 'none';
   _container.querySelector('#ga-empty').style.display = 'flex';
   _container.querySelector('#ga-empty').textContent  = 'Loading…';
-  _container.querySelector('#ga-jump-row').style.display   = 'none';
-  _container.querySelector('#ga-legend-row').style.display = 'none';
+  _container.querySelector('#ga-legend-row').innerHTML = '';
   _container.querySelector('#ga-footer').style.display     = 'none';
   showError(false);
 
@@ -326,7 +338,6 @@ async function loadGenes() {
 function buildJumpChips() {
   if (!_refGenes.length) return;
   const chipsEl = _container.querySelector('#ga-jump-chips');
-  const jumpRow = _container.querySelector('#ga-jump-row');
   chipsEl.innerHTML = '';
 
   const indices = [];
@@ -358,7 +369,7 @@ function buildJumpChips() {
     chipsEl.appendChild(btn);
   });
 
-  jumpRow.style.display = 'flex';
+  // chips are always visible in the left sidebar — no show/hide needed
 }
 
 function jumpToIndex(targetIdx) {
@@ -413,12 +424,12 @@ function appendPage() {
     const y = i * ROW_HEIGHT + ROW_HEIGHT / 2;
     if (cmpGene) {
       svgEl.insertAdjacentHTML('beforeend',
-        `<path data-ref-id="${refGene.id}" d="M 0,${y} C 50,${y} 50,${y} 100,${y}"` +
+        `<path data-ref-id="${refGene.id}" d="M 0,${y} C 36,${y} 36,${y} 72,${y}"` +
         ` stroke="${catColor}" stroke-width="${refGene.gene_name ? 9 : 7}"` +
         ` fill="none" opacity="0.55"/>`);
     } else {
       svgEl.insertAdjacentHTML('beforeend',
-        `<circle data-ref-id="${refGene.id}" cx="50" cy="${y}" r="4"` +
+        `<circle data-ref-id="${refGene.id}" cx="36" cy="${y}" r="4"` +
         ` fill="#fca5a5" opacity="0.8"/>`);
     }
   }
@@ -426,7 +437,7 @@ function appendPage() {
   _renderedCount = end;
   const totalH = _renderedCount * ROW_HEIGHT;
   svgEl.setAttribute('height', totalH);
-  svgEl.setAttribute('viewBox', `0 0 100 ${totalH}`);
+  svgEl.setAttribute('viewBox', `0 0 72 ${totalH}`);
 }
 
 function buildRow(gene, catColor, isRef, refId = null) {
@@ -642,5 +653,5 @@ function buildLegend() {
     legendRow.appendChild(item);
   });
 
-  legendRow.style.display = 'flex';
+  // ga-legend-row is always visible in the right sidebar — no display toggle needed
 }
