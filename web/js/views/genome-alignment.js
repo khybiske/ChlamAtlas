@@ -204,6 +204,106 @@ function showWarning(visible) {
   _container.querySelector('#ga-warning').style.display = visible ? 'block' : 'none';
 }
 
-// stubs — replaced in Task 3 and Task 6
-function onPickerChange() {}
+// ── Strain selection handler ──────────────────────────────────
+async function onPickerChange() {
+  const refId = _container.querySelector('#ga-ref-picker').value;
+  const cmpId = _container.querySelector('#ga-cmp-picker').value;
+
+  if (!refId || !cmpId) return;
+
+  if (refId === cmpId) {
+    showWarning(true);
+    return;
+  }
+  showWarning(false);
+
+  _refStrainId  = refId;
+  _cmpStrainId  = cmpId;
+  _renderedCount = 0;
+  _expandedRefId = null;
+  if (_observer) { _observer.disconnect(); _observer = null; }
+
+  // Reset list
+  _container.querySelector('#ga-ref-col').innerHTML  = '';
+  _container.querySelector('#ga-cmp-col').innerHTML  = '';
+  _container.querySelector('#ga-svg').innerHTML      = '';
+  _container.querySelector('#ga-svg').setAttribute('height', '0');
+  _container.querySelector('#ga-svg').setAttribute('viewBox', '0 0 100 0');
+  _container.querySelector('#ga-list').style.display = 'none';
+  _container.querySelector('#ga-empty').style.display = 'flex';
+  _container.querySelector('#ga-empty').textContent  = 'Loading…';
+  _container.querySelector('#ga-jump-row').style.display   = 'none';
+  _container.querySelector('#ga-legend-row').style.display = 'none';
+  _container.querySelector('#ga-footer').style.display     = 'none';
+  showError(false);
+
+  await loadGenes();
+}
+
+async function loadGenes() {
+  const GENE_COLS = 'id,locus_tag,gene_name,gene_symbol,product,functional_category,sort_index,is_characterized';
+
+  const [refRes, cmpRes] = await Promise.all([
+    sb.from('genes')
+      .select(GENE_COLS)
+      .eq('strain_id', _refStrainId)
+      .lt('sort_index', 871)
+      .order('sort_index'),
+    sb.from('genes')
+      .select(GENE_COLS)
+      .eq('strain_id', _cmpStrainId)
+      .lt('sort_index', 871)
+      .order('sort_index'),
+  ]);
+
+  if (refRes.error || cmpRes.error) {
+    showError(true);
+    _container.querySelector('#ga-empty').textContent = 'Select two genomes above to begin.';
+    return;
+  }
+
+  _refGenes = refRes.data ?? [];
+  _cmpGenes = cmpRes.data ?? [];
+
+  // Build cmpGeneMap for O(1) lookup
+  _cmpGeneMap = new Map(_cmpGenes.map(g => [g.id, g]));
+
+  // Fetch orthologs for this strain pair (both directions)
+  const [o1, o2] = await Promise.all([
+    sb.from('orthologs')
+      .select('gene_id_a,gene_id_b')
+      .eq('strain_id_a', _refStrainId)
+      .eq('strain_id_b', _cmpStrainId),
+    sb.from('orthologs')
+      .select('gene_id_a,gene_id_b')
+      .eq('strain_id_a', _cmpStrainId)
+      .eq('strain_id_b', _refStrainId),
+  ]);
+
+  _orthologMap = new Map();
+  const cmpIdSet = new Set(_cmpGenes.map(g => g.id));
+  const refIdSet = new Set(_refGenes.map(g => g.id));
+
+  for (const row of (o1.data ?? [])) {
+    if (refIdSet.has(row.gene_id_a) && cmpIdSet.has(row.gene_id_b)) {
+      _orthologMap.set(row.gene_id_a, row.gene_id_b);
+    }
+  }
+  for (const row of (o2.data ?? [])) {
+    if (refIdSet.has(row.gene_id_b) && cmpIdSet.has(row.gene_id_a)) {
+      _orthologMap.set(row.gene_id_b, row.gene_id_a);
+    }
+  }
+
+  // Ready to render
+  buildJumpChips();
+  buildLegend();
+  _container.querySelector('#ga-empty').style.display = 'none';
+  _container.querySelector('#ga-list').style.display  = 'block';
+  _container.querySelector('#ga-footer').style.display = 'block';
+  appendPage();
+  setupObserver();
+}
+
+// ── Search (stub — replaced in Task 6) ───────────────────────
 function onSearch() {}
