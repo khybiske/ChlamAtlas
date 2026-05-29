@@ -307,3 +307,107 @@ async function loadGenes() {
 
 // ── Search (stub — replaced in Task 6) ───────────────────────
 function onSearch() {}
+
+// ── Rendering ────────────────────────────────────────────────
+function appendPage() {
+  const start = _renderedCount;
+  const end   = Math.min(start + PAGE_SIZE, _refGenes.length);
+  if (start >= _refGenes.length) return;
+
+  const refCol = _container.querySelector('#ga-ref-col');
+  const cmpCol = _container.querySelector('#ga-cmp-col');
+  const svgEl  = _container.querySelector('#ga-svg');
+
+  for (let i = start; i < end; i++) {
+    const refGene   = _refGenes[i];
+    const cmpGeneId = _orthologMap.get(refGene.id) ?? null;
+    const cmpGene   = cmpGeneId ? _cmpGeneMap.get(cmpGeneId) : null;
+    const catColor  = CATEGORY_COLORS[refGene.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+
+    refCol.appendChild(buildRow(refGene, catColor, true));
+    cmpCol.appendChild(cmpGene ? buildRow(cmpGene, catColor, false, refGene.id) : buildGapRow());
+
+    const y = i * ROW_HEIGHT + ROW_HEIGHT / 2;
+    if (cmpGene) {
+      svgEl.insertAdjacentHTML('beforeend',
+        `<path data-ref-id="${refGene.id}" d="M 0,${y} C 50,${y} 50,${y} 100,${y}"` +
+        ` stroke="${catColor}" stroke-width="${refGene.gene_name ? 9 : 7}"` +
+        ` fill="none" opacity="0.55"/>`);
+    } else {
+      svgEl.insertAdjacentHTML('beforeend',
+        `<circle data-ref-id="${refGene.id}" cx="50" cy="${y}" r="4"` +
+        ` fill="#fca5a5" opacity="0.8"/>`);
+    }
+  }
+
+  _renderedCount = end;
+  const totalH = _renderedCount * ROW_HEIGHT;
+  svgEl.setAttribute('height', totalH);
+  svgEl.setAttribute('viewBox', `0 0 100 ${totalH}`);
+}
+
+function buildRow(gene, catColor, isRef, refId = null) {
+  const named = !!(gene.gene_name || gene.gene_symbol);
+  const displayName = gene.gene_name || gene.gene_symbol || '';
+  const locusTag = gene.locus_tag ?? '';
+  const r = parseInt(catColor.slice(1,3), 16);
+  const g = parseInt(catColor.slice(3,5), 16);
+  const b = parseInt(catColor.slice(5,7), 16);
+  const bgTint = `rgba(${r},${g},${b},0.06)`;
+
+  const row = document.createElement('div');
+  row.className = 'ga-row';
+  row.dataset.refId = isRef ? gene.id : (refId ?? gene.id);
+  row.dataset.geneId = gene.id;
+  row.style.cssText = [
+    `height:${ROW_HEIGHT}px`,
+    'overflow:hidden',
+    'cursor:pointer',
+    `border-left:4px solid ${catColor}`,
+    `background:${bgTint}`,
+    'display:flex',
+    'align-items:center',
+    'padding:0 6px 0 6px',
+    'gap:5px',
+    'box-sizing:border-box',
+    'position:relative',
+    'border-bottom:1px solid rgba(0,0,0,0.03)',
+  ].join(';');
+
+  const tagSpan = document.createElement('span');
+  tagSpan.style.cssText = 'font-family:monospace;font-size:10px;flex-shrink:0;color:' +
+    (named ? '#1a1a1a' : '#9ca3af');
+  tagSpan.textContent = locusTag;
+  row.appendChild(tagSpan);
+
+  if (named) {
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = `font-size:10px;font-weight:700;color:${catColor};flex-shrink:0;`;
+    nameSpan.textContent = '· ' + displayName;
+    row.appendChild(nameSpan);
+  }
+
+  row.addEventListener('click', () => toggleExpand(row, gene, catColor, isRef));
+  return row;
+}
+
+function buildGapRow() {
+  const row = document.createElement('div');
+  row.style.cssText = [
+    `height:${ROW_HEIGHT}px`,
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+    'font-size:9px',
+    'color:#d1d5db',
+    'font-style:italic',
+    'border-bottom:1px solid rgba(0,0,0,0.03)',
+  ].join(';');
+  row.textContent = '— no ortholog —';
+  return row;
+}
+
+// ── Expand / collapse (implemented in Task 8) ────────────────
+function toggleExpand(rowEl, gene, catColor, isRef) {
+  // stub — replaced in Task 8
+}
