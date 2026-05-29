@@ -305,8 +305,73 @@ async function loadGenes() {
   setupObserver();
 }
 
-// ── Search (stub — replaced in Task 6) ───────────────────────
-function onSearch() {}
+// ── Navigation ───────────────────────────────────────────────
+function buildJumpChips() {
+  const chipsEl = _container.querySelector('#ga-jump-chips');
+  const jumpRow = _container.querySelector('#ga-jump-row');
+  chipsEl.innerHTML = '';
+
+  const indices = [];
+  for (let i = 0; i < _refGenes.length; i += 100) indices.push(i);
+  // Always include the last gene
+  if (indices[indices.length - 1] !== _refGenes.length - 1) {
+    indices.push(_refGenes.length - 1);
+  }
+
+  indices.forEach(idx => {
+    const gene  = _refGenes[idx];
+    const label = idx === _refGenes.length - 1
+      ? `${gene.locus_tag} (end)`
+      : gene.locus_tag;
+
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = [
+      'background:#f1f5f9',
+      'border:1px solid #e2e8f0',
+      'border-radius:4px',
+      'padding:2px 7px',
+      'font-size:9px',
+      'color:#475569',
+      'cursor:pointer',
+      'font-family:monospace',
+    ].join(';');
+    btn.addEventListener('click', () => jumpToIndex(idx));
+    chipsEl.appendChild(btn);
+  });
+
+  jumpRow.style.display = 'flex';
+}
+
+function jumpToIndex(targetIdx) {
+  // Render all pages up to and including the target
+  while (_renderedCount <= targetIdx && _renderedCount < _refGenes.length) {
+    appendPage();
+  }
+  // Scroll the target row into view
+  const refCol = _container.querySelector('#ga-ref-col');
+  const rows   = refCol.querySelectorAll('.ga-row');
+  const row    = rows[targetIdx];
+  if (row) {
+    row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    row.style.outline = '2px solid #3b82f6';
+    setTimeout(() => { row.style.outline = ''; }, 1500);
+  }
+}
+
+function onSearch(e) {
+  const query = e.target.value.trim().toLowerCase();
+  if (!query) return;
+
+  const idx = _refGenes.findIndex(g =>
+    g.locus_tag?.toLowerCase().includes(query) ||
+    g.gene_name?.toLowerCase().includes(query) ||
+    g.gene_symbol?.toLowerCase().includes(query)
+  );
+  if (idx === -1) return;
+
+  jumpToIndex(idx);
+}
 
 // ── Rendering ────────────────────────────────────────────────
 function appendPage() {
