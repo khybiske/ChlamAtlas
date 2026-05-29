@@ -7,6 +7,7 @@ import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=90';
 import { renderAlignment } from './views/alignment.js?v=96';
 import { renderStructureAlignment } from './views/structure-alignment.js?v=6';
+import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
 
 export { sb, state };
 
@@ -27,6 +28,7 @@ function wireNavStubs() {
 function showToolsPopover(anchor) {
   const seqIcon = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="display:block;flex-shrink:0;opacity:0.7"><line x1="1" y1="4" x2="11" y2="4"/><line x1="4" y1="7.5" x2="14" y2="7.5"/><line x1="2" y1="11" x2="12" y2="11"/></svg>`;
   const structIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;opacity:0.7"><path d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>`;
+  const genomeIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;opacity:0.7"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
   const pop = openNavPopover(anchor, `
     <div class="nav-popover-label">Tools</div>
     <button class="nav-popover-row" id="tools-pop-seq">
@@ -37,6 +39,10 @@ function showToolsPopover(anchor) {
       <span class="nav-popover-row-icon">${structIcon}</span>
       <span class="nav-popover-row-name">Structure Alignment</span>
     </button>
+    <button class="nav-popover-row" id="tools-pop-genome">
+      <span class="nav-popover-row-icon">${genomeIcon}</span>
+      <span class="nav-popover-row-name">Genome Alignment</span>
+    </button>
   `, 'tools-nav-popover');
   pop?.querySelector('#tools-pop-seq')?.addEventListener('click', () => {
     pop.remove();
@@ -46,10 +52,14 @@ function showToolsPopover(anchor) {
     pop.remove();
     activateTab('structure-alignment');
   });
+  pop?.querySelector('#tools-pop-genome')?.addEventListener('click', () => {
+    pop.remove();
+    activateTab('genome-alignment');
+  });
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment', 'structure-alignment'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment', 'structure-alignment', 'genome-alignment'];
 const RENDERERS = {
   home:      renderHome,
   genomes:   renderGenomes,
@@ -58,6 +68,7 @@ const RENDERERS = {
   roadmap:   renderRoadmap,
   alignment: renderAlignment,
   'structure-alignment': renderStructureAlignment,
+  'genome-alignment':    renderGenomeAlignment,
 };
 
 function activateTab(name) {
@@ -82,7 +93,7 @@ function activateTab(name) {
   });
   // Tools button has no data-tab (it's a dropdown trigger); mark it active when on alignment
   const toolsBtn = document.getElementById('nav-tools-btn');
-  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment');
+  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment' || name === 'genome-alignment');
   document.querySelectorAll('.mobile-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
