@@ -67,6 +67,7 @@ const ROW_HEIGHT = 22; // px — fixed row height for ribbon Y calculation
 const PAGE_SIZE  = 100;
 
 // ── Module state (reset on each renderGenomeAlignment call) ──
+let _loadGen      = 0;         // incremented on each load to cancel stale fetches
 let _strains      = [];        // [{id, common_name, color_hex, emoji_icon}, ...]
 let _refStrainId  = null;
 let _cmpStrainId  = null;
@@ -160,7 +161,11 @@ export async function renderGenomeAlignment(container) {
 
   _container.querySelector('#ga-retry')?.addEventListener('click', () => {
     showError(false);
-    loadStrains();
+    if (_strains.length === 0) {
+      loadStrains();
+    } else {
+      onPickerChange();
+    }
   });
   _container.querySelector('#ga-search')?.addEventListener('input', onSearch);
 
@@ -217,6 +222,7 @@ async function onPickerChange() {
   }
   showWarning(false);
 
+  _loadGen++;
   _refStrainId  = refId;
   _cmpStrainId  = cmpId;
   _renderedCount = 0;
@@ -241,6 +247,7 @@ async function onPickerChange() {
 }
 
 async function loadGenes() {
+  const gen = _loadGen;
   const GENE_COLS = 'id,locus_tag,gene_name,gene_symbol,product,functional_category,sort_index,is_characterized';
 
   const [refRes, cmpRes] = await Promise.all([
@@ -262,6 +269,8 @@ async function loadGenes() {
     return;
   }
 
+  if (gen !== _loadGen) return;
+
   _refGenes = refRes.data ?? [];
   _cmpGenes = cmpRes.data ?? [];
 
@@ -279,6 +288,14 @@ async function loadGenes() {
       .eq('strain_id_a', _cmpStrainId)
       .eq('strain_id_b', _refStrainId),
   ]);
+
+  if (o1.error || o2.error) {
+    showError(true);
+    _container.querySelector('#ga-empty').textContent = 'Select two genomes above to begin.';
+    return;
+  }
+
+  if (gen !== _loadGen) return;
 
   _orthologMap = new Map();
   const cmpIdSet = new Set(_cmpGenes.map(g => g.id));
@@ -307,6 +324,7 @@ async function loadGenes() {
 
 // ── Navigation ───────────────────────────────────────────────
 function buildJumpChips() {
+  if (!_refGenes.length) return;
   const chipsEl = _container.querySelector('#ga-jump-chips');
   const jumpRow = _container.querySelector('#ga-jump-row');
   chipsEl.innerHTML = '';
