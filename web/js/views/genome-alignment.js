@@ -120,16 +120,16 @@ export async function renderGenomeAlignment(container) {
         <!-- Sticky picker + col-headers area -->
         <div style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;">
           <div id="ga-picker-row" style="padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
-            <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
-              <img id="ga-ref-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:9px;z-index:1;pointer-events:none;display:none;">
-              <select id="ga-ref-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
+            <div id="ga-ref-picker-wrap" style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;flex-shrink:0;">
+              <img id="ga-ref-icon" style="width:16px;height:16px;object-fit:contain;display:none;flex-shrink:0;">
+              <select id="ga-ref-picker" style="border:none;outline:none;font-size:12px;font-weight:600;color:#9ca3af;background:transparent;cursor:pointer;padding:0;">
                 <option value="">Reference genome…</option>
               </select>
             </div>
             <span style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
-            <div style="position:relative;display:inline-flex;align-items:center;flex-shrink:0;">
-              <img id="ga-cmp-icon" style="width:16px;height:16px;object-fit:contain;position:absolute;left:9px;z-index:1;pointer-events:none;display:none;">
-              <select id="ga-cmp-picker" style="border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 10px 5px 10px;font-size:12px;font-weight:600;color:#9ca3af;background:#fff;cursor:pointer;">
+            <div id="ga-cmp-picker-wrap" style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;flex-shrink:0;">
+              <img id="ga-cmp-icon" style="width:16px;height:16px;object-fit:contain;display:none;flex-shrink:0;">
+              <select id="ga-cmp-picker" style="border:none;outline:none;font-size:12px;font-weight:600;color:#9ca3af;background:transparent;cursor:pointer;padding:0;">
                 <option value="">Comparison genome…</option>
               </select>
             </div>
@@ -233,16 +233,16 @@ async function loadStrains() {
 function updatePickerDisplay(pickerId, iconElId, strainId) {
   const strain  = _strains.find(s => s.id === strainId);
   const picker  = _container.querySelector(`#${pickerId}`);
+  const wrap    = _container.querySelector(`#${pickerId}-wrap`);
   const iconEl  = _container.querySelector(`#${iconElId}`);
   if (!strain || !picker || !iconEl) return;
 
   const color   = strain.color_hex ?? '#374151';
   const iconSrc = STRAIN_ICONS[strain.common_name] ?? '';
 
-  picker.style.borderColor = color;
-  picker.style.color       = color;
-  // Make room for icon when one exists
-  picker.style.paddingLeft = iconSrc ? '34px' : '10px';
+  // Border lives on the wrapper, text color on the select
+  if (wrap) wrap.style.borderColor = color;
+  picker.style.color = color;
 
   if (iconSrc) {
     iconEl.src           = iconSrc;
