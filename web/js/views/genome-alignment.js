@@ -457,6 +457,15 @@ function appendPage() {
   const cmpCol = _container.querySelector('#ga-cmp-col');
   const svgEl  = _container.querySelector('#ga-svg');
 
+  // Inject sticky column subheaders on first render
+  if (start === 0) {
+    const subheadStyle = 'position:sticky;top:0;z-index:5;padding:5px 9px;font-size:8.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid;';
+    refCol.insertAdjacentHTML('afterbegin',
+      `<div style="${subheadStyle}background:#eff6ff;color:#3b82f6;border-color:#dbeafe;">Reference ↓</div>`);
+    cmpCol.insertAdjacentHTML('afterbegin',
+      `<div style="${subheadStyle}background:#fffbeb;color:#d97706;border-color:#fde68a;">Comparison ↓</div>`);
+  }
+
   for (let i = start; i < end; i++) {
     const refGene   = _refGenes[i];
     const cmpGeneId = _orthologMap.get(refGene.id) ?? null;
@@ -469,9 +478,8 @@ function appendPage() {
     const y = i * ROW_HEIGHT + ROW_HEIGHT / 2;
     if (cmpGene) {
       svgEl.insertAdjacentHTML('beforeend',
-        `<path data-ref-id="${refGene.id}" d="M 0,${y} C 36,${y} 36,${y} 72,${y}"` +
-        ` stroke="${catColor}" stroke-width="${refGene.gene_name ? 9 : 7}"` +
-        ` fill="none" opacity="0.55"/>`);
+        `<line data-ref-id="${refGene.id}" x1="0" y1="${y}" x2="72" y2="${y}"` +
+        ` stroke="${catColor}" stroke-width="1.5" opacity="0.65"/>`);
     } else {
       svgEl.insertAdjacentHTML('beforeend',
         `<circle data-ref-id="${refGene.id}" cx="36" cy="${y}" r="4"` +
@@ -578,8 +586,8 @@ function toggleExpand(rowEl, gene, catColor, isRef) {
   // Highlight ribbon path
   const svgEl = _container.querySelector('#ga-svg');
   svgEl.querySelectorAll(`[data-ref-id="${refId}"]`).forEach(el => {
-    el.setAttribute('stroke-width', '14');
-    el.setAttribute('opacity', '0.85');
+    el.setAttribute('stroke-width', '3');
+    el.setAttribute('opacity', '0.9');
   });
 }
 
@@ -645,11 +653,9 @@ function collapseExpanded() {
 
   // Restore ribbon
   const svgEl = _container.querySelector('#ga-svg');
-  const refGene = _refGenes.find(g => g.id === _expandedRefId);
-  const strokeW = refGene?.gene_name ? 9 : 7;
   svgEl.querySelectorAll(`[data-ref-id="${_expandedRefId}"]`).forEach(el => {
-    el.setAttribute('stroke-width', String(strokeW));
-    el.setAttribute('opacity', '0.55');
+    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('opacity', '0.65');
   });
 
   _expandedRefId = null;
