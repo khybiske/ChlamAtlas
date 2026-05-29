@@ -411,3 +411,23 @@ function buildGapRow() {
 function toggleExpand(rowEl, gene, catColor, isRef) {
   // stub — replaced in Task 8
 }
+
+// ── Pagination ───────────────────────────────────────────────
+function setupObserver() {
+  const sentinel = _container.querySelector('#ga-sentinel');
+  if (!sentinel) return;
+
+  _observer = new IntersectionObserver((entries) => {
+    if (!entries[0].isIntersecting) return;
+    if (_renderedCount >= _refGenes.length) {
+      _observer.disconnect();
+      return;
+    }
+    appendPage();
+  }, {
+    root: _container.querySelector('#ga-list'),
+    rootMargin: '200px',
+  });
+
+  _observer.observe(sentinel);
+}
