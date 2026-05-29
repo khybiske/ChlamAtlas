@@ -1,0 +1,1060 @@
+# Genome Alignment Tool Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a side-by-side synteny viewer comparing two Chlamydia chromosome genomes, added as a third entry in the Tools dropdown menu.
+
+**Architecture:** A new `genome-alignment.js` view module loads both genomes' genes and their ortholog pairs from Supabase on strain selection, then renders paginated 100-gene pages into a three-column flex layout (reference genes | SVG ribbon | comparison genes), using IntersectionObserver to load the next page automatically on scroll.
+
+**Tech Stack:** Vanilla JS ES modules, Supabase JS client (`sb` from `client.js`), inline SVG for ribbons, same module/import pattern as `alignment.js` and `structure-alignment.js`.
+
+---
+
+## Background: Codebase Conventions
+
+- **Imports** use cache-bust version strings: `import { renderFoo } from './views/foo.js?v=1';`
+- **Tab system:** `TABS` array + `RENDERERS` map in `app.js`. Each tab needs a `<section id="tab-{name}">` + `<div id="{name}-content">` in `index.html`. `activateTab(name)` clears the container and calls the renderer.
+- **Supabase:** `sb` is the Supabase JS client. Queries follow `sb.from('table').select('cols').eq('col', val)`.
+- **Strain IDs:** Strains are identified by UUID in the database (`strain_id` column on `genes`, `strain_id_a`/`strain_id_b` on `orthologs`). The `strains` table has `id` (UUID), `common_name` (e.g. "CT-L2"), `color_hex`, `emoji_icon`.
+- **Gene sort order:** `sort_index` is the chromosome position integer. Chromosome genes: `sort_index < 871`. Plasmid genes: `sort_index >= 871` — exclude from this tool.
+- **Orthologs table columns:** `gene_id_a`, `gene_id_b`, `strain_id_a`, `strain_id_b`. A pair may be stored in either direction.
+- **Functional categories:** 17 categories, each with a hex color. The constants `CATEGORY_COLORS`, `CATEGORY_BADGE`, `FUNC_LABELS` in `genomes.js` are the source of truth — copy them into the new file.
+- **Gene detail navigation:** `window.__openGeneId = geneId; activateTab('genomes');` opens gene detail.
+
+---
+
+## File Map
+
+| Action | File | What changes |
+|--------|------|-------------|
+| Create | `web/js/views/genome-alignment.js` | Entire new view module |
+| Modify | `web/js/app.js` | Import, TABS, RENDERERS, Tools dropdown, active state |
+| Modify | `web/index.html` | New `<section>` + `<div>` for the tab |
+
+---
+
+## Task 1: Register the tab in app.js and index.html
+
+**Files:**
+- Modify: `web/js/app.js:1–61, 77–97`
+- Modify: `web/index.html` (after line 138, before `</main>`)
+
+- [ ] **Step 1: Add the import to app.js**
+
+At line 9, after the `renderStructureAlignment` import, add:
+
+```js
+import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
+```
+
+- [ ] **Step 2: Add genome-alignment to TABS and RENDERERS in app.js**
+
+Replace the TABS line (line 52) and RENDERERS block (lines 53–61):
+
+```js
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment', 'structure-alignment', 'genome-alignment'];
+const RENDERERS = {
+  home:      renderHome,
+  genomes:   renderGenomes,
+  mutants:   renderMutants,
+  pipeline:  renderPipeline,
+  roadmap:   renderRoadmap,
+  alignment: renderAlignment,
+  'structure-alignment': renderStructureAlignment,
+  'genome-alignment':    renderGenomeAlignment,
+};
+```
+
+- [ ] **Step 3: Add genome-alignment to the Tools active state check in app.js**
+
+Replace line 85:
+```js
+  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment' || name === 'genome-alignment');
+```
+
+- [ ] **Step 4: Add genome-alignment to showToolsPopover() in app.js**
+
+Add a genome icon and a third button inside `showToolsPopover()`. Replace the entire function (lines 27–49):
+
+```js
+function showToolsPopover(anchor) {
+  const seqIcon = `<svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="display:block;flex-shrink:0;opacity:0.7"><line x1="1" y1="4" x2="11" y2="4"/><line x1="4" y1="7.5" x2="14" y2="7.5"/><line x1="2" y1="11" x2="12" y2="11"/></svg>`;
+  const structIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;opacity:0.7"><path d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>`;
+  const genomeIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;opacity:0.7"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+  const pop = openNavPopover(anchor, `
+    <div class="nav-popover-label">Tools</div>
+    <button class="nav-popover-row" id="tools-pop-seq">
+      <span class="nav-popover-row-icon">${seqIcon}</span>
+      <span class="nav-popover-row-name">Sequence Alignment</span>
+    </button>
+    <button class="nav-popover-row" id="tools-pop-struct">
+      <span class="nav-popover-row-icon">${structIcon}</span>
+      <span class="nav-popover-row-name">Structure Alignment</span>
+    </button>
+    <button class="nav-popover-row" id="tools-pop-genome">
+      <span class="nav-popover-row-icon">${genomeIcon}</span>
+      <span class="nav-popover-row-name">Genome Alignment</span>
+    </button>
+  `, 'tools-nav-popover');
+  pop?.querySelector('#tools-pop-seq')?.addEventListener('click', () => {
+    pop.remove();
+    activateTab('alignment');
+  });
+  pop?.querySelector('#tools-pop-struct')?.addEventListener('click', () => {
+    pop.remove();
+    activateTab('structure-alignment');
+  });
+  pop?.querySelector('#tools-pop-genome')?.addEventListener('click', () => {
+    pop.remove();
+    activateTab('genome-alignment');
+  });
+}
+```
+
+- [ ] **Step 5: Add the tab section to index.html**
+
+After line 138 (after the `</section>` that closes `tab-structure-alignment`), add:
+
+```html
+    <!-- GENOME ALIGNMENT TAB -->
+    <section id="tab-genome-alignment" class="tab-panel hidden">
+      <div id="genome-alignment-content"></div>
+    </section>
+```
+
+- [ ] **Step 6: Create an empty stub for the new view so the import doesn't break**
+
+Create `web/js/views/genome-alignment.js` with just the export:
+
+```js
+// ChlamAtlas — Genome Alignment tool
+import { sb } from '../client.js?v=80';
+
+export function renderGenomeAlignment(container) {
+  container.innerHTML = '<p style="padding:24px;color:#6b7280;">Loading…</p>';
+}
+```
+
+- [ ] **Step 7: Verify in browser**
+
+Open the site, click Tools. Confirm "Genome Alignment" appears as a third menu item. Click it — the tab should activate and show "Loading…". The URL hash should change to `#/genome-alignment`.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add web/js/app.js web/index.html web/js/views/genome-alignment.js
+git commit -m "feat: register genome-alignment tab and Tools menu entry"
+```
+
+---
+
+## Task 2: Scaffold the view — constants, module state, container HTML, load strains
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (full rewrite of the stub)
+
+- [ ] **Step 1: Write the full scaffold with constants, state, and container HTML**
+
+Replace the entire file:
+
+```js
+// ChlamAtlas — Genome Alignment tool
+import { sb } from '../client.js?v=80';
+
+// ── Constants (copied from genomes.js) ───────────────────────
+const CATEGORY_COLORS = {
+  'Amino acid metabolism':      '#E66729',
+  'Cell envelope':              '#00A69D',
+  'Cell processes':             '#0052A3',
+  'Cofactor metabolism':        '#838FC7',
+  'Energy metabolism':          '#EC1C24',
+  'Inclusion membrane protein': '#E4B47E',
+  'Inermediary metabolism':     '#9D270E',
+  'Lipid metabolism':           '#6F2D90',
+  'Membrane transport':         '#6DCFF5',
+  'Nucleotide metabolism':      '#F497AE',
+  'Other':                      '#EBEBEB',
+  'Replication':                '#FFF100',
+  'Secreted effector':          '#00A551',
+  'Transcription':              '#FCB814',
+  'Translation':                '#BED630',
+  'Type III secretion':         '#8A5D3B',
+  'Unknown':                    '#AAAAAA',
+};
+const CATEGORY_COLOR_DEFAULT = '#E5E7EB';
+
+const CATEGORY_BADGE = {
+  'Amino acid metabolism':      { bg:'#fff3ed', text:'#9a3412', border:'#fed7aa' },
+  'Cell envelope':              { bg:'#f0fdfa', text:'#134e4a', border:'#99f6e4' },
+  'Cell processes':             { bg:'#eff6ff', text:'#1e3a8a', border:'#bfdbfe' },
+  'Cofactor metabolism':        { bg:'#f5f3ff', text:'#4c1d95', border:'#ddd6fe' },
+  'Energy metabolism':          { bg:'#fef2f2', text:'#991b1b', border:'#fecaca' },
+  'Inclusion membrane protein': { bg:'#fef9ee', text:'#a37742', border:'#f0d898' },
+  'Inermediary metabolism':     { bg:'#fef2f2', text:'#7f1d1d', border:'#fecaca' },
+  'Lipid metabolism':           { bg:'#faf5ff', text:'#581c87', border:'#e9d5ff' },
+  'Membrane transport':         { bg:'#f0f9ff', text:'#0c4a6e', border:'#bae6fd' },
+  'Nucleotide metabolism':      { bg:'#fdf2f8', text:'#831843', border:'#fbcfe8' },
+  'Other':                      { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' },
+  'Replication':                { bg:'#fefce8', text:'#713f12', border:'#fde68a' },
+  'Secreted effector':          { bg:'#f0fdf4', text:'#14532d', border:'#86efac' },
+  'Transcription':              { bg:'#fffbeb', text:'#78350f', border:'#fde68a' },
+  'Translation':                { bg:'#f7fee7', text:'#365314', border:'#d9f99d' },
+  'Type III secretion':         { bg:'#fdf4ef', text:'#5c3317', border:'#e8c9b3' },
+  'Unknown':                    { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' },
+};
+
+const FUNC_LABELS = {
+  'Amino acid metabolism':      'Amino acid',
+  'Cell envelope':              'Cell envelope',
+  'Cell processes':             'Cell processes',
+  'Cofactor metabolism':        'Cofactor',
+  'Energy metabolism':          'Energy',
+  'Inclusion membrane protein': 'Inc',
+  'Inermediary metabolism':     'Intermediary',
+  'Lipid metabolism':           'Lipid',
+  'Membrane transport':         'Transport',
+  'Nucleotide metabolism':      'Nucleotide',
+  'Other':                      'Other',
+  'Replication':                'Replication',
+  'Secreted effector':          'Secreted effector',
+  'Transcription':              'Transcription',
+  'Translation':                'Translation',
+  'Type III secretion':         'T3SS',
+  'Unknown':                    'Unknown',
+};
+
+const ROW_HEIGHT = 22; // px — fixed row height for ribbon Y calculation
+const PAGE_SIZE  = 100;
+
+// ── Module state (reset on each renderGenomeAlignment call) ──
+let _strains      = [];        // [{id, common_name, color_hex, emoji_icon}, ...]
+let _refStrainId  = null;
+let _cmpStrainId  = null;
+let _refGenes     = [];        // ordered by sort_index
+let _cmpGenes     = [];
+let _orthologMap  = new Map(); // refGeneId → cmpGeneId
+let _cmpGeneMap   = new Map(); // cmpGeneId → gene object
+let _renderedCount = 0;
+let _expandedRefId = null;     // currently expanded reference gene id
+let _observer     = null;      // IntersectionObserver for pagination
+let _container    = null;      // root container div
+
+// ── Entry point ──────────────────────────────────────────────
+export async function renderGenomeAlignment(container) {
+  _container    = container;
+  _strains      = [];
+  _refStrainId  = null;
+  _cmpStrainId  = null;
+  _refGenes     = [];
+  _cmpGenes     = [];
+  _orthologMap  = new Map();
+  _cmpGeneMap   = new Map();
+  _renderedCount = 0;
+  _expandedRefId = null;
+  if (_observer) { _observer.disconnect(); _observer = null; }
+
+  container.innerHTML = `
+    <div id="ga-wrap" style="display:flex;flex-direction:column;height:calc(100vh - 56px);font-family:system-ui,sans-serif;">
+
+      <!-- Sticky top bar -->
+      <div id="ga-topbar" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;">
+
+        <!-- Row 1: strain pickers + search -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;flex-wrap:wrap;">
+          <select id="ga-ref-picker" style="border:1.5px solid #3b82f6;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;color:#1d4ed8;background:#fff;cursor:pointer;">
+            <option value="">Reference genome…</option>
+          </select>
+          <span style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
+          <select id="ga-cmp-picker" style="border:1.5px solid #d97706;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;color:#b45309;background:#fff;cursor:pointer;">
+            <option value="">Comparison genome…</option>
+          </select>
+          <input id="ga-search" placeholder="🔍 Search gene…" style="margin-left:auto;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:12px;color:#374151;width:180px;outline:none;">
+        </div>
+
+        <!-- Row 2: jump chips (populated after gene load) -->
+        <div id="ga-jump-row" style="display:none;align-items:center;gap:5px;padding:3px 12px 4px;flex-wrap:wrap;font-size:10px;">
+          <span style="color:#94a3b8;font-weight:700;flex-shrink:0;letter-spacing:0.05em;">JUMP TO:</span>
+          <div id="ga-jump-chips" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+        </div>
+
+        <!-- Row 3: category legend (populated after gene load) -->
+        <div id="ga-legend-row" style="display:none;align-items:center;gap:6px;padding:3px 12px 5px;flex-wrap:wrap;font-size:9px;"></div>
+
+        <!-- Warning banner (same strain) -->
+        <div id="ga-warning" style="display:none;padding:4px 12px;background:#fef9c3;color:#854d0e;font-size:11px;border-top:1px solid #fde68a;">
+          ⚠️ Select two different genomes to compare.
+        </div>
+
+        <!-- Error banner -->
+        <div id="ga-error" style="display:none;padding:6px 12px;background:#fef2f2;color:#991b1b;font-size:11px;border-top:1px solid #fecaca;">
+          Failed to load genome data.
+          <button id="ga-retry" style="margin-left:8px;font-size:11px;color:#1d4ed8;background:none;border:none;cursor:pointer;text-decoration:underline;">Retry</button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="ga-empty" style="display:flex;align-items:center;justify-content:center;flex:1;color:#94a3b8;font-size:14px;">
+        Select two genomes above to begin.
+      </div>
+
+      <!-- Gene list (hidden until data loaded) -->
+      <div id="ga-list" style="display:none;flex:1;overflow-y:auto;">
+        <div id="ga-columns" style="display:flex;min-height:100%;">
+          <div id="ga-ref-col" style="width:38%;border-right:1px solid #f0f0f0;"></div>
+          <div id="ga-ribbon-col" style="width:24%;position:relative;overflow:visible;">
+            <svg id="ga-svg" width="100%" height="0"
+              viewBox="0 0 100 0"
+              preserveAspectRatio="none"
+              style="position:absolute;top:0;left:0;pointer-events:none;"></svg>
+          </div>
+          <div id="ga-cmp-col" style="width:38%;border-left:1px solid #f0f0f0;"></div>
+        </div>
+        <div id="ga-sentinel" style="height:1px;"></div>
+        <div id="ga-footer" style="display:none;padding:6px 12px;font-size:10px;color:#9ca3af;text-align:center;">
+          Plasmid genes excluded from this view.
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  await loadStrains();
+}
+```
+
+- [ ] **Step 2: Implement loadStrains()**
+
+Append this function to the file:
+
+```js
+// ── Strain loading ───────────────────────────────────────────
+async function loadStrains() {
+  const { data, error } = await sb
+    .from('strains')
+    .select('id,common_name,color_hex,emoji_icon')
+    .eq('is_active', true)
+    .order('common_name');
+
+  if (error || !data?.length) {
+    showError(true);
+    return;
+  }
+
+  _strains = data;
+  const refPicker = _container.querySelector('#ga-ref-picker');
+  const cmpPicker = _container.querySelector('#ga-cmp-picker');
+
+  data.forEach(s => {
+    const label = `${s.emoji_icon ?? ''} ${s.common_name}`.trim();
+    refPicker.insertAdjacentHTML('beforeend',
+      `<option value="${s.id}">${label}</option>`);
+    cmpPicker.insertAdjacentHTML('beforeend',
+      `<option value="${s.id}">${label}</option>`);
+  });
+
+  refPicker.addEventListener('change', onPickerChange);
+  cmpPicker.addEventListener('change', onPickerChange);
+
+  _container.querySelector('#ga-retry')?.addEventListener('click', () => {
+    showError(false);
+    onPickerChange();
+  });
+  _container.querySelector('#ga-search')?.addEventListener('input', onSearch);
+}
+
+function showError(visible) {
+  _container.querySelector('#ga-error').style.display = visible ? 'block' : 'none';
+}
+
+function showWarning(visible) {
+  _container.querySelector('#ga-warning').style.display = visible ? 'block' : 'none';
+}
+```
+
+- [ ] **Step 3: Verify in browser**
+
+Open the site → Tools → Genome Alignment. Both dropdowns should populate with the three active strains. No errors in console.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment scaffold — container HTML, constants, strain pickers"
+```
+
+---
+
+## Task 3: Load genes and build ortholog map on strain selection
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (append functions)
+
+- [ ] **Step 1: Implement onPickerChange() — validates selection and kicks off data load**
+
+Append to the file:
+
+```js
+// ── Strain selection handler ──────────────────────────────────
+async function onPickerChange() {
+  const refId = _container.querySelector('#ga-ref-picker').value;
+  const cmpId = _container.querySelector('#ga-cmp-picker').value;
+
+  if (!refId || !cmpId) return;
+
+  if (refId === cmpId) {
+    showWarning(true);
+    return;
+  }
+  showWarning(false);
+
+  _refStrainId  = refId;
+  _cmpStrainId  = cmpId;
+  _renderedCount = 0;
+  _expandedRefId = null;
+  if (_observer) { _observer.disconnect(); _observer = null; }
+
+  // Reset list
+  _container.querySelector('#ga-ref-col').innerHTML  = '';
+  _container.querySelector('#ga-cmp-col').innerHTML  = '';
+  _container.querySelector('#ga-svg').innerHTML      = '';
+  _container.querySelector('#ga-svg').setAttribute('height', '0');
+  _container.querySelector('#ga-svg').setAttribute('viewBox', '0 0 100 0');
+  _container.querySelector('#ga-list').style.display = 'none';
+  _container.querySelector('#ga-empty').style.display = 'flex';
+  _container.querySelector('#ga-empty').textContent  = 'Loading…';
+  _container.querySelector('#ga-jump-row').style.display   = 'none';
+  _container.querySelector('#ga-legend-row').style.display = 'none';
+  _container.querySelector('#ga-footer').style.display     = 'none';
+  showError(false);
+
+  await loadGenes();
+}
+```
+
+- [ ] **Step 2: Implement loadGenes() — fetches both gene lists and the ortholog map**
+
+Append to the file:
+
+```js
+async function loadGenes() {
+  const GENE_COLS = 'id,locus_tag,gene_name,gene_symbol,product,functional_category,sort_index,is_characterized';
+
+  const [refRes, cmpRes] = await Promise.all([
+    sb.from('genes')
+      .select(GENE_COLS)
+      .eq('strain_id', _refStrainId)
+      .lt('sort_index', 871)
+      .order('sort_index'),
+    sb.from('genes')
+      .select(GENE_COLS)
+      .eq('strain_id', _cmpStrainId)
+      .lt('sort_index', 871)
+      .order('sort_index'),
+  ]);
+
+  if (refRes.error || cmpRes.error) {
+    showError(true);
+    _container.querySelector('#ga-empty').textContent = 'Select two genomes above to begin.';
+    return;
+  }
+
+  _refGenes = refRes.data ?? [];
+  _cmpGenes = cmpRes.data ?? [];
+
+  // Build cmpGeneMap for O(1) lookup
+  _cmpGeneMap = new Map(_cmpGenes.map(g => [g.id, g]));
+
+  // Fetch orthologs for this strain pair (both directions)
+  const [o1, o2] = await Promise.all([
+    sb.from('orthologs')
+      .select('gene_id_a,gene_id_b')
+      .eq('strain_id_a', _refStrainId)
+      .eq('strain_id_b', _cmpStrainId),
+    sb.from('orthologs')
+      .select('gene_id_a,gene_id_b')
+      .eq('strain_id_a', _cmpStrainId)
+      .eq('strain_id_b', _refStrainId),
+  ]);
+
+  _orthologMap = new Map();
+  const cmpIdSet = new Set(_cmpGenes.map(g => g.id));
+  const refIdSet = new Set(_refGenes.map(g => g.id));
+
+  for (const row of (o1.data ?? [])) {
+    if (refIdSet.has(row.gene_id_a) && cmpIdSet.has(row.gene_id_b)) {
+      _orthologMap.set(row.gene_id_a, row.gene_id_b);
+    }
+  }
+  for (const row of (o2.data ?? [])) {
+    if (refIdSet.has(row.gene_id_b) && cmpIdSet.has(row.gene_id_a)) {
+      _orthologMap.set(row.gene_id_b, row.gene_id_a);
+    }
+  }
+
+  // Ready to render
+  buildJumpChips();
+  buildLegend();
+  _container.querySelector('#ga-empty').style.display = 'none';
+  _container.querySelector('#ga-list').style.display  = 'block';
+  _container.querySelector('#ga-footer').style.display = 'block';
+  appendPage();
+  setupObserver();
+}
+```
+
+- [ ] **Step 3: Verify in browser**
+
+Select two strains. Open browser DevTools → Network. Confirm four Supabase queries fire (ref genes, cmp genes, orthologs direction 1, orthologs direction 2). No console errors. The empty state should change to "Loading…" then disappear. (The list area will be empty until Task 4 renders rows.)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — load genes and build ortholog map on strain selection"
+```
+
+---
+
+## Task 4: Render gene rows and SVG ribbon
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (append functions)
+
+- [ ] **Step 1: Implement appendPage() — renders the next 100 reference genes**
+
+Append to the file:
+
+```js
+// ── Rendering ────────────────────────────────────────────────
+function appendPage() {
+  const start = _renderedCount;
+  const end   = Math.min(start + PAGE_SIZE, _refGenes.length);
+  if (start >= _refGenes.length) return;
+
+  const refCol = _container.querySelector('#ga-ref-col');
+  const cmpCol = _container.querySelector('#ga-cmp-col');
+  const svgEl  = _container.querySelector('#ga-svg');
+
+  for (let i = start; i < end; i++) {
+    const refGene   = _refGenes[i];
+    const cmpGeneId = _orthologMap.get(refGene.id) ?? null;
+    const cmpGene   = cmpGeneId ? _cmpGeneMap.get(cmpGeneId) : null;
+    const catColor  = CATEGORY_COLORS[refGene.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+
+    refCol.appendChild(buildRow(refGene, catColor, true));
+    cmpCol.appendChild(cmpGene ? buildRow(cmpGene, catColor, false, refGene.id) : buildGapRow());
+
+    const y = i * ROW_HEIGHT + ROW_HEIGHT / 2;
+    if (cmpGene) {
+      svgEl.insertAdjacentHTML('beforeend',
+        `<path data-ref-id="${refGene.id}" d="M 0,${y} C 50,${y} 50,${y} 100,${y}"` +
+        ` stroke="${catColor}" stroke-width="${refGene.gene_name ? 9 : 7}"` +
+        ` fill="none" opacity="0.55"/>`);
+    } else {
+      svgEl.insertAdjacentHTML('beforeend',
+        `<circle data-ref-id="${refGene.id}" cx="50" cy="${y}" r="4"` +
+        ` fill="#fca5a5" opacity="0.8"/>`);
+    }
+  }
+
+  _renderedCount = end;
+  const totalH = _renderedCount * ROW_HEIGHT;
+  svgEl.setAttribute('height', totalH);
+  svgEl.setAttribute('viewBox', `0 0 100 ${totalH}`);
+}
+```
+
+- [ ] **Step 2: Implement buildRow() — a single gene row div**
+
+Append to the file:
+
+```js
+function buildRow(gene, catColor, isRef, refId = null) {
+  const named = !!(gene.gene_name || gene.gene_symbol);
+  const displayName = gene.gene_name || gene.gene_symbol || '';
+  const locusTag = gene.locus_tag ?? '';
+  const r = parseInt(catColor.slice(1,3), 16);
+  const g = parseInt(catColor.slice(3,5), 16);
+  const b = parseInt(catColor.slice(5,7), 16);
+  const bgTint = `rgba(${r},${g},${b},0.06)`;
+
+  const row = document.createElement('div');
+  row.className = 'ga-row';
+  row.dataset.refId = isRef ? gene.id : (refId ?? gene.id);
+  row.dataset.geneId = gene.id;
+  row.style.cssText = [
+    `height:${ROW_HEIGHT}px`,
+    'overflow:hidden',
+    'cursor:pointer',
+    `border-left:4px solid ${catColor}`,
+    `background:${bgTint}`,
+    'display:flex',
+    'align-items:center',
+    'padding:0 6px 0 6px',
+    'gap:5px',
+    'box-sizing:border-box',
+    'position:relative',
+    'border-bottom:1px solid rgba(0,0,0,0.03)',
+  ].join(';');
+
+  const tagSpan = document.createElement('span');
+  tagSpan.style.cssText = 'font-family:monospace;font-size:10px;flex-shrink:0;color:' +
+    (named ? '#1a1a1a' : '#9ca3af');
+  tagSpan.textContent = locusTag;
+
+  row.appendChild(tagSpan);
+
+  if (named) {
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = `font-size:10px;font-weight:700;color:${catColor};flex-shrink:0;`;
+    nameSpan.textContent = '· ' + displayName;
+    row.appendChild(nameSpan);
+  }
+
+  row.addEventListener('click', () => toggleExpand(row, gene, catColor, isRef));
+  return row;
+}
+
+function buildGapRow() {
+  const row = document.createElement('div');
+  row.style.cssText = [
+    `height:${ROW_HEIGHT}px`,
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+    'font-size:9px',
+    'color:#d1d5db',
+    'font-style:italic',
+    'border-bottom:1px solid rgba(0,0,0,0.03)',
+  ].join(';');
+  row.textContent = '— no ortholog —';
+  return row;
+}
+```
+
+- [ ] **Step 3: Add a stub for toggleExpand (needed so clicks don't error)**
+
+Append to the file:
+
+```js
+// ── Expand / collapse (implemented in Task 8) ────────────────
+function toggleExpand(rowEl, gene, catColor, isRef) {
+  // stub — full implementation in Task 8
+}
+```
+
+- [ ] **Step 4: Verify in browser**
+
+Select two strains. The first 100 reference genes should appear as compact rows in the left column, with matching ortholog rows (or gap rows) in the right column. The SVG center column should show colored bezier paths for connected pairs and red circles for gaps. Functional category colors should be visible as left-border stripes.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — render gene rows and SVG ribbon"
+```
+
+---
+
+## Task 5: IntersectionObserver pagination
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (append one function)
+
+- [ ] **Step 1: Implement setupObserver()**
+
+Append to the file:
+
+```js
+// ── Pagination ───────────────────────────────────────────────
+function setupObserver() {
+  const sentinel = _container.querySelector('#ga-sentinel');
+  if (!sentinel) return;
+
+  _observer = new IntersectionObserver((entries) => {
+    if (!entries[0].isIntersecting) return;
+    if (_renderedCount >= _refGenes.length) {
+      _observer.disconnect();
+      return;
+    }
+    appendPage();
+  }, {
+    root: _container.querySelector('#ga-list'),
+    rootMargin: '200px',
+  });
+
+  _observer.observe(sentinel);
+}
+```
+
+- [ ] **Step 2: Verify in browser**
+
+Select two strains. Scroll slowly to the bottom of the rendered rows. When the sentinel enters the viewport, the next 100 rows should appear automatically. Repeat until all genes are loaded. The last row should show the highest-numbered locus tag.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — IntersectionObserver pagination"
+```
+
+---
+
+## Task 6: Jump chips and search box
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (append functions)
+
+- [ ] **Step 1: Implement buildJumpChips()**
+
+Append to the file:
+
+```js
+// ── Navigation ───────────────────────────────────────────────
+function buildJumpChips() {
+  const chipsEl = _container.querySelector('#ga-jump-chips');
+  const jumpRow = _container.querySelector('#ga-jump-row');
+  chipsEl.innerHTML = '';
+
+  const indices = [];
+  for (let i = 0; i < _refGenes.length; i += 100) indices.push(i);
+  // Always include the last gene
+  if (indices[indices.length - 1] !== _refGenes.length - 1) {
+    indices.push(_refGenes.length - 1);
+  }
+
+  indices.forEach(idx => {
+    const gene  = _refGenes[idx];
+    const label = idx === _refGenes.length - 1
+      ? `${gene.locus_tag} (end)`
+      : gene.locus_tag;
+
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = [
+      'background:#f1f5f9',
+      'border:1px solid #e2e8f0',
+      'border-radius:4px',
+      'padding:2px 7px',
+      'font-size:9px',
+      'color:#475569',
+      'cursor:pointer',
+      'font-family:monospace',
+    ].join(';');
+    btn.addEventListener('click', () => jumpToIndex(idx));
+    chipsEl.appendChild(btn);
+  });
+
+  jumpRow.style.display = 'flex';
+}
+
+function jumpToIndex(targetIdx) {
+  // Render all pages up to and including the target
+  while (_renderedCount <= targetIdx && _renderedCount < _refGenes.length) {
+    appendPage();
+  }
+  // Scroll the target row into view
+  const refCol = _container.querySelector('#ga-ref-col');
+  const rows   = refCol.querySelectorAll('.ga-row');
+  const row    = rows[targetIdx];
+  if (row) {
+    row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    row.style.outline = '2px solid #3b82f6';
+    setTimeout(() => { row.style.outline = ''; }, 1500);
+  }
+}
+```
+
+- [ ] **Step 2: Implement onSearch()**
+
+Append to the file:
+
+```js
+function onSearch(e) {
+  const query = e.target.value.trim().toLowerCase();
+  if (!query) return;
+
+  const idx = _refGenes.findIndex(g =>
+    g.locus_tag?.toLowerCase().includes(query) ||
+    g.gene_name?.toLowerCase().includes(query) ||
+    g.gene_symbol?.toLowerCase().includes(query)
+  );
+  if (idx === -1) return;
+
+  jumpToIndex(idx);
+}
+```
+
+- [ ] **Step 3: Verify in browser**
+
+After selecting two strains:
+- Jump chips should appear below the pickers, one chip every 100 genes plus an "(end)" chip.
+- Clicking a chip should instantly render all intermediate pages and scroll to that gene.
+- Typing a locus tag (e.g. "CTL0500") in the search box and pressing Enter should scroll to that gene.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — jump chips and gene search"
+```
+
+---
+
+## Task 7: Category legend
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (append one function)
+
+- [ ] **Step 1: Implement buildLegend()**
+
+Append to the file:
+
+```js
+// ── Legend ───────────────────────────────────────────────────
+function buildLegend() {
+  const legendRow = _container.querySelector('#ga-legend-row');
+  legendRow.innerHTML = '';
+
+  Object.entries(FUNC_LABELS).forEach(([cat, label]) => {
+    const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLOR_DEFAULT;
+    const item  = document.createElement('span');
+    item.style.cssText = 'display:flex;align-items:center;gap:3px;white-space:nowrap;';
+    item.innerHTML =
+      `<span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block;"></span>` +
+      `<span style="color:#6b7280;">${label}</span>`;
+    legendRow.appendChild(item);
+  });
+
+  legendRow.style.display = 'flex';
+}
+```
+
+- [ ] **Step 2: Verify in browser**
+
+After selecting two strains, the legend row should appear below the jump chips showing 17 colored swatches with abbreviated category labels. Colors should match the row borders in the gene list.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — functional category legend"
+```
+
+---
+
+## Task 8: Expand-on-click
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (replace toggleExpand stub)
+
+- [ ] **Step 1: Replace the toggleExpand stub with the full implementation**
+
+Find and replace the stub function:
+
+```js
+// ── Expand / collapse (implemented in Task 8) ────────────────
+function toggleExpand(rowEl, gene, catColor, isRef) {
+  // stub — full implementation in Task 8
+}
+```
+
+Replace with:
+
+```js
+// ── Expand / collapse ────────────────────────────────────────
+function toggleExpand(rowEl, gene, catColor, isRef) {
+  const refId = rowEl.dataset.refId;
+
+  // Collapse if clicking the already-expanded row
+  if (_expandedRefId === refId) {
+    collapseExpanded();
+    return;
+  }
+
+  // Collapse previous
+  if (_expandedRefId) collapseExpanded();
+
+  _expandedRefId = refId;
+
+  // Expand the ref row
+  const refCol     = _container.querySelector('#ga-ref-col');
+  const cmpCol     = _container.querySelector('#ga-cmp-col');
+  const refRow     = refCol.querySelector(`.ga-row[data-ref-id="${refId}"]`);
+  const cmpRow     = cmpCol.querySelector(`.ga-row[data-ref-id="${refId}"]`);
+
+  if (refRow) expandRowEl(refRow, gene, catColor, true);
+  if (cmpRow) {
+    // Find comparison gene via the ortholog map
+    const cmpGeneId = _orthologMap.get(refId);
+    const cmpGene   = cmpGeneId ? _cmpGeneMap.get(cmpGeneId) : null;
+    if (cmpGene) expandRowEl(cmpRow, cmpGene, catColor, false);
+  }
+
+  // Highlight ribbon path
+  const svgEl = _container.querySelector('#ga-svg');
+  svgEl.querySelectorAll(`[data-ref-id="${refId}"]`).forEach(el => {
+    el.setAttribute('stroke-width', '14');
+    el.setAttribute('opacity', '0.85');
+  });
+}
+
+function expandRowEl(rowEl, gene, catColor, isRef) {
+  rowEl.style.height   = 'auto';
+  rowEl.style.overflow = 'visible';
+
+  const badge   = CATEGORY_BADGE[gene.functional_category] ?? { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' };
+  const catName = FUNC_LABELS[gene.functional_category] ?? gene.functional_category ?? 'Unknown';
+  const product = gene.product ?? '';
+
+  const body = document.createElement('div');
+  body.className = 'ga-expand-body';
+  body.style.cssText = [
+    'position:absolute',
+    `top:${ROW_HEIGHT}px`,
+    'left:-4px',
+    'right:0',
+    'z-index:20',
+    `background:${badge.bg}`,
+    `border:1.5px solid ${badge.border}`,
+    'border-top:none',
+    'padding:6px 8px 8px',
+    'box-shadow:0 4px 12px rgba(0,0,0,0.08)',
+  ].join(';');
+
+  body.innerHTML = [
+    product ? `<div style="font-size:10px;color:#374151;margin-bottom:4px;">${escHtml(product)}</div>` : '',
+    `<span style="display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;` +
+      `background:${badge.bg};color:${badge.text};border:1px solid ${badge.border};margin-bottom:4px;">` +
+      `${escHtml(catName)}</span>`,
+    isRef
+      ? `<div style="margin-top:4px;"><a href="#" class="ga-detail-link" data-gene-id="${gene.id}" ` +
+        `style="font-size:10px;color:#3b82f6;text-decoration:none;">→ Gene detail</a></div>`
+      : '',
+  ].join('');
+
+  body.querySelector('.ga-detail-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.__openGeneId = gene.id;
+    window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+  });
+
+  rowEl.style.position = 'relative';
+  rowEl.appendChild(body);
+}
+
+function collapseExpanded() {
+  if (!_expandedRefId) return;
+
+  const refCol = _container.querySelector('#ga-ref-col');
+  const cmpCol = _container.querySelector('#ga-cmp-col');
+
+  [refCol, cmpCol].forEach(col => {
+    const row  = col.querySelector(`.ga-row[data-ref-id="${_expandedRefId}"]`);
+    const body = row?.querySelector('.ga-expand-body');
+    if (body) body.remove();
+    if (row) {
+      row.style.height   = `${ROW_HEIGHT}px`;
+      row.style.overflow = 'hidden';
+    }
+  });
+
+  // Restore ribbon path
+  const svgEl = _container.querySelector('#ga-svg');
+  const refGene = _refGenes.find(g => g.id === _expandedRefId);
+  const strokeW = refGene?.gene_name ? 9 : 7;
+  svgEl.querySelectorAll(`[data-ref-id="${_expandedRefId}"]`).forEach(el => {
+    el.setAttribute('stroke-width', String(strokeW));
+    el.setAttribute('opacity', '0.55');
+  });
+
+  _expandedRefId = null;
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+```
+
+- [ ] **Step 2: Verify in browser**
+
+Select two strains. Click any gene row. Both the reference and comparison rows should expand to show product + category badge. The ribbon connector for that pair should highlight (thicker, more opaque). The "→ Gene detail" link (ref side only) should navigate to the gene detail page in the Genomes tab. Clicking the same row again should collapse it. Clicking a different row should collapse the previous one first.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — expand-on-click with ribbon highlight and gene detail link"
+```
+
+---
+
+## Task 9: Edge case polish
+
+**Files:**
+- Modify: `web/js/views/genome-alignment.js` (small additions)
+- Modify: `web/js/app.js` (one line)
+
+These are all already wired in the HTML scaffold from Task 2. This task verifies each one explicitly.
+
+- [ ] **Step 1: Verify the same-strain warning**
+
+In the browser, select the same strain in both pickers. The yellow warning banner ("Select two different genomes to compare.") should appear and no gene list should load.
+
+If it doesn't show: confirm `showWarning(true)` is called in `onPickerChange()` when `refId === cmpId`.
+
+- [ ] **Step 2: Verify the error banner**
+
+Temporarily break the Supabase URL by editing `loadGenes()` to force an error: change `.from('genes')` to `.from('genes_nonexistent')` for one query, reload, select strains — the red error banner should appear with a "Retry" button. Revert the change.
+
+- [ ] **Step 3: Verify the plasmid footer note**
+
+After selecting two strains and loading genes, scroll to the very bottom of the gene list. The footer "Plasmid genes excluded from this view." should be visible in light gray.
+
+- [ ] **Step 4: Verify the empty state**
+
+Hard-reload the page and navigate to Genome Alignment. Before selecting any strains, the centered text "Select two genomes above to begin." should be visible.
+
+- [ ] **Step 5: Verify the tab active state in the Tools button**
+
+Navigate to Genome Alignment. The "Tools" nav button should be highlighted/active (same behavior as when Sequence Alignment or Structure Alignment is open).
+
+If it doesn't: confirm app.js line 85 now reads:
+```js
+if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment' || name === 'genome-alignment');
+```
+
+- [ ] **Step 6: Final end-to-end test**
+
+1. Select CT L2/434 as reference, CM Nigg as comparison
+2. Confirm gene rows load with functional category color stripes
+3. Confirm the category legend and jump chips appear
+4. Click a jump chip — confirm it scrolls to that gene
+5. Type a gene name in search (e.g. "ftsZ") — confirm it jumps and highlights the row
+6. Click a named gene row — confirm expand works on both sides
+7. Click "→ Gene detail" — confirm navigation to Genomes tab
+8. Scroll to the bottom — confirm all ~870 genes load via IntersectionObserver
+9. Select CT L2/434 vs CT D/UW-3 — confirm the tool resets and loads the new pair cleanly
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add web/js/views/genome-alignment.js
+git commit -m "feat: genome alignment — edge case polish and end-to-end verification"
+```
+
+---
+
+## Done
+
+The Genome Alignment tool is complete. Push to `origin/dev` to trigger a Vercel preview build:
+
+```bash
+git push origin dev
+```
+
+Verify the preview URL shows the tool working correctly before merging to main.
