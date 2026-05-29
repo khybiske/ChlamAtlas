@@ -686,17 +686,32 @@ function setupObserver() {
 // ── Legend ───────────────────────────────────────────────────
 function buildLegend() {
   const legendRow = _container.querySelector('#ga-legend-row');
+  if (!legendRow) return;
   legendRow.innerHTML = '';
 
   Object.entries(FUNC_LABELS).forEach(([cat, label]) => {
     const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLOR_DEFAULT;
-    const item  = document.createElement('span');
-    item.style.cssText = 'display:flex;align-items:center;gap:3px;white-space:nowrap;';
+    const item  = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:8.5px;color:#64748b;padding:2.5px 0;';
     item.innerHTML =
-      `<span style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;display:inline-block;"></span>` +
-      `<span style="color:#6b7280;">${label}</span>`;
+      `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;` +
+      (color === '#FFF100' || color === '#EBEBEB' ? 'border:1px solid #ccc;' : '') +
+      `"></span>` +
+      `<span>${label}</span>`;
     legendRow.appendChild(item);
   });
 
-  // ga-legend-row is always visible in the right sidebar — no display toggle needed
+  // Connector legend
+  const connectorLegend = document.createElement('div');
+  connectorLegend.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #e8edf2;';
+  connectorLegend.innerHTML =
+    `<div style="display:flex;align-items:center;gap:5px;font-size:8.5px;color:#64748b;padding:2.5px 0;">` +
+      `<svg width="20" height="4" style="flex-shrink:0"><line x1="0" y1="2" x2="20" y2="2" stroke="#888" stroke-width="1.5" opacity="0.6"/></svg>` +
+      `Ortholog` +
+    `</div>` +
+    `<div style="display:flex;align-items:center;gap:5px;font-size:8.5px;color:#64748b;padding:2.5px 0;margin-top:2px;">` +
+      `<svg width="20" height="10" style="flex-shrink:0"><circle cx="10" cy="5" r="3.5" fill="#fca5a5" opacity="0.85"/></svg>` +
+      `No ortholog` +
+    `</div>`;
+  legendRow.appendChild(connectorLegend);
 }
