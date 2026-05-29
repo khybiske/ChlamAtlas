@@ -8,8 +8,10 @@
 -- unique-constraint violations during the multi-row UPDATE.
 --
 -- After this migration:
---   pL2 plasmid genes shift from sort_index 871–878 → 872–879
---   Code using the plasmid boundary must use >= 872 (was >= 871)
+--   pL2 plasmid genes shift from sort_index 871–878 → 873–880
+--   (pL2 genes fall above CTL0856 insertion point so pick up both +1 shifts)
+--   CTL0897 (last chromosome gene) shifts 870 → 872
+--   Code using the plasmid boundary must use >= 873 (was >= 871)
 
 BEGIN;
 

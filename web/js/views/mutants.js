@@ -656,9 +656,9 @@ async function loadDetail(mutantUUID) {
       const flank = genes.length === 2 ? 2 : 4;
       const fetchNb = async (g) => {
         if (g.sort_index == null || !g.strain_id) return [];
-        const isPlasmid = g.sort_index >= 872;
-        const lo = isPlasmid ? 872 : Math.max(0, g.sort_index - flank);
-        const hi = isPlasmid ? 879 : g.sort_index + flank;
+        const isPlasmid = g.sort_index >= 873;
+        const lo = isPlasmid ? 873 : Math.max(0, g.sort_index - flank);
+        const hi = isPlasmid ? 880 : g.sort_index + flank;
         const { data } = await sb
           .from('genes')
           .select('id,locus_tag,gene_name,functional_category,start_bp,end_bp,strand,sort_index')
@@ -1334,7 +1334,7 @@ async function chimeraGeneExchangeHTML(m) {
       .order('sort_index', { ascending: false })
       .limit(1)
       .single();
-    const maxIdx = maxRow?.sort_index ?? 871;
+    const maxIdx = maxRow?.sort_index ?? 872;
 
     const [segA, segB] = await Promise.all([
       sb.from('genes').select(geneFields).eq('strain_id', backboneId)
