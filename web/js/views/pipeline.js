@@ -162,8 +162,8 @@ async function fetchData() {
 // SECTION 2: Stage strip + mutant row (Task 5)
 // ─────────────────────────────────────────────────────────────
 
-const FLAME_ON  = `<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 6.5 9 6.5 14.5a5.5 5.5 0 0011 0C17.5 9 12 2 12 2z" fill="#f97316"/><path d="M12 10C12 10 9.5 13.5 9.5 15.5a2.5 2.5 0 005 0C14.5 13.5 12 10 12 10z" fill="#fbbf24"/></svg>`;
-const FLAME_OFF = `<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 6.5 9 6.5 14.5a5.5 5.5 0 0011 0C17.5 9 12 2 12 2z" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+const FLAME_ON  = `<img src="/design/icons/flame-on.png"     width="20" height="20" style="display:block;object-fit:contain;" alt="Priority">`;
+const FLAME_OFF = `<img src="/design/icons/flame-off.png"    width="20" height="20" style="display:block;object-fit:contain;opacity:0.35;" alt="Not priority">`;
 const STAR_ON   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 const STAR_OFF  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 
