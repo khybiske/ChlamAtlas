@@ -1,5 +1,5 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=80';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=81';
 import { renderHome } from './views/home.js?v=81';
 import { renderGenomes } from './views/genomes.js?v=87';
 import { renderMutants } from './views/mutants.js?v=92';
@@ -8,6 +8,7 @@ import { renderRoadmap }  from './views/roadmap.js?v=90';
 import { renderAlignment } from './views/alignment.js?v=96';
 import { renderStructureAlignment } from './views/structure-alignment.js?v=6';
 import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
+import { renderBugs } from './views/bugs.js?v=1';
 
 export { sb, state };
 
@@ -59,13 +60,14 @@ function showToolsPopover(anchor) {
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment', 'structure-alignment', 'genome-alignment'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'bugs', 'alignment', 'structure-alignment', 'genome-alignment'];
 const RENDERERS = {
   home:      renderHome,
   genomes:   renderGenomes,
   mutants:   renderMutants,
   pipeline:  renderPipeline,
   roadmap:   renderRoadmap,
+  bugs:      renderBugs,
   alignment: renderAlignment,
   'structure-alignment': renderStructureAlignment,
   'genome-alignment':    renderGenomeAlignment,
@@ -236,29 +238,37 @@ function toggleUserDropdown() {
 
 function showUserDropdown() {
   hideUserDropdown();
+  document.querySelectorAll('.nav-popover').forEach(p => p.remove());
 
   const trigger  = document.getElementById('btn-user-menu');
   const rect     = trigger.getBoundingClientRect();
   const profile  = state.userProfile;
   const name     = profile?.display_name || (state.user.email ?? '').split('@')[0];
-  const affil    = profile?.lab_affiliation ? `<div style="font-size:10.5px;color:#6b7280;margin-top:1px;">${profile.lab_affiliation}</div>` : '';
-  const email    = `<div style="font-size:10px;color:#9ca3af;margin-top:1px;">${state.user.email}</div>`;
+  const affil    = profile?.lab_affiliation ? `<div style="font-size:10.5px;color:#6b7280;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${profile.lab_affiliation}</div>` : '';
+  const email    = `<div style="font-size:10px;color:#9ca3af;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.user.email}</div>`;
+
+  const iconStyle = `display:block;flex-shrink:0;opacity:0.45;`;
+  const btnStyle  = `width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;display:flex;align-items:center;gap:8px;`;
+  const iconAcct  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
+  const iconUsers = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/><circle cx="18" cy="8" r="2.5"/><path d="M22 20c0-2.5-2-4.5-4-5"/></svg>`;
+  const iconKey   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><circle cx="8" cy="15" r="5"/><path d="M21 3l-9.4 9.4M17 3h4v4"/></svg>`;
+  const iconNew   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+  const iconBug   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><path d="M8 2l1.5 1.5M16 2l-1.5 1.5M12 8a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0v-3a4 4 0 0 0-4-4z"/><path d="M8 12H4M20 12h-4M8 16H5M19 16h-3M9 20l-2 2M15 20l2 2"/></svg>`;
+  const iconOut   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
 
   const requestBtn = state.userRole === 'community' && !profile?.role_request
-    ? `<button id="dd-request-access"
-        style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+    ? `<button id="dd-request-access" style="${btnStyle}"
         onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
-        Request lab access
+        ${iconKey}Request lab access
       </button>`
     : state.userRole === 'community' && profile?.role_request
     ? `<div style="padding:7px 12px;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;font-style:italic;">Lab access request pending</div>`
     : '';
 
   const adminBtn = state.userRole === 'admin'
-    ? `<button id="dd-admin-panel"
-        style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+    ? `<button id="dd-admin-panel" style="${btnStyle}"
         onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
-        Manage users
+        ${iconUsers}Manage users
       </button>`
     : '';
 
@@ -267,7 +277,7 @@ function showUserDropdown() {
   _dropdownEl.style.cssText = `
     position:fixed;top:${rect.bottom + 6}px;right:${window.innerWidth - rect.right}px;
     background:white;border:1px solid #e5e7eb;border-radius:10px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200;min-width:200px;overflow:hidden;`;
+    box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200;min-width:180px;max-width:220px;overflow:hidden;`;
 
   _dropdownEl.innerHTML = `
     <div style="padding:10px 12px 8px;">
@@ -275,28 +285,30 @@ function showUserDropdown() {
       ${affil}
       ${email}
     </div>
-    <button id="dd-my-account"
-      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+    <button id="dd-my-account" style="${btnStyle}"
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
-      My account
+      ${iconAcct}My account
     </button>
     ${requestBtn}
     ${adminBtn}
-    <button id="dd-whats-new"
-      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+    <button id="dd-whats-new" style="${btnStyle}"
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
-      What's new
+      ${iconNew}What's new
     </button>
-    <button id="dd-sign-out"
-      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+    <button id="dd-bugs" style="${btnStyle}"
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
-      Sign out
+      ${iconBug}Bug reports
+    </button>
+    <button id="dd-sign-out" style="${btnStyle}"
+      onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+      ${iconOut}Sign out
     </button>`;
 
   document.body.appendChild(_dropdownEl);
 
   document.getElementById('dd-my-account').addEventListener('click', () => { hideUserDropdown(); showAccountModal(); });
   document.getElementById('dd-whats-new').addEventListener('click', () => { hideUserDropdown(); activateTab('roadmap'); });
+  document.getElementById('dd-bugs').addEventListener('click', () => { hideUserDropdown(); activateTab('bugs'); });
   document.getElementById('dd-sign-out').addEventListener('click', () => { hideUserDropdown(); signOut(); });
   document.getElementById('dd-request-access')?.addEventListener('click', () => { hideUserDropdown(); requestLabAccess(); });
   document.getElementById('dd-admin-panel')?.addEventListener('click', () => { hideUserDropdown(); showAdminPanel(); });
