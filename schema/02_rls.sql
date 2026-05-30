@@ -144,20 +144,14 @@ CREATE POLICY "pipeline_favorites: lab member read own"
     ON pipeline_favorites FOR SELECT
     USING (
         auth.uid() = user_id
-        AND EXISTS (
-            SELECT 1 FROM users u WHERE u.id = auth.uid()
-                AND u.role IN ('lab_member', 'admin') AND u.is_approved
-        )
+        AND current_user_role() IN ('lab_member', 'admin')
     );
 
 CREATE POLICY "pipeline_favorites: lab member insert own"
     ON pipeline_favorites FOR INSERT
     WITH CHECK (
         auth.uid() = user_id
-        AND EXISTS (
-            SELECT 1 FROM users u WHERE u.id = auth.uid()
-                AND u.role IN ('lab_member', 'admin') AND u.is_approved
-        )
+        AND current_user_role() IN ('lab_member', 'admin')
     );
 
 CREATE POLICY "pipeline_favorites: lab member delete own"
