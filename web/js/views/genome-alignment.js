@@ -1,5 +1,5 @@
 // ChlamAtlas — Genome Alignment tool
-import { sb } from '../client.js?v=80';
+import { sb } from '../client.js?v=82';
 
 // ── Constants (copied from genomes.js) ───────────────────────
 const CATEGORY_COLORS = {
