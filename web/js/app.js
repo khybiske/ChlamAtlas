@@ -243,8 +243,8 @@ function showUserDropdown() {
   const rect     = trigger.getBoundingClientRect();
   const profile  = state.userProfile;
   const name     = profile?.display_name || (state.user.email ?? '').split('@')[0];
-  const affil    = profile?.lab_affiliation ? `<div style="font-size:10.5px;color:#6b7280;margin-top:1px;">${profile.lab_affiliation}</div>` : '';
-  const email    = `<div style="font-size:10px;color:#9ca3af;margin-top:1px;">${state.user.email}</div>`;
+  const affil    = profile?.lab_affiliation ? `<div style="font-size:10.5px;color:#6b7280;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${profile.lab_affiliation}</div>` : '';
+  const email    = `<div style="font-size:10px;color:#9ca3af;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.user.email}</div>`;
 
   const requestBtn = state.userRole === 'community' && !profile?.role_request
     ? `<button id="dd-request-access"
@@ -269,7 +269,7 @@ function showUserDropdown() {
   _dropdownEl.style.cssText = `
     position:fixed;top:${rect.bottom + 6}px;right:${window.innerWidth - rect.right}px;
     background:white;border:1px solid #e5e7eb;border-radius:10px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200;min-width:200px;overflow:hidden;`;
+    box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200;min-width:180px;max-width:220px;overflow:hidden;`;
 
   _dropdownEl.innerHTML = `
     <div style="padding:10px 12px 8px;">
