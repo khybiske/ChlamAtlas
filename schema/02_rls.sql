@@ -134,3 +134,32 @@ $$;
 CREATE OR REPLACE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- ─── PIPELINE FAVORITES ───────────────────────────────────────
+-- Lab members and admins only; users can manage their own favorites.
+ALTER TABLE pipeline_favorites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "pipeline_favorites: lab member read own"
+    ON pipeline_favorites FOR SELECT
+    USING (
+        auth.uid() = user_id
+        AND EXISTS (
+            SELECT 1 FROM users u WHERE u.id = auth.uid()
+                AND u.role IN ('lab_member', 'admin') AND u.is_approved
+        )
+    );
+
+CREATE POLICY "pipeline_favorites: lab member insert own"
+    ON pipeline_favorites FOR INSERT
+    WITH CHECK (
+        auth.uid() = user_id
+        AND EXISTS (
+            SELECT 1 FROM users u WHERE u.id = auth.uid()
+                AND u.role IN ('lab_member', 'admin') AND u.is_approved
+        )
+    );
+
+CREATE POLICY "pipeline_favorites: lab member delete own"
+    ON pipeline_favorites FOR DELETE
+    USING (auth.uid() = user_id);
