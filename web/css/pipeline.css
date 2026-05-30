@@ -41,7 +41,7 @@
 
 /* Priority confirm popover */
 .pl-priority-confirm {
-  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+  display: none; position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 50;
   background: white; border: 1px solid #fed7aa; border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 10px 12px; min-width: 220px;
   text-align: left;
