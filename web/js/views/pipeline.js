@@ -113,7 +113,6 @@ async function fetchData() {
         )
       `)
       .eq('show_in_pipeline', true)
-      .eq('is_archived', false)
       .order('mutant_id', { ascending: true }),
 
     _userId
