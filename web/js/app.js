@@ -109,6 +109,14 @@ function activateTab(name) {
   history.replaceState(null, '', `#/${name}`);
 }
 
+// Used by the Pipeline tab to navigate directly to a specific mutant record,
+// bypassing the collection picker popover that the desktop nav-tab shows.
+window.__goToMutantRecord = function(collection, mutantUUID) {
+  window.__mutantCollection = collection;
+  window.__openMutantId = mutantUUID;
+  activateTab('mutants');
+};
+
 export function openAlignmentWith(geneId) {
   state.alignmentSeedGeneId = geneId;
   activateTab('alignment');

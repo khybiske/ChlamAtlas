@@ -162,8 +162,8 @@ async function fetchData() {
 // SECTION 2: Stage strip + mutant row (Task 5)
 // ─────────────────────────────────────────────────────────────
 
-const FLAME_ON  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#f97316" stroke="none"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
-const FLAME_OFF = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
+const FLAME_ON  = `<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 6.5 9 6.5 14.5a5.5 5.5 0 0011 0C17.5 9 12 2 12 2z" fill="#f97316"/><path d="M12 10C12 10 9.5 13.5 9.5 15.5a2.5 2.5 0 005 0C14.5 13.5 12 10 12 10z" fill="#fbbf24"/></svg>`;
+const FLAME_OFF = `<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 6.5 9 6.5 14.5a5.5 5.5 0 0011 0C17.5 9 12 2 12 2z" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const STAR_ON   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 const STAR_OFF  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 
@@ -235,9 +235,10 @@ function mutantRow(m, { showStrain = false } = {}) {
   if (isPlanned)  rowCls += ' is-planned';
   if (isExpanded) rowCls += ' is-expanded';
 
-  // Primary display name — prefer human-readable name over raw ID
-  const displayName = m.name || mutantId;
-  const showId      = m.name ? mutantId : ''; // show ID as secondary if name exists
+  // Primary display: KO/Tn use human name (CMΔincA); L17/Chimeras use mutant ID (RC1203)
+  const idFirst     = col === 'lucky17' || col === 'chimeras';
+  const displayName = idFirst ? mutantId : (m.name || mutantId);
+  const showId      = idFirst ? (m.name || '') : (m.name ? mutantId : '');
 
   // Mutation type pill — Tn | KO; hidden for Lucky17/Chimeras
   const col = (m.collection || '').toLowerCase();
@@ -676,9 +677,10 @@ window.__plConfirmRemove = async function(mutantId) {
 window.__plGoToMutant = function(mutantId) {
   const m = _allMutants.find(x => x.mutant_id === mutantId);
   if (!m) return;
-  window.__mutantCollection = m.collection || 'CT_L2';
-  window.__openMutantId = m.id; // UUID — mutants.js uses __openMutantId to pre-select the record
-  document.querySelector('[data-tab="mutants"]')?.click();
+  // Use the direct navigate function — avoids the desktop collection-picker popover
+  if (window.__goToMutantRecord) {
+    window.__goToMutantRecord(m.collection || 'CT_L2', m.id);
+  }
 };
 
 function _rerenderAll() {
@@ -818,10 +820,10 @@ function renderGroup(def) {
 
   // Group header
   const header = `
-    <div style="display:flex;align-items:center;gap:6px;padding:10px 14px 8px;border-bottom:1px solid #f3f4f6;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;padding:0 2px;flex-wrap:wrap;">
       ${iconHtml ? `<span style="display:flex;align-items:center;">${iconHtml}</span>` : ''}
-      <span style="font-size:13px;font-weight:700;color:#1f2937;">${esc(title)}</span>
-      <span style="font-size:10px;color:#9ca3af;background:#f3f4f6;border-radius:10px;padding:1px 6px;">${allInGroup.length}</span>
+      <span style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.05em;">${esc(title)}</span>
+      <span style="font-size:10px;color:#9ca3af;">${allInGroup.length}</span>
       ${strainChipsHtml ? `<div style="display:flex;gap:4px;align-items:center;">${strainChipsHtml}</div>` : ''}
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
         ${sortDropdown}
