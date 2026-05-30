@@ -113,7 +113,6 @@ export function openAlignmentWith(geneId) {
   state.alignmentSeedGeneId = geneId;
   activateTab('alignment');
 }
-window._openAlignmentWith = openAlignmentWith;
 
 // ─── Auth ─────────────────────────────────────────────────
 // Fetch the user's profile row using the access_token we already have from the
