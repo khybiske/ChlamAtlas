@@ -1397,13 +1397,15 @@ function renderDetailProtein(detail, gene, protein) {
 
 // Generates an "Align Orthologs" shortcut button that opens the alignment tool
 // pre-seeded with the given gene (and its orthologs) via openAlignmentWith.
+const _toolBtnStyle = `display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#0f4530;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;padding:5px 11px;cursor:pointer;font-family:'DM Sans',sans-serif;`;
+const _seqIcon  = `<svg width="13" height="13" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="display:block;flex-shrink:0;opacity:0.7"><line x1="1" y1="4" x2="11" y2="4"/><line x1="4" y1="7.5" x2="14" y2="7.5"/><line x1="2" y1="11" x2="12" y2="11"/></svg>`;
+const _structIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;opacity:0.7"><path d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></svg>`;
+
 function alignOrthologsBtn(geneId) {
   return `<button onclick="window._openAlignmentWith('${geneId}')"
-    style="display:inline-flex;align-items:center;gap:4px;font-size:8px;font-weight:600;
-           color:#0f4530;background:#f0fdf4;border:1px solid #86efac;border-radius:5px;
-           padding:2px 8px;cursor:pointer;line-height:1.4;font-family:inherit;"
+    style="${_toolBtnStyle}"
     onmouseenter="this.style.borderColor='#6ee7b7'"
-    onmouseleave="this.style.borderColor='#86efac'">⇔ Align</button>`;
+    onmouseleave="this.style.borderColor='#86efac'">${_seqIcon} Sequence Align</button>`;
 }
 
 // Generates a copy-to-clipboard button for a raw sequence string.
@@ -1923,10 +1925,10 @@ function renderDetailStructure(detail, gene, protein, afRows) {
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${linksHtml}
             <button onclick="window._seedStructureAlignment('${esc(gene.id)}')"
-              style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
-                     color:#0f4530;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;
-                     padding:5px 11px;cursor:pointer;font-family:'DM Sans',sans-serif;">
-              🔬 Compare structures
+              style="${_toolBtnStyle}"
+              onmouseenter="this.style.borderColor='#6ee7b7'"
+              onmouseleave="this.style.borderColor='#86efac'">
+              ${_structIcon} Structure Align
             </button>
           </div>
         </div>
