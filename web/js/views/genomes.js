@@ -193,13 +193,14 @@ function showGeneList(container) {
       <!-- ── List panel ── -->
       <div id="list-panel" style="border-right:1px solid #ececec;display:flex;flex-direction:column;overflow:hidden;">
 
-        <!-- Strain tabs -->
-        <div id="strain-tabs" style="display:flex;border-bottom:1px solid #efefef;padding:10px 14px 0;flex-shrink:0;">
-          ${STRAINS.map(s => `
-            <button data-strain="${s.id}" aria-label="View ${s.label} genes"
-              style="font-size:11.5px;font-weight:600;padding:5px 11px 8px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;margin-bottom:-1px;white-space:nowrap;color:${s.id === _strain ? '#16a34a' : '#9ca3af'};border-bottom-color:${s.id === _strain ? '#16a34a' : 'transparent'};">
-              ${s.label}
-            </button>`).join('')}
+        <!-- Strain strip -->
+        <div class="mut-strip" id="strain-strip">
+          <img class="mut-strip-icon" id="strain-strip-icon" src="${STRAINS.find(s => s.id === _strain)?.icon ?? ''}" alt="">
+          <div style="flex:1;min-width:0;">
+            <div class="mut-strip-name" id="strain-strip-name">${STRAINS.find(s => s.id === _strain)?.label ?? _strain}</div>
+            <div class="mut-strip-count" id="strain-strip-count">Loading…</div>
+          </div>
+          <button class="mut-switch-btn" id="strain-switch-btn">Switch ▾</button>
         </div>
 
         <!-- Search -->
@@ -214,9 +215,6 @@ function showGeneList(container) {
 
         <!-- Filter/sort toolbar -->
         <div id="filter-bar" style="flex-shrink:0;"></div>
-
-        <!-- Result count -->
-        <div id="result-count" style="font-size:9px;color:#bbb;font-family:'DM Mono',monospace;padding:3px 12px 3px;border-bottom:1px solid #f5f5f5;flex-shrink:0;"></div>
 
         <!-- Gene list (scrollable) -->
         <div id="gene-scroll" style="overflow-y:auto;flex:1;">
@@ -240,25 +238,9 @@ function showGeneList(container) {
   const geneScrollEl = container.querySelector('#gene-scroll');
   if (geneScrollEl) geneScrollEl.scrollTop = 0;
 
-  // Wire strain tabs
-  container.querySelectorAll('[data-strain]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _strain = btn.dataset.strain;
-      _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
-      _expressionFilter = null;
-      _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
-                   membrane: false, secreted: false, dnaBinding: false,
-                   hasAf3: false, hasCrystal: false };
-      // Update tab styles
-      container.querySelectorAll('[data-strain]').forEach(b => {
-        const active = b.dataset.strain === _strain;
-        b.style.color = active ? '#16a34a' : '#9ca3af';
-        b.style.borderBottomColor = active ? '#16a34a' : 'transparent';
-      });
-      container.querySelector('#gene-search').value = '';
-      renderFilterBar(container);
-      fetchGenes(container, true);
-    });
+  // Wire strain switcher
+  container.querySelector('#strain-switch-btn').addEventListener('click', e => {
+    showStrainDropdown(e.currentTarget, container);
   });
 
   // Wire search
@@ -301,7 +283,7 @@ function showGeneList(container) {
     if (_filters.favorites && !nowFav) {
       favBtn.closest('.gene-row')?.remove();
       _total = Math.max(0, _total - 1);
-      const countEl = container.querySelector('#result-count');
+      const countEl = container.querySelector('#strain-strip-count');
       if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
     }
     // Also update the star in the detail panel if this gene is selected
@@ -310,6 +292,40 @@ function showGeneList(container) {
       detailFav.textContent = nowFav ? '★' : '☆';
       detailFav.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
     }
+  });
+}
+
+function showStrainDropdown(anchor, container) {
+  const openPop = window.__openNavPopover;
+  if (!openPop) return;
+
+  openPop(anchor, `
+    <div class="nav-popover-label">Strains</div>
+    ${STRAINS.map(s => `
+      <button class="nav-popover-row" data-strain="${s.id}">
+        <img style="width:24px;height:24px;object-fit:contain;" src="${s.icon}" alt="">
+        <span class="nav-popover-row-name">${s.label}</span>
+      </button>`).join('')}
+  `, 'gene-strain-popover');
+
+  const pop = document.getElementById('gene-strain-popover');
+  pop?.querySelectorAll('[data-strain]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _strain = btn.dataset.strain;
+      const s = STRAINS.find(x => x.id === _strain);
+      container.querySelector('#strain-strip-icon').src = s?.icon ?? '';
+      container.querySelector('#strain-strip-name').textContent = s?.label ?? _strain;
+      container.querySelector('#strain-strip-count').textContent = 'Loading…';
+      _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
+      _expressionFilter = null;
+      _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
+                   membrane: false, secreted: false, dnaBinding: false,
+                   hasAf3: false, hasCrystal: false };
+      container.querySelector('#gene-search').value = '';
+      pop.remove();
+      renderFilterBar(container);
+      fetchGenes(container, true);
+    });
   });
 }
 
@@ -661,7 +677,7 @@ async function fetchGenes(container, reset = false) {
   _hasMore = (_offset + PAGE_SIZE) < _total;
 
   // Update result count
-  const countEl = container.querySelector('#result-count');
+  const countEl = container.querySelector('#strain-strip-count');
   if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
 
   if (!genes?.length) {
