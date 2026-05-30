@@ -575,7 +575,7 @@ function renderFilterBar() {
           .select('marker')
           .eq('collection', _collection)
           .not('marker', 'is', null);
-        _markerOptions = [...new Set((data ?? []).map(r => r.marker))].sort();
+        _markerOptions = [...new Set((data ?? []).flatMap(r => r.marker ?? []))].sort();
       }
 
       markerList.innerHTML = _markerOptions.length
@@ -668,7 +668,7 @@ async function fetchList() {
     displayRows = displayRows.filter(m => m.creator_name === _filters.creator);
   }
   if (_filters.marker) {
-    displayRows = displayRows.filter(m => m.marker === _filters.marker);
+    displayRows = displayRows.filter(m => m.marker?.includes(_filters.marker));
   }
 
   // Update count display (after filters)
