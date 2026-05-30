@@ -405,19 +405,18 @@ function renderFilterBar() {
         </div>
       </div>
       ${groupHead('marker', '🏷', 'Marker', secOpen.marker)}
-      <div style="display:${secOpen.marker ? 'block' : 'none'};padding-bottom:4px;">
-        <div style="position:relative;display:inline-block;">
-          <button id="mut-marker-btn"
-            style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap;cursor:pointer;font-family:inherit;
-                   border:1px solid ${_filters.marker ? '#99f6e4' : '#e5e7eb'};
-                   background:${_filters.marker ? '#f0fdfa' : 'white'};
-                   color:${_filters.marker ? '#0f766e' : '#9ca3af'};">
-            ${_filters.marker ? `🏷 ${esc(_filters.marker)}` : 'Select marker ▾'}
-          </button>
-          <div id="mut-marker-drop" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:140px;overflow:hidden;">
-            <div id="mut-marker-list" style="padding:4px 0;"><div style="padding:8px 14px;font-size:11px;color:#9ca3af;">Loading…</div></div>
-          </div>
-        </div>
+      <div style="display:${secOpen.marker ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;" id="mut-marker-chips">
+        ${_markerOptions.length
+          ? _markerOptions.map(mk => {
+              const a = _filters.marker === mk;
+              return `<button data-marker-chip="${esc(mk)}"
+                style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:'DM Mono',ui-monospace,monospace;
+                       border:1px solid ${a ? '#99f6e4' : '#e5e7eb'};background:${a ? '#f0fdfa' : 'white'};color:${a ? '#0f766e' : '#9ca3af'};">
+                ${esc(mk)}${a ? ' ×' : ''}
+              </button>`;
+            }).join('')
+          : secOpen.marker ? `<span style="font-size:11px;color:#9ca3af;padding:2px 0;">Loading…</span>` : ''
+        }
       </div>
     </div>
   `;
@@ -461,11 +460,19 @@ function renderFilterBar() {
     renderFilterBar();
   });
 
-  // Section expand/collapse
+  // Section expand/collapse — lazy-loads marker options on first open
   bar.querySelectorAll('[data-section]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = btn.dataset.section;
       if (id in _expandedSections) _expandedSections[id] = !_expandedSections[id];
+      if (id === 'marker' && _expandedSections.marker && !_markerOptions.length) {
+        const { data } = await sb
+          .from('mutants')
+          .select('marker')
+          .eq('collection', _collection)
+          .not('marker', 'is', null);
+        _markerOptions = [...new Set((data ?? []).flatMap(r => r.marker ?? []))].sort();
+      }
       renderFilterBar();
     });
   });
@@ -558,52 +565,15 @@ function renderFilterBar() {
     });
   }
 
-  // Marker dropdown
-  const markerBtn  = bar.querySelector('#mut-marker-btn');
-  const markerDrop = bar.querySelector('#mut-marker-drop');
-  const markerList = bar.querySelector('#mut-marker-list');
-  if (markerBtn && markerDrop && markerList) {
-    markerBtn.addEventListener('click', async e => {
-      e.stopPropagation();
-      const open = markerDrop.style.display === 'none';
-      markerDrop.style.display = open ? 'block' : 'none';
-      if (!open) return;
-
-      if (!_markerOptions.length) {
-        const { data } = await sb
-          .from('mutants')
-          .select('marker')
-          .eq('collection', _collection)
-          .not('marker', 'is', null);
-        _markerOptions = [...new Set((data ?? []).flatMap(r => r.marker ?? []))].sort();
-      }
-
-      markerList.innerHTML = _markerOptions.length
-        ? [
-            ...(_filters.marker ? [`<button data-marker-pick="" style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:11.5px;border:none;cursor:pointer;font-family:inherit;color:#9ca3af;background:none;">Clear filter</button>`] : []),
-            ..._markerOptions.map(m => `
-              <button data-marker-pick="${esc(m)}"
-                style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:11.5px;font-family:'DM Mono',ui-monospace,monospace;border:none;cursor:pointer;
-                       font-weight:${_filters.marker === m ? '600' : '400'};
-                       color:${_filters.marker === m ? '#0f766e' : '#333'};
-                       background:${_filters.marker === m ? '#f0fdfa' : 'none'};">
-                ${esc(m)}
-              </button>`)
-          ].join('')
-        : `<div style="padding:8px 14px;font-size:11px;color:#9ca3af;">No markers found</div>`;
-
-      markerList.querySelectorAll('[data-marker-pick]').forEach(row => {
-        row.addEventListener('click', () => {
-          _filters.marker = row.dataset.markerPick || null;
-          markerDrop.style.display = 'none';
-          renderFilterBar();
-          fetchList();
-        });
-      });
-
-      setTimeout(() => document.addEventListener('click', () => { markerDrop.style.display = 'none'; }, { once: true }), 0);
+  // Marker chips
+  bar.querySelectorAll('[data-marker-chip]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.markerChip;
+      _filters.marker = _filters.marker === val ? null : val;
+      renderFilterBar();
+      fetchList();
     });
-  }
+  });
 }
 
 // ─── Fetch + render list ──────────────────────────────────
@@ -751,7 +721,7 @@ function mutantRowHTML(m, locusTagStr = '') {
     : '';
 
   const labPill = !m.is_published
-    ? `<span class="mut-lab-pill" style="margin-left:auto;flex-shrink:0;">🔒 Lab</span>`
+    ? `<span class="mut-lab-pill" style="flex-shrink:0;">🔒 Lab</span>`
     : '';
   const isFav = state.favorites.mutants.has(String(m.id));
   const starEl = state.user
@@ -761,23 +731,20 @@ function mutantRowHTML(m, locusTagStr = '') {
     : '';
   // Chimeras: mutant_id (RC1203) is primary, locus span secondary, name tertiary.
   // Other types: long name is primary, mutant_id is the small label above.
+  // Type pill lives at row level (not inside name div) to avoid flex-overflow conflicts.
   const nameBlock = isChimera
-    ? `<div style="display:flex;align-items:center;gap:5px;">
-         <div class="mut-row-name">${m.mutant_id}</div>
-       </div>
+    ? `<div class="mut-row-name">${m.mutant_id}</div>
        ${chimeraLocus}
        ${m.name && m.name !== m.mutant_id ? `<div style="font-size:0.6875rem;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.name)}</div>` : ''}`
     : `${m.name ? `<div class="mut-row-id">${m.mutant_id}</div>` : ''}
-       <div style="display:flex;align-items:center;gap:5px;">
-         <div class="mut-row-name" style="flex:1;min-width:0;">${esc(displayName)}</div>
-         ${typePill}
-       </div>
+       <div class="mut-row-name">${esc(displayName)}</div>
        ${locusLabel}`;
   return `
     <div class="mut-row" data-id="${m.id}" role="button" tabindex="0">
       <div style="flex:1;min-width:0;overflow:hidden;">
         ${nameBlock}
       </div>
+      ${typePill}
       ${labPill}
       ${starEl}
     </div>`;
