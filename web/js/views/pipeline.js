@@ -82,21 +82,19 @@ function progressScore(pipe) {
 }
 
 function categoryKey(m) {
-  const cat = (m.category || '').toLowerCase();
+  const col  = (m.collection || '').toLowerCase();
   const type = (m.mutation_type || '').toLowerCase();
-  if (cat.includes('lucky') || cat === 'lucky 17') return 'lucky17';
-  if (cat.includes('chimera')) return 'chimeras';
-  if (type === 'transposon' || type === 'tn') return 'tn';
+  if (col === 'lucky17')   return 'lucky17';
+  if (col === 'chimeras')  return 'chimeras';
+  if (type === 'transposon') return 'tn';
   return 'ko';
 }
 
 function strainLabel(m) {
-  const s = (m.strain_id || '').toUpperCase();
-  if (s.includes('L2')) return 'CT-L2';
-  if (s.includes('CM') || s.includes('MURIDARUM')) return 'CM';
-  if (s.includes('CT-D') || s.includes('CTD') || s.includes('D/UW')) return 'CT-D';
-  // Fallback: pass through the strain_id as-is
-  return m.strain_id || '';
+  const name = m.strains?.common_name || '';
+  if (name === 'CM') return 'CM';
+  if (name === 'CT-D') return 'CT-D';
+  return 'CT-L2';
 }
 
 async function fetchData() {
@@ -105,8 +103,9 @@ async function fetchData() {
   const [mutantsRes, favRes] = await Promise.all([
     sb.from('mutants')
       .select(`
-        mutant_id, mutant_name, category, strain_id, target_genes, mutation_type,
-        description, status, creator, notes, is_priority, is_planned, stuck_stage,
+        id, mutant_id, name, collection, target_gene_ids, mutation_type,
+        creator_name, notes, is_priority, is_planned,
+        strains!background_strain_id(common_name),
         mutant_pipeline (
           ${selectCols},
           active_assignments
@@ -202,8 +201,8 @@ function mutantRow(m, { showStrain = false } = {}) {
   const pipe     = m.pipe;
   const aa       = pipe?.active_assignments || {};
   const isPriority = !!m.is_priority;
-  const isStuck    = !!(m.stuck_stage);
-  const isMine     = !!(state.userProfile?.display_name && m.creator === state.userProfile.display_name);
+  const isStuck    = false;
+  const isMine     = !!(state.userProfile?.display_name && m.creator_name === state.userProfile.display_name);
   const isPlanned  = !!m.is_planned;
   const isExpanded = _expandedIds.has(mutantId);
   const isFav      = _favorites.has(mutantId);
@@ -216,7 +215,7 @@ function mutantRow(m, { showStrain = false } = {}) {
   if (isExpanded) rowCls += ' is-expanded';
 
   // Gene display — first target gene
-  const genes = m.target_genes || [];
+  const genes = m.target_gene_ids || [];
   const firstGene = genes[0] || '';
   const moreGenes = genes.length > 1 ? ` +${genes.length - 1}` : '';
 
@@ -242,7 +241,7 @@ function mutantRow(m, { showStrain = false } = {}) {
     ? `<span class="text-[10px] text-red-500 ml-1">⚠ stuck</span>`
     : '';
 
-  const stripHtml = stageStrip(pipe, m.stuck_stage, isPlanned, aa);
+  const stripHtml = stageStrip(pipe, null, isPlanned, aa);
   const chevron   = isExpanded ? '∨' : '›';
 
   // Priority confirm popover (embedded in flame button)
@@ -302,9 +301,9 @@ function expandPanel(m) {
   const aa       = pipe?.active_assignments || {};
 
   // Top bar content
-  const geneName = (m.target_genes || []).join(', ') || '—';
+  const geneName = (m.target_gene_ids || []).join(', ') || '—';
   const strainLbl = strainLabel(m);
-  const metaStr   = [strainLbl, m.mutation_type, m.creator].filter(Boolean).join(' · ');
+  const metaStr   = [strainLbl, m.mutation_type, m.creator_name].filter(Boolean).join(' · ');
 
   // Stage checklist tiles
   const tiles = STAGES.map(s => {
@@ -312,7 +311,7 @@ function expandPanel(m) {
     const who     = done ? (pipe[s.dbBy] || '') : '';
     const dt      = done ? (pipe[s.dbDate] || '') : '';
     const active  = !done && aa[s.key];
-    const stuck   = !done && m.stuck_stage === s.key;
+    const stuck   = false;
 
     let tileCls = 'pl-stage-tile';
     if (done)   tileCls += ' tile-done';
@@ -385,7 +384,7 @@ function expandPanel(m) {
   <!-- Top bar -->
   <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
     <div style="flex:1;min-width:0;">
-      <div style="font-size:12px;font-weight:700;color:#1f2937;">${esc(m.mutant_name || mutantId)}</div>
+      <div style="font-size:12px;font-weight:700;color:#1f2937;">${esc(m.name || mutantId)}</div>
       <div style="font-size:10px;color:#9ca3af;margin-top:1px;">${esc(geneName)} · ${esc(metaStr)}</div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
@@ -518,22 +517,23 @@ window.__plPickerSave = async function(mutantId, stageKey) {
     return;
   }
 
+  // mutant_pipeline.mutant_id is the UUID (mutants.id), not the text mutant_id
+  const m = _allMutants.find(x => x.mutant_id === mutantId);
+  if (!m) return;
+
   const { error } = await sb.from('mutant_pipeline')
     .update({
       [stage.dbBool]: true,
       [stage.dbBy]:   who,
       [stage.dbDate]: dt || null,
     })
-    .eq('mutant_id', mutantId);
+    .eq('mutant_id', m.id);
 
   if (error) {
     console.error('[Pipeline] picker save error:', error);
     alert('Save failed: ' + error.message);
     return;
   }
-
-  // Update local data
-  const m = _allMutants.find(x => x.mutant_id === mutantId);
   if (m) {
     if (!m.pipe) m.pipe = {};
     m.pipe[stage.dbBool] = true;
