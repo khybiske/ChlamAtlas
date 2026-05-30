@@ -113,7 +113,7 @@ CREATE TABLE mutants (
     creator                 TEXT,
     created_at              DATE,
     notes                   TEXT,
-    priority                BOOLEAN NOT NULL DEFAULT false,
+    is_priority             BOOLEAN NOT NULL DEFAULT false,
     is_planned              BOOLEAN NOT NULL DEFAULT false,
 
     -- Mutant construction details

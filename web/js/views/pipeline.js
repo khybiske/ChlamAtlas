@@ -106,7 +106,7 @@ async function fetchData() {
     sb.from('mutants')
       .select(`
         mutant_id, mutant_name, category, strain_id, target_genes, mutation_type,
-        description, status, creator, notes, priority, is_planned, stuck_stage,
+        description, status, creator, notes, is_priority, is_planned, stuck_stage,
         mutant_pipeline (
           ${selectCols},
           active_assignments
@@ -202,7 +202,7 @@ function mutantRow(m, { showStrain = false } = {}) {
   const mutantId = m.mutant_id;
   const pipe     = m.pipe;
   const aa       = pipe?.active_assignments || {};
-  const isPriority = !!m.priority;
+  const isPriority = !!m.is_priority;
   const isStuck    = !!(m.stuck_stage);
   const isMine     = !!(state.userProfile?.display_name && m.creator === state.userProfile.display_name);
   const isPlanned  = !!m.is_planned;
@@ -613,7 +613,7 @@ window.__plConfirmPriority = async function(mutantId, newValue) {
   const boolVal = newValue === true || newValue === 'true';
 
   const { error } = await sb.from('mutants')
-    .update({ priority: boolVal })
+    .update({ is_priority: boolVal })
     .eq('mutant_id', mutantId);
 
   if (error) {
@@ -622,7 +622,7 @@ window.__plConfirmPriority = async function(mutantId, newValue) {
   }
 
   const m = _allMutants.find(x => x.mutant_id === mutantId);
-  if (m) m.priority = boolVal;
+  if (m) m.is_priority = boolVal;
 
   _rerenderAll();
 };
@@ -700,7 +700,7 @@ function groupMutants(key) {
   if (key === 'favorites') {
     list = _allMutants.filter(m => _favorites.has(m.mutant_id));
   } else if (key === 'priority') {
-    list = _allMutants.filter(m => !!m.priority);
+    list = _allMutants.filter(m => !!m.is_priority);
   } else {
     list = _allMutants.filter(m => categoryKey(m) === key);
     // Strain filter for ko/tn

@@ -52,16 +52,11 @@ ALTER TABLE mutant_pipeline
 ALTER TABLE mutants
   ADD COLUMN IF NOT EXISTS is_planned BOOLEAN NOT NULL DEFAULT false;
 
--- ── 5. mutants: priority TEXT → BOOLEAN ───────────────────────────────────
--- Existing values: NULL, empty string '', or a non-empty label like 'High'.
--- Any non-null, non-empty value maps to true; NULL/''/whitespace maps to false.
--- NOTE: Run this step only once. If priority is already BOOLEAN, skip.
-ALTER TABLE mutants
-  ALTER COLUMN priority TYPE BOOLEAN
-    USING (priority IS NOT NULL AND trim(priority) != '');
-ALTER TABLE mutants
-  ALTER COLUMN priority SET DEFAULT false,
-  ALTER COLUMN priority SET NOT NULL;
+-- ── 5. mutants: priority column ───────────────────────────────────────────
+-- The live DB uses is_priority BOOLEAN (not priority TEXT as originally assumed).
+-- No migration needed — is_priority already exists and is already BOOLEAN.
+-- The JS code references is_priority; this step is intentionally a no-op.
+-- (Retained as a comment so the step numbering stays consistent with the plan.)
 
 -- ── 6. pipeline_favorites table ───────────────────────────────────────────
 -- Allows authenticated users to star/bookmark mutants in the pipeline view.
