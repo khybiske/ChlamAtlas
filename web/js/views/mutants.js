@@ -120,10 +120,11 @@ let _searchTerm       = '';
 let _selectedId       = null;
 let _container        = null;
 let _searchTimer      = null;
-let _filters          = { favorites: false, type: null, strain: null, category: null };
+let _filters          = { favorites: false, type: null, strain: null, category: null, published: null, creator: null };
 let _moreOpen         = false;
-let _expandedSections = { type: false, strain: false, function: false };
+let _expandedSections = { type: false, strain: false, function: false, published: false, creator: false };
 let _geneDataMap      = new Map();
+let _creatorOptions   = [];  // cached distinct creator_name values for current collection
 
 // ─── Entry point ──────────────────────────────────────────
 
@@ -135,9 +136,10 @@ export function renderMutants(container) {
   _total = 0;
   _searchTerm = '';
   _selectedId = null;
-  _filters = { favorites: false, type: null, strain: null, category: null };
+  _filters = { favorites: false, type: null, strain: null, category: null, published: null, creator: null };
+  _creatorOptions = [];
   _moreOpen = false;
-  _expandedSections = { type: false, strain: false, function: false };
+  _expandedSections = { type: false, strain: false, function: false, published: false, creator: false };
   _geneDataMap = new Map();
 
   // Pre-select a mutant navigated to from another tab (e.g. gene detail Mutants panel)
@@ -347,6 +349,8 @@ function renderFilterBar() {
       ${typelabel   ? `<button data-clear-type     style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${typelabel} ×</button>`  : ''}
       ${strainObj   ? `<button data-clear-strain   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">${strainObj.label} ×</button>` : ''}
       ${catLabel    ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${catLabel} ×</button>` : ''}
+      ${_filters.published !== null ? `<button data-clear-published style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${_filters.published ? 'Published' : 'Unpublished'} ×</button>` : ''}
+      ${_filters.creator ? `<button data-clear-creator style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #e9d5ff;background:#faf5ff;color:#6b21a8;cursor:pointer;white-space:nowrap;font-family:inherit;">👤 ${esc(_filters.creator)} ×</button>` : ''}
       ${hasMore ? `<button id="mut-more-btn"
         style="font-size:10.5px;font-weight:600;cursor:pointer;margin-left:auto;font-family:inherit;
                color:${_moreOpen ? '#16a34a' : '#9ca3af'};background:white;
@@ -368,6 +372,33 @@ function renderFilterBar() {
       ${groupHead('function', '⚙️', 'Function', secOpen.function)}
       <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${funcOptions.map(f => catChip(f.value, f.label)).join('')}
+      </div>
+      ${groupHead('published', '🔒', 'Status', secOpen.published)}
+      <div style="display:${secOpen.published ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+        ${['Published', 'Unpublished'].map(label => {
+          const val = label === 'Published';
+          const a   = _filters.published === val;
+          return `<button data-pub-filter="${val}"
+            style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+                   border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+            ${label}${a ? ' ×' : ''}
+          </button>`;
+        }).join('')}
+      </div>
+      ${groupHead('creator', '👤', 'Creator', secOpen.creator)}
+      <div style="display:${secOpen.creator ? 'block' : 'none'};padding-bottom:4px;">
+        <div style="position:relative;display:inline-block;">
+          <button id="mut-creator-btn"
+            style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap;cursor:pointer;font-family:inherit;
+                   border:1px solid ${_filters.creator ? '#e9d5ff' : '#e5e7eb'};
+                   background:${_filters.creator ? '#faf5ff' : 'white'};
+                   color:${_filters.creator ? '#6b21a8' : '#9ca3af'};">
+            ${_filters.creator ? `👤 ${esc(_filters.creator)}` : 'Select creator ▾'}
+          </button>
+          <div id="mut-creator-drop" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:160px;overflow:hidden;">
+            <div id="mut-creator-list" style="padding:4px 0;"><div style="padding:8px 14px;font-size:11px;color:#9ca3af;">Loading…</div></div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -398,9 +429,11 @@ function renderFilterBar() {
   });
 
   // Active filter clear buttons
-  bar.querySelector('[data-clear-type]')?.addEventListener('click', ()     => { _filters.type = null;     renderFilterBar(); fetchList(); });
-  bar.querySelector('[data-clear-strain]')?.addEventListener('click', ()   => { _filters.strain = null;   renderFilterBar(); fetchList(); });
-  bar.querySelector('[data-clear-category]')?.addEventListener('click', () => { _filters.category = null; renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-type]')?.addEventListener('click', ()      => { _filters.type = null;      renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-strain]')?.addEventListener('click', ()    => { _filters.strain = null;    renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-category]')?.addEventListener('click', ()  => { _filters.category = null;  renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-published]')?.addEventListener('click', () => { _filters.published = null; renderFilterBar(); fetchList(); });
+  bar.querySelector('[data-clear-creator]')?.addEventListener('click', ()   => { _filters.creator = null;   renderFilterBar(); fetchList(); });
 
   // More/Less toggle
   bar.querySelector('#mut-more-btn')?.addEventListener('click', () => {
@@ -446,6 +479,64 @@ function renderFilterBar() {
       fetchList();
     });
   });
+
+  // Published status chips
+  bar.querySelectorAll('[data-pub-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.pubFilter === 'true';
+      _filters.published = _filters.published === val ? null : val;
+      renderFilterBar();
+      fetchList();
+    });
+  });
+
+  // Creator dropdown
+  const creatorBtn  = bar.querySelector('#mut-creator-btn');
+  const creatorDrop = bar.querySelector('#mut-creator-drop');
+  const creatorList = bar.querySelector('#mut-creator-list');
+  if (creatorBtn && creatorDrop && creatorList) {
+    creatorBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const open = creatorDrop.style.display === 'none';
+      creatorDrop.style.display = open ? 'block' : 'none';
+      if (!open) return;
+
+      // Lazy-load distinct creators for this collection
+      if (!_creatorOptions.length) {
+        const { data } = await sb
+          .from('mutants')
+          .select('creator_name')
+          .eq('collection', _collection)
+          .not('creator_name', 'is', null);
+        _creatorOptions = [...new Set((data ?? []).map(r => r.creator_name))].sort();
+      }
+
+      creatorList.innerHTML = _creatorOptions.length
+        ? [
+            ...(_filters.creator ? [`<button data-creator-pick="" style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:11.5px;border:none;cursor:pointer;font-family:inherit;color:#9ca3af;background:none;">Clear filter</button>`] : []),
+            ..._creatorOptions.map(name => `
+              <button data-creator-pick="${esc(name)}"
+                style="display:block;width:100%;text-align:left;padding:8px 14px;font-size:11.5px;border:none;cursor:pointer;font-family:inherit;
+                       font-weight:${_filters.creator === name ? '600' : '400'};
+                       color:${_filters.creator === name ? '#6b21a8' : '#333'};
+                       background:${_filters.creator === name ? '#faf5ff' : 'none'};">
+                ${esc(name)}
+              </button>`)
+          ].join('')
+        : `<div style="padding:8px 14px;font-size:11px;color:#9ca3af;">No creators found</div>`;
+
+      creatorList.querySelectorAll('[data-creator-pick]').forEach(row => {
+        row.addEventListener('click', () => {
+          _filters.creator = row.dataset.creatorPick || null;
+          creatorDrop.style.display = 'none';
+          renderFilterBar();
+          fetchList();
+        });
+      });
+
+      setTimeout(() => document.addEventListener('click', () => { creatorDrop.style.display = 'none'; }, { once: true }), 0);
+    });
+  }
 }
 
 // ─── Fetch + render list ──────────────────────────────────
@@ -458,7 +549,7 @@ async function fetchList() {
   // Fetch all records for this collection (no server-side sort — we sort client-side)
   let query = sb
     .from('mutants')
-    .select('id,mutant_id,name,mutation_type,is_published,target_gene_ids,strains!background_strain_id(common_name)')
+    .select('id,mutant_id,name,mutation_type,is_published,creator_name,target_gene_ids,strains!background_strain_id(common_name)')
     .eq('collection', _collection)
     .limit(1000);
 
@@ -502,6 +593,12 @@ async function fetchList() {
     displayRows = displayRows.filter(m =>
       (m.target_gene_ids ?? []).some(id => _geneDataMap.get(id)?.functional_category === _filters.category)
     );
+  }
+  if (_filters.published !== null) {
+    displayRows = displayRows.filter(m => m.is_published === _filters.published);
+  }
+  if (_filters.creator) {
+    displayRows = displayRows.filter(m => m.creator_name === _filters.creator);
   }
 
   // Update count display (after filters)

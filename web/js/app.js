@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=81';
 import { renderHome } from './views/home.js?v=81';
-import { renderGenomes } from './views/genomes.js?v=90';
-import { renderMutants } from './views/mutants.js?v=92';
+import { renderGenomes } from './views/genomes.js?v=91';
+import { renderMutants } from './views/mutants.js?v=94';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=91';
 import { renderAlignment } from './views/alignment.js?v=97';
