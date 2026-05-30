@@ -85,6 +85,23 @@ const CATEGORY_COLORS = {
 };
 const CATEGORY_COLOR_DEFAULT = '#E5E7EB';
 
+// Pipeline toggle icons — lab members only, shown in each mutant row
+const PL_ICON_ON = `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <circle cx="4" cy="12" r="3" fill="#7c3aed"/>
+  <line x1="7" y1="12" x2="9" y2="12" stroke="#7c3aed" stroke-width="2"/>
+  <circle cx="12" cy="12" r="3" fill="#7c3aed"/>
+  <line x1="15" y1="12" x2="17" y2="12" stroke="#7c3aed" stroke-width="2"/>
+  <circle cx="20" cy="12" r="3" fill="#7c3aed"/>
+</svg>`;
+
+const PL_ICON_OFF = `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+  <circle cx="4" cy="12" r="3" fill="none" stroke="#d1d5db" stroke-width="2"/>
+  <line x1="7" y1="12" x2="9" y2="12" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="12" cy="12" r="3" fill="none" stroke="#d1d5db" stroke-width="2"/>
+  <line x1="15" y1="12" x2="17" y2="12" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="20" cy="12" r="3" fill="none" stroke="#d1d5db" stroke-width="2"/>
+</svg>`;
+
 // Section header matching gene detail sectionHead() pattern.
 // rightContent: optional HTML rendered right-aligned (e.g. LAB_PILL).
 function mutSectionHead(label, rightContent = '') {
@@ -586,7 +603,7 @@ async function fetchList() {
   // Fetch all records for this collection (no server-side sort — we sort client-side)
   let query = sb
     .from('mutants')
-    .select('id,mutant_id,name,mutation_type,is_published,creator_name,target_gene_ids,marker,recombination_start,recombination_end,strains!background_strain_id(common_name)')
+    .select('id,mutant_id,name,mutation_type,is_published,show_in_pipeline,creator_name,target_gene_ids,marker,recombination_start,recombination_end,strains!background_strain_id(common_name)')
     .eq('collection', _collection)
     .limit(1000);
 
@@ -729,6 +746,18 @@ function mutantRowHTML(m, locusTagStr = '') {
          style="font-size:11px;color:${isFav ? '#f59e0b' : '#e5e7eb'};background:none;border:none;cursor:pointer;flex-shrink:0;padding:0 0 0 4px;"
          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>`
     : '';
+
+  // Pipeline toggle button — lab members and admins only
+  const pipelineBtn = (['lab_member','admin'].includes(state.userRole)) ? `
+    <button
+      style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;padding:4px;cursor:pointer;border-radius:5px;flex-shrink:0;line-height:1;"
+      title="${m.show_in_pipeline ? 'In pipeline — click to remove' : 'Not in pipeline — click to add'}"
+      data-pipeline-btn="${esc(m.mutant_id)}"
+      data-pipeline-val="${m.show_in_pipeline ? '1' : '0'}"
+      onclick="event.stopPropagation();window.__mutPipelineToggle('${esc(m.mutant_id)}',${m.show_in_pipeline ? 'true' : 'false'})">
+      ${m.show_in_pipeline ? PL_ICON_ON : PL_ICON_OFF}
+    </button>` : '';
+
   // Chimeras: mutant_id (RC1203) is primary, locus span secondary, name tertiary.
   // Other types: long name is primary, mutant_id is the small label above.
   // Type pill lives at row level (not inside name div) to avoid flex-overflow conflicts.
@@ -747,6 +776,7 @@ function mutantRowHTML(m, locusTagStr = '') {
       ${typePill}
       ${labPill}
       ${starEl}
+      ${pipelineBtn}
     </div>`;
 }
 
@@ -2131,7 +2161,7 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
     });
   }
 
-  // Save
+  // Save (pipeline toggle is handled globally via window.__mutPipelineToggle)
   overlay.querySelector('#mem-save')?.addEventListener('click', async () => {
     const saveBtn = overlay.querySelector('#mem-save');
     saveBtn.textContent = 'Saving…';
@@ -2202,3 +2232,26 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
     loadDetail(m.id);
   });
 }
+
+// ─── Pipeline toggle (global handler for inline onclick) ──────────────────────
+window.__mutPipelineToggle = async function(mutantId, currentlyIn) {
+  const newVal = !currentlyIn;
+  const msg = newVal
+    ? `Add ${mutantId} to the Pipeline tab?`
+    : `Remove ${mutantId} from the Pipeline tab?`;
+  if (!confirm(msg)) return;
+
+  const { error } = await sb.from('mutants')
+    .update({ show_in_pipeline: newVal })
+    .eq('mutant_id', mutantId);
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  // Update the icon in place without re-rendering the whole list
+  document.querySelectorAll(`[data-pipeline-btn="${mutantId}"]`).forEach(btn => {
+    btn.title = newVal ? 'In pipeline — click to remove' : 'Not in pipeline — click to add';
+    btn.dataset.pipelineVal = newVal ? '1' : '0';
+    btn.innerHTML = newVal ? PL_ICON_ON : PL_ICON_OFF;
+    btn.setAttribute('onclick', `event.stopPropagation();window.__mutPipelineToggle('${mutantId}',${newVal})`);
+  });
+};
