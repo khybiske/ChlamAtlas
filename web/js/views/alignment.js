@@ -31,17 +31,22 @@ async function loadStrains() {
 export function renderAlignment(container) {
   _container = container;
   alignState = { seqType: 'dna', entries: [], results: null, running: false };
-  loadStrains().then(() => render()).catch(() => render());
-  if (state.alignmentSeedGeneId) {
-    const seedId = state.alignmentSeedGeneId;
-    state.alignmentSeedGeneId = null;
-    sb.from('genes')
-      .select('id,locus_tag,gene_name,gene_symbol,strain_id')
-      .eq('id', seedId)
-      .single()
-      .then(({ data }) => { if (data) addGeneWithOrthologs(data); })
-      .catch(err => console.error('Failed to fetch seed gene:', err));
-  }
+
+  const seedId = state.alignmentSeedGeneId ?? null;
+  state.alignmentSeedGeneId = null;
+
+  const seedPromise = seedId
+    ? sb.from('genes').select('id,locus_tag,gene_name,gene_symbol,strain_id').eq('id', seedId).single()
+        .then(({ data }) => data || null)
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  Promise.all([loadStrains(), seedPromise])
+    .then(([, seedGene]) => {
+      if (seedGene) addGeneWithOrthologs(seedGene);
+      render();
+    })
+    .catch(() => render());
 }
 
 function render() {

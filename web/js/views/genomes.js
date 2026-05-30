@@ -916,12 +916,7 @@ function renderDetailGeneInfo(detail, gene) {
   const el = detail.querySelector('#d-gene-info');
   if (!el) return;
   el.innerHTML = `
-    ${sectionHead('Gene Info', `
-      <div style="display:flex;gap:6px;align-items:center;">
-        ${seqCopyBtn('Copy DNA', gene.dna_sequence)}
-        ${alignOrthologsBtn(gene.id)}
-      </div>
-    `)}
+    ${sectionHead('Gene Info', seqCopyBtn('Copy DNA', gene.dna_sequence))}
     <div style="padding:2px 16px 14px;">
       <div style="display:flex;gap:32px;flex-wrap:wrap;margin-bottom:8px;">
         ${prop('Length', lengthLabel)}
@@ -1119,11 +1114,6 @@ function renderDetailMutants(detail, gene, mutants) {
   });
 }
 
-// ── Cross-view navigation: seed structure alignment from gene detail ──────────
-window._seedStructureAlignment = (geneId) => {
-  state.structureAlignmentSeedGeneId = geneId;
-  document.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'structure-alignment' } }));
-};
 
 function renderDetailOrthologs(detail, orthoRows, gene) {
   const el = detail.querySelector('#d-orthologs');
@@ -1397,14 +1387,6 @@ function renderDetailProtein(detail, gene, protein) {
 
 // Generates an "Align Orthologs" shortcut button that opens the alignment tool
 // pre-seeded with the given gene (and its orthologs) via openAlignmentWith.
-function alignOrthologsBtn(geneId) {
-  return `<button onclick="(async()=>{const {openAlignmentWith}=await import('./app.js?v=82');openAlignmentWith('${geneId}');})()"
-    style="display:inline-flex;align-items:center;gap:4px;font-size:8px;font-weight:600;
-           color:#0f4530;background:#f0fdf4;border:1px solid #86efac;border-radius:5px;
-           padding:2px 8px;cursor:pointer;line-height:1.4;font-family:inherit;"
-    onmouseenter="this.style.borderColor='#6ee7b7'"
-    onmouseleave="this.style.borderColor='#86efac'">⇔ Align</button>`;
-}
 
 // Generates a copy-to-clipboard button for a raw sequence string.
 // Call attachCopyBtns(el) after setting el.innerHTML to wire up the listener.
@@ -1922,12 +1904,6 @@ function renderDetailStructure(detail, gene, protein, afRows) {
           ${inferredHtml}
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${linksHtml}
-            <button onclick="window._seedStructureAlignment('${esc(gene.id)}')"
-              style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
-                     color:#0f4530;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;
-                     padding:5px 11px;cursor:pointer;font-family:'DM Sans',sans-serif;">
-              🔬 Compare structures
-            </button>
           </div>
         </div>
       </div>`;
