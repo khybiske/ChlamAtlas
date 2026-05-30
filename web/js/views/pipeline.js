@@ -265,49 +265,44 @@ function mutantRow(m, { showStrain = false } = {}) {
   const stripHtml = stageStrip(pipe, null, isPlanned, aa);
   const chevron   = isExpanded ? '∨' : '›';
 
-  // Priority confirm popover (embedded in flame button)
-  const newPriVal = isPriority ? 'false' : 'true';
-  const confirmMsg = isPriority
-    ? 'Remove priority flag?'
-    : 'Mark as priority?';
-  const priorityConfirm = `
-    <div id="pc-${esc(mutantId)}" class="pl-priority-confirm" onclick="event.stopPropagation()">
-      <p class="text-xs font-semibold text-gray-700 mb-2">${confirmMsg}</p>
-      <div style="display:flex;gap:6px;">
-        <button onclick="window.__plConfirmPriority('${esc(mutantId)}',${newPriVal})"
-                class="text-xs font-semibold px-3 py-1 rounded-lg bg-orange-500 text-white">Yes</button>
-        <button onclick="window.__plIconClick(event,'priority-close','${esc(mutantId)}')"
-                class="text-xs px-3 py-1 rounded-lg bg-gray-100 text-gray-600">Cancel</button>
-      </div>
-    </div>`;
+  // Priority confirm popover — must be a sibling of the button, NOT inside it.
+  // Putting a <div> inside a <button> is invalid HTML; browsers eject it into the flow.
+  const newPriVal  = isPriority ? 'false' : 'true';
+  const confirmMsg = isPriority ? 'Remove priority flag?' : 'Mark as priority?';
 
   return `
 <div class="${rowCls}" id="row-${esc(mutantId)}" data-mutant-id="${esc(mutantId)}" onclick="window.__plRowClick(event,'${esc(mutantId)}')">
-  <!-- Left: chips + ID + gene -->
+  <!-- Left: chips + ID + type -->
   <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden;">
     ${plannedChip}
-    <span class="text-xs font-bold text-gray-900 flex-shrink-0">${esc(mutantId)}</span>
-    ${firstGene ? `<span class="text-[10px] text-gray-400 font-mono truncate">${esc(firstGene)}${moreGenes}</span>` : ''}
-    <span class="${typePillCls}">${typeText}</span>
-    ${showStrain ? `<span class="${strainChipCls}">${esc(sl)}</span>` : ''}
-    ${stuckNote}
+    <span style="font-size:13px;font-weight:700;color:#111;flex-shrink:0;">${esc(mutantId)}</span>
+    <span style="font-size:9px;font-weight:700;${typeText==='Tn'?'background:#fef3c7;color:#92400e;':'background:#ede9fe;color:#6d28d9;'}border-radius:3px;padding:1.5px 5px;flex-shrink:0;">${typeText}</span>
+    ${showStrain ? `<span class="${strainChipCls}" style="flex-shrink:0;">${esc(sl)}</span>` : ''}
   </div>
-  <!-- Middle: flame + star -->
-  <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;margin:0 6px;position:relative;">
+  <!-- Middle: flame + star — popover is a sibling span, not inside the button -->
+  <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;margin:0 4px;position:relative;" onclick="event.stopPropagation()">
     <button class="pl-icon-btn" onclick="window.__plIconClick(event,'priority','${esc(mutantId)}')"
-            title="${isPriority ? 'Remove priority' : 'Mark priority'}" aria-label="Priority">
+            title="${isPriority ? 'Remove priority' : 'Mark priority'}">
       ${isPriority ? FLAME_ON : FLAME_OFF}
-      ${priorityConfirm}
     </button>
+    <div class="pl-priority-confirm" id="pc-${esc(mutantId)}" onclick="event.stopPropagation()">
+      <div style="font-size:11px;font-weight:600;color:#111;margin-bottom:6px;">${confirmMsg}</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="window.__plConfirmPriority('${esc(mutantId)}',${newPriVal})"
+                style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:6px;background:#f97316;color:white;border:none;cursor:pointer;">Confirm</button>
+        <button onclick="window.__plIconClick(event,'priority-close','${esc(mutantId)}')"
+                style="font-size:10px;padding:3px 10px;border-radius:6px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
     <button class="pl-icon-btn" onclick="window.__plIconClick(event,'fav','${esc(mutantId)}')"
-            title="${isFav ? 'Remove from favorites' : 'Add to favorites'}" aria-label="Favorite">
+            title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
       ${isFav ? STAR_ON : STAR_OFF}
     </button>
   </div>
   <!-- Right: stage strip + chevron -->
-  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+  <div style="display:flex;align-items:center;flex-shrink:0;">
     ${stripHtml}
-    <span class="text-gray-300 text-sm flex-shrink-0" id="chev-${esc(mutantId)}">${chevron}</span>
+    <span style="color:#d1d5db;font-size:12px;margin-left:6px;flex-shrink:0;" id="chev-${esc(mutantId)}">${chevron}</span>
   </div>
 </div>`;
 }
@@ -965,14 +960,14 @@ export async function renderPipeline(container) {
     ${stageKeyCard()}
 
     <!-- Toolbar -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-      <input type="search" placeholder="Search mutants…"
-             oninput="window.__plSearch(this.value)"
-             style="font-size:12px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:160px;outline:none;" />
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
       <button id="pl-expand-all" onclick="window.__plExpandAll()"
-              style="font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;color:#6b7280;cursor:pointer;">
+              style="font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;color:#6b7280;cursor:pointer;white-space:nowrap;flex-shrink:0;">
         Expand all
       </button>
+      <input type="search" placeholder="Search mutants…"
+             oninput="window.__plSearch(this.value)"
+             style="font-size:12px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;width:220px;outline:none;flex-shrink:0;" />
     </div>
 
     <!-- Main content -->
