@@ -1,6 +1,11 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
+  { version: 'v0.9.9', date: 'May 29, 2026', type: 'feat', description: 'Bug Reports page: authenticated users can submit bug reports; all users can view the open list; admins can resolve and dismiss entries. Accessible from the user menu.' },
+  { version: 'v0.9.8', date: 'May 29, 2026', type: 'data', description: 'CT-L2 gene database completed: CTL0414, CTL0420, and CTL0856 added with protein data, AlphaFold structures, and cross-strain orthologs.' },
+  { version: 'v0.9.7', date: 'May 29, 2026', type: 'feat', description: 'Genome Alignment tool redesigned: 3-column layout with jump-chip sidebar, thin SVG connector lines, strain icon pickers, and expand card showing gene detail on both sides.' },
+  { version: 'v0.9.6', date: 'May 28, 2026', type: 'feat', description: 'Chimera mutant detail: genome map SVG with landmark ruler, gene exchange panel showing CT-L2 × CM recombination span and ortholog pairings.' },
+  { version: 'v0.9.5', date: 'May 27, 2026', type: 'feat', description: 'Branch workflow and production deployment: chlamatlas.org live on Vercel with GitHub Actions auto-deploy; custom SMTP for auth emails via Resend.' },
   { version: 'v0.9.4', date: 'May 25, 2026', type: 'feat', description: 'Transparent strain icons (CT-L2, CT-D, CM, Lucky 17, Chimeras) now used site-wide: navbar pickers, search results, saved popover, home page, genome tabs, and mutant panels.' },
   { version: 'v0.9.3', date: 'May 25, 2026', type: 'feat', description: 'Structure alignment tool: load 2–3 AlphaFold (AF2/AF3) or crystal structures into an interactive Mol* 3D viewer. Programmatic Superpose button aligns chains via Kabsch algorithm.' },
   { version: 'v0.9.2', date: 'May 24, 2026', type: 'feat', description: 'Sequence alignment tool: DNA and AA multiple sequence alignment via Clustal Omega (EBI), with ortholog auto-fill, conservation bars, diff-only view, and FASTA/Clustal/Phylip export.' },
@@ -17,7 +22,6 @@ const CHANGELOG = [
 ];
 
 const PLANNED_FEATURES = [
-  { id: 'genome-alignment',  label: 'Genome Alignment tool',                     description: 'Side-by-side synteny viewer: pick a reference genome and a query genome, orthologs are aligned row-by-row with gaps where orthologs are absent. On-demand pairwise % identity per gene pair.' },
   { id: 'af3-models',       label: 'AlphaFold 3 models for all proteins',        description: 'Upgrade the structure library from AF2 to AF3 predictions across the full proteome.' },
   { id: 'chemical-mutants', label: 'Chemical mutant collection',                 description: 'Add the chemical mutagenesis collection to the mutant browser with full phenotype data.' },
   { id: 'phenotype-images', label: 'Phenotype images on mutant detail pages',    description: 'Microscopy and assay images attached to in vitro and in vivo phenotype records.' },
