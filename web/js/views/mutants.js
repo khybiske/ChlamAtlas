@@ -349,7 +349,7 @@ function renderFilterBar() {
       ${typelabel   ? `<button data-clear-type     style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${typelabel} ×</button>`  : ''}
       ${strainObj   ? `<button data-clear-strain   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">${strainObj.label} ×</button>` : ''}
       ${catLabel    ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${catLabel} ×</button>` : ''}
-      ${state.user && _filters.published !== null ? `<button data-clear-published style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${_filters.published ? 'Published' : 'Unpublished'} ×</button>` : ''}
+      ${_filters.published !== null ? `<button data-clear-published style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${_filters.published ? 'Published' : 'Unpublished'} ×</button>` : ''}
       ${_filters.creator ? `<button data-clear-creator style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #e9d5ff;background:#faf5ff;color:#6b21a8;cursor:pointer;white-space:nowrap;font-family:inherit;">👤 ${esc(_filters.creator)} ×</button>` : ''}
       ${hasMore ? `<button id="mut-more-btn"
         style="font-size:10.5px;font-weight:600;cursor:pointer;margin-left:auto;font-family:inherit;
@@ -373,19 +373,18 @@ function renderFilterBar() {
       <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${funcOptions.map(f => catChip(f.value, f.label)).join('')}
       </div>
-      ${state.user ? `
-        ${groupHead('published', '🔒', 'Status', secOpen.published)}
-        <div style="display:${secOpen.published ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
-          ${['Published', 'Unpublished'].map(label => {
-            const val = label === 'Published';
-            const a   = _filters.published === val;
-            return `<button data-pub-filter="${val}"
-              style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
-                     border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
-              ${label}${a ? ' ×' : ''}
-            </button>`;
-          }).join('')}
-        </div>` : ''}
+      ${groupHead('published', '🔒', 'Status', secOpen.published)}
+      <div style="display:${secOpen.published ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+        ${['Published', 'Unpublished'].map(label => {
+          const val = label === 'Published';
+          const a   = _filters.published === val;
+          return `<button data-pub-filter="${val}"
+            style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+                   border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+            ${label}${a ? ' ×' : ''}
+          </button>`;
+        }).join('')}
+      </div>
       ${groupHead('creator', '👤', 'Creator', secOpen.creator)}
       <div style="display:${secOpen.creator ? 'block' : 'none'};padding-bottom:4px;">
         <div style="position:relative;display:inline-block;">
