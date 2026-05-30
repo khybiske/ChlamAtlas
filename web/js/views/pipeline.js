@@ -263,7 +263,7 @@ function mutantRow(m, { showStrain = false } = {}) {
     </div>`;
 
   return `
-<div class="${rowCls}" id="row-${esc(mutantId)}" onclick="window.__plRowClick(event,'${esc(mutantId)}')">
+<div class="${rowCls}" id="row-${esc(mutantId)}" data-mutant-id="${esc(mutantId)}" onclick="window.__plRowClick(event,'${esc(mutantId)}')">
   <!-- Left: chips + ID + gene -->
   <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden;">
     ${plannedChip}
@@ -453,15 +453,10 @@ window.__plRowClick = function(event, mutantId) {
   }
 };
 
-function _wirePickerSelects(mutantId) {
-  STAGES.forEach(s => {
-    const sel = document.getElementById(`picker-who-${mutantId}-${s.key}`);
-    if (!sel) return;
-    sel.addEventListener('change', () => {
-      const wrap = document.getElementById(`picker-other-wrap-${mutantId}-${s.key}`);
-      if (wrap) wrap.style.display = sel.value === '__other__' ? 'block' : 'none';
-    });
-  });
+function _wirePickerSelects(_mutantId) {
+  // onchange="window.__plPickerSelectChange(...)" on each select handles show/hide of the
+  // "Other…" input — no additional DOM listener needed here. This function is kept as a
+  // hook in case future pickers need post-render wiring.
 }
 
 window.__plPickerSelectChange = function(mutantId, stageKey) {
@@ -594,15 +589,17 @@ async function _toggleFavorite(mutantId) {
   if (!_userId) return;
   const isFav = _favorites.has(mutantId);
   if (isFav) {
-    await sb.from('pipeline_favorites').delete()
+    const { error } = await sb.from('pipeline_favorites').delete()
       .eq('user_id', _userId)
       .eq('mutant_id', mutantId);
+    if (error) { console.error('[Pipeline] fav delete error:', error); return; }
     _favorites.delete(mutantId);
   } else {
-    await sb.from('pipeline_favorites').insert({
+    const { error } = await sb.from('pipeline_favorites').insert({
       user_id:   _userId,
       mutant_id: mutantId,
     });
+    if (error) { console.error('[Pipeline] fav insert error:', error); return; }
     _favorites.add(mutantId);
   }
   _rerenderAll();
@@ -669,6 +666,7 @@ function _rerenderAll() {
   const content = _container?.querySelector('#pl-content');
   if (!content) return;
   content.innerHTML = buildAllGroups();
+  _expandedIds.forEach(id => _wirePickerSelects(id));
 }
 
 // Close popovers/dropdowns on outside click
@@ -685,8 +683,8 @@ document.addEventListener('click', (e) => {
 // SECTION 5: Group renderer + renderPipeline() (Task 8)
 // ─────────────────────────────────────────────────────────────
 
-const FLAME_GROUP = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f97316" stroke="none"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
-const STAR_GROUP  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
+const FLAME_GROUP = FLAME_ON;
+const STAR_GROUP  = STAR_ON;
 
 const GROUP_DEFS = [
   { key: 'favorites',  title: 'Favorites',     icon: 'star',  strainFilter: false },
@@ -890,11 +888,19 @@ window.__plAddMutant = async function(groupKey) {
   await renderPipeline(_container);
 };
 
+window.__plExpandAll = function() {
+  _allMutants.forEach(m => _expandedIds.add(m.mutant_id));
+  _rerenderAll();
+};
+
 window.__plSearch = function(query) {
   const q = (query || '').toLowerCase().trim();
   document.querySelectorAll('.pl-row').forEach(row => {
     const text = row.textContent.toLowerCase();
-    row.style.display = (!q || text.includes(q)) ? '' : 'none';
+    const visible = (!q || text.includes(q)) ? '' : 'none';
+    row.style.display = visible;
+    const panel = _container?.querySelector(`#expand-${CSS.escape(row.dataset.mutantId)}`);
+    if (panel) panel.style.display = visible;
   });
 };
 
@@ -941,7 +947,7 @@ export async function renderPipeline(container) {
       <input type="search" placeholder="Search mutants…"
              oninput="window.__plSearch(this.value)"
              style="font-size:12px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:160px;outline:none;" />
-      <button id="pl-expand-all"
+      <button id="pl-expand-all" onclick="window.__plExpandAll()"
               style="font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid #e5e7eb;background:white;color:#6b7280;cursor:pointer;">
         Expand all
       </button>
@@ -963,15 +969,6 @@ export async function renderPipeline(container) {
       </div>
     </div>
   `;
-
-  // Wire expand-all button
-  const expandAllBtn = container.querySelector('#pl-expand-all');
-  if (expandAllBtn) {
-    expandAllBtn.addEventListener('click', () => {
-      _allMutants.forEach(m => _expandedIds.add(m.mutant_id));
-      _rerenderAll();
-    });
-  }
 
   // Load data
   await fetchData();
