@@ -162,8 +162,8 @@ async function fetchData() {
 // SECTION 2: Stage strip + mutant row (Task 5)
 // ─────────────────────────────────────────────────────────────
 
-const FLAME_ON  = `<img src="/design/icons/flame-on.png"     width="20" height="20" style="display:block;object-fit:contain;" alt="Priority">`;
-const FLAME_OFF = `<img src="/design/icons/flame-off.png"    width="20" height="20" style="display:block;object-fit:contain;opacity:0.35;" alt="Not priority">`;
+const FLAME_ON  = `<img src="/design/icons/flame-orange.png" width="15" height="15" style="display:block;object-fit:contain;" alt="Priority">`;
+const FLAME_OFF = `<img src="/design/icons/flame-off.png"    width="15" height="15" style="display:block;object-fit:contain;opacity:0.3;" alt="Not priority">`;
 const STAR_ON   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 const STAR_OFF  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 
@@ -292,7 +292,7 @@ function mutantRow(m, { showStrain = false } = {}) {
     <div class="pl-priority-confirm" id="pc-${esc(mutantId)}" onclick="event.stopPropagation()">
       <div style="font-size:11px;font-weight:600;color:#111;margin-bottom:6px;">${confirmMsg}</div>
       <div style="display:flex;gap:6px;">
-        <button onclick="window.__plConfirmPriority('${esc(mutantId)}',${newPriVal})"
+        <button onclick="window.__plConfirmPriority('${esc(mutantId)}','${newPriVal}')"
                 style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:6px;background:#f97316;color:white;border:none;cursor:pointer;">Confirm</button>
         <button onclick="window.__plIconClick(event,'priority-close','${esc(mutantId)}')"
                 style="font-size:10px;padding:3px 10px;border-radius:6px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;">Cancel</button>
@@ -638,6 +638,7 @@ window.__plConfirmPriority = async function(mutantId, newValue) {
 
   if (error) {
     console.error('[Pipeline] priority update error:', error);
+    alert('Could not update priority: ' + error.message);
     return;
   }
 
