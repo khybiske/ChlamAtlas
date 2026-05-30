@@ -235,13 +235,15 @@ function mutantRow(m, { showStrain = false } = {}) {
   if (isPlanned)  rowCls += ' is-planned';
   if (isExpanded) rowCls += ' is-expanded';
 
+  // Collection key drives several display decisions
+  const col = (m.collection || '').toLowerCase();
+
   // Primary display: KO/Tn use human name (CMΔincA); L17/Chimeras use mutant ID (RC1203)
   const idFirst     = col === 'lucky17' || col === 'chimeras';
   const displayName = idFirst ? mutantId : (m.name || mutantId);
   const showId      = idFirst ? (m.name || '') : (m.name ? mutantId : '');
 
   // Mutation type pill — Tn | KO; hidden for Lucky17/Chimeras
-  const col = (m.collection || '').toLowerCase();
   const isTypedGroup = col !== 'lucky17' && col !== 'chimeras';
   const typeText = (m.mutation_type || '').toLowerCase().includes('transposon') ? 'Tn' : 'KO';
   const typePillStyle = typeText === 'Tn'
