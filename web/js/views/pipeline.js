@@ -268,11 +268,6 @@ function mutantRow(m, { showStrain = false } = {}) {
   const stripHtml = stageStrip(pipe, null, isPlanned, aa);
   const chevron   = isExpanded ? '∨' : '›';
 
-  // Priority confirm popover — must be a sibling of the button, NOT inside it.
-  // Putting a <div> inside a <button> is invalid HTML; browsers eject it into the flow.
-  const newPriVal  = isPriority ? 'false' : 'true';
-  const confirmMsg = isPriority ? 'Remove priority flag?' : 'Mark as priority?';
-
   return `
 <div class="${rowCls}" id="row-${esc(mutantId)}" data-mutant-id="${esc(mutantId)}" onclick="window.__plRowClick(event,'${esc(mutantId)}')">
   <!-- Left: name + ID + type pill + strain -->
@@ -283,21 +278,12 @@ function mutantRow(m, { showStrain = false } = {}) {
     ${isTypedGroup ? `<span style="font-size:9px;font-weight:700;${typePillStyle}border-radius:3px;padding:1.5px 5px;flex-shrink:0;">${typeText}</span>` : ''}
     ${showStrain ? `<span class="${strainChipCls}" style="flex-shrink:0;">${esc(sl)}</span>` : ''}
   </div>
-  <!-- Middle: flame + star — popover is a sibling span, not inside the button -->
-  <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;margin:0 4px;position:relative;" onclick="event.stopPropagation()">
+  <!-- Middle: flame + star — instant toggles, no confirm -->
+  <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;margin:0 4px;" onclick="event.stopPropagation()">
     <button class="pl-icon-btn" onclick="window.__plIconClick(event,'priority','${esc(mutantId)}')"
             title="${isPriority ? 'Remove priority' : 'Mark priority'}">
       ${isPriority ? FLAME_ON : FLAME_OFF}
     </button>
-    <div class="pl-priority-confirm" id="pc-${esc(mutantId)}" onclick="event.stopPropagation()">
-      <div style="font-size:11px;font-weight:600;color:#111;margin-bottom:6px;">${confirmMsg}</div>
-      <div style="display:flex;gap:6px;">
-        <button onclick="window.__plConfirmPriority('${esc(mutantId)}','${newPriVal}')"
-                style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:6px;background:#f97316;color:white;border:none;cursor:pointer;">Confirm</button>
-        <button onclick="window.__plIconClick(event,'priority-close','${esc(mutantId)}')"
-                style="font-size:10px;padding:3px 10px;border-radius:6px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;">Cancel</button>
-      </div>
-    </div>
     <button class="pl-icon-btn" onclick="window.__plIconClick(event,'fav','${esc(mutantId)}')"
             title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
       ${isFav ? STAR_ON : STAR_OFF}
@@ -591,19 +577,23 @@ function _refreshRowStrip(mutantId) {
 window.__plIconClick = function(event, action, mutantId) {
   event.stopPropagation();
   if (action === 'priority') {
-    // Close all other priority popovers
-    document.querySelectorAll('.pl-priority-confirm.open').forEach(el => {
-      if (el.id !== `pc-${mutantId}`) el.classList.remove('open');
-    });
-    const pc = document.getElementById(`pc-${mutantId}`);
-    if (pc) pc.classList.toggle('open');
-  } else if (action === 'priority-close') {
-    const pc = document.getElementById(`pc-${mutantId}`);
-    if (pc) pc.classList.remove('open');
+    _togglePriority(mutantId);
   } else if (action === 'fav') {
     _toggleFavorite(mutantId);
   }
 };
+
+async function _togglePriority(mutantId) {
+  const m = _allMutants.find(x => x.mutant_id === mutantId);
+  if (!m) return;
+  const newVal = !m.is_priority;
+  const { error } = await sb.from('mutants')
+    .update({ is_priority: newVal })
+    .eq('mutant_id', mutantId);
+  if (error) { console.error('[Pipeline] priority toggle error:', error); return; }
+  m.is_priority = newVal;
+  _rerenderAll();
+}
 
 async function _toggleFavorite(mutantId) {
   if (!_userId) return;
@@ -625,28 +615,6 @@ async function _toggleFavorite(mutantId) {
   _rerenderAll();
 }
 
-window.__plConfirmPriority = async function(mutantId, newValue) {
-  // Close popover
-  const pc = document.getElementById(`pc-${mutantId}`);
-  if (pc) pc.classList.remove('open');
-
-  const boolVal = newValue === true || newValue === 'true';
-
-  const { error } = await sb.from('mutants')
-    .update({ is_priority: boolVal })
-    .eq('mutant_id', mutantId);
-
-  if (error) {
-    console.error('[Pipeline] priority update error:', error);
-    alert('Could not update priority: ' + error.message);
-    return;
-  }
-
-  const m = _allMutants.find(x => x.mutant_id === mutantId);
-  if (m) m.is_priority = boolVal;
-
-  _rerenderAll();
-};
 
 window.__plShowRemoveConfirm = function(mutantId) {
   const btn     = document.getElementById(`rm-btn-${mutantId}`);
