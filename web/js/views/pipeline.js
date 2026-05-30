@@ -795,6 +795,8 @@ function renderGroup(def) {
       ${iconHtml ? `<span style="display:flex;align-items:center;">${iconHtml}</span>` : ''}
       <span style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.05em;">${esc(title)}</span>
       <span style="font-size:10px;color:#9ca3af;">${allInGroup.length}</span>
+      ${key === 'favorites' ? `<span style="font-size:10px;color:#9ca3af;font-style:italic;">· yours only</span>` : ''}
+      ${key === 'priority'  ? `<span style="font-size:10px;color:#9ca3af;font-style:italic;">· visible to all lab members</span>` : ''}
       ${strainChipsHtml ? `<div style="display:flex;gap:4px;align-items:center;">${strainChipsHtml}</div>` : ''}
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
         ${sortDropdown}
