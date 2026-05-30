@@ -120,18 +120,22 @@ function hexToMolColor(hex) {
 export function renderStructureAlignment(container) {
   _container = container;
   strState = { entries: [], loaded: false, bgDark: true, hintDismissed: false, viewer: null };
-  loadStrains().then(() => render()).catch(() => render());
 
-  if (state.structureAlignmentSeedGeneId) {
-    const seedId = state.structureAlignmentSeedGeneId;
-    state.structureAlignmentSeedGeneId = null;
-    sb.from('genes')
-      .select('id,locus_tag,gene_name,gene_symbol,strain_id')
-      .eq('id', seedId)
-      .single()
-      .then(({ data }) => { if (data) addPrimaryGene(data); })
-      .catch(err => console.error('[StructureAlignment] seed fetch failed:', err));
-  }
+  const seedId = state.structureAlignmentSeedGeneId ?? null;
+  state.structureAlignmentSeedGeneId = null;
+
+  const seedPromise = seedId
+    ? sb.from('genes').select('id,locus_tag,gene_name,gene_symbol,strain_id').eq('id', seedId).single()
+        .then(({ data }) => data || null)
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  Promise.all([loadStrains(), seedPromise])
+    .then(([, seedGene]) => {
+      if (seedGene) addPrimaryGene(seedGene);
+      render();
+    })
+    .catch(() => render());
 }
 
 // ── Top-level render ──────────────────────────────────────────

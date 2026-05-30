@@ -1,12 +1,12 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=81';
 import { renderHome } from './views/home.js?v=81';
-import { renderGenomes } from './views/genomes.js?v=87';
+import { renderGenomes } from './views/genomes.js?v=88';
 import { renderMutants } from './views/mutants.js?v=92';
 import { renderPipeline } from './views/pipeline.js?v=65';
 import { renderRoadmap }  from './views/roadmap.js?v=91';
 import { renderAlignment } from './views/alignment.js?v=96';
-import { renderStructureAlignment } from './views/structure-alignment.js?v=6';
+import { renderStructureAlignment } from './views/structure-alignment.js?v=7';
 import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
 import { renderBugs } from './views/bugs.js?v=1';
 
@@ -113,6 +113,7 @@ export function openAlignmentWith(geneId) {
   state.alignmentSeedGeneId = geneId;
   activateTab('alignment');
 }
+window._openAlignmentWith = openAlignmentWith;
 
 // ─── Auth ─────────────────────────────────────────────────
 // Fetch the user's profile row using the access_token we already have from the
@@ -1202,7 +1203,7 @@ document.getElementById('nav-home-logo').addEventListener('click', (e) => {
   activateTab('home');
 });
 
-document.addEventListener('chlamatlas:navigate', (e) => {
+window.addEventListener('chlamatlas:navigate', (e) => {
   const { tab } = e.detail ?? {};
   if (tab) activateTab(tab);
 });
