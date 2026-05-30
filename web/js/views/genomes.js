@@ -332,6 +332,7 @@ function showStrainDropdown(anchor, container) {
 const SORT_OPTIONS = [
   { field: 'locus_tag',  asc: true,  label: 'Locus tag' },
   { field: 'gene_name',  asc: true,  label: 'Gene name' },
+  { field: 'sort_index', asc: true,  label: 'Genomic order' },
 ];
 
 function renderFilterBar(container, expandMore = false) {
