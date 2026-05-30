@@ -162,8 +162,8 @@ async function fetchData() {
 // SECTION 2: Stage strip + mutant row (Task 5)
 // ─────────────────────────────────────────────────────────────
 
-const FLAME_ON  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f97316" stroke="none"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
-const FLAME_OFF = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
+const FLAME_ON  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#f97316" stroke="none"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
+const FLAME_OFF = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round"><path d="M12 2C11 5.5 10 7 10 9c0 .8.6 1.5 1.2 1.5C12 10.5 12.5 9.5 12.5 8.5 13.5 10 15 12 15 14a3 3 0 0 1-6 0c0-3.5 3-8 3-12z"/></svg>`;
 const STAR_ON   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 const STAR_OFF  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 
@@ -235,17 +235,17 @@ function mutantRow(m, { showStrain = false } = {}) {
   if (isPlanned)  rowCls += ' is-planned';
   if (isExpanded) rowCls += ' is-expanded';
 
-  // Gene display — first target gene
-  const genes = m.target_gene_ids || [];
-  const firstGene = genes[0] || '';
-  const moreGenes = genes.length > 1 ? ` +${genes.length - 1}` : '';
+  // Primary display name — prefer human-readable name over raw ID
+  const displayName = m.name || mutantId;
+  const showId      = m.name ? mutantId : ''; // show ID as secondary if name exists
 
-  // Mutation type pill
-  const typeText = (m.mutation_type || '').toLowerCase().includes('transposon') ||
-                   (m.mutation_type || '').toLowerCase() === 'tn' ? 'Tn' : 'LR';
-  const typePillCls = typeText === 'Tn'
-    ? 'text-[9px] font-bold px-1.5 py-0 rounded bg-orange-50 text-orange-700 border border-orange-200 flex-shrink-0'
-    : 'text-[9px] font-bold px-1.5 py-0 rounded bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0';
+  // Mutation type pill — Tn | KO; hidden for Lucky17/Chimeras
+  const col = (m.collection || '').toLowerCase();
+  const isTypedGroup = col !== 'lucky17' && col !== 'chimeras';
+  const typeText = (m.mutation_type || '').toLowerCase().includes('transposon') ? 'Tn' : 'KO';
+  const typePillStyle = typeText === 'Tn'
+    ? 'background:#fef3c7;color:#92400e;'
+    : 'background:#ede9fe;color:#6d28d9;';
 
   // Strain chip
   const sl = strainLabel(m);
@@ -272,11 +272,12 @@ function mutantRow(m, { showStrain = false } = {}) {
 
   return `
 <div class="${rowCls}" id="row-${esc(mutantId)}" data-mutant-id="${esc(mutantId)}" onclick="window.__plRowClick(event,'${esc(mutantId)}')">
-  <!-- Left: chips + ID + type -->
+  <!-- Left: name + ID + type pill + strain -->
   <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden;">
     ${plannedChip}
-    <span style="font-size:13px;font-weight:700;color:#111;flex-shrink:0;">${esc(mutantId)}</span>
-    <span style="font-size:9px;font-weight:700;${typeText==='Tn'?'background:#fef3c7;color:#92400e;':'background:#ede9fe;color:#6d28d9;'}border-radius:3px;padding:1.5px 5px;flex-shrink:0;">${typeText}</span>
+    <span style="font-size:13px;font-weight:700;color:#111;flex-shrink:0;white-space:nowrap;">${esc(displayName)}</span>
+    ${showId ? `<span style="font-size:10px;color:#9ca3af;flex-shrink:0;">${esc(showId)}</span>` : ''}
+    ${isTypedGroup ? `<span style="font-size:9px;font-weight:700;${typePillStyle}border-radius:3px;padding:1.5px 5px;flex-shrink:0;">${typeText}</span>` : ''}
     ${showStrain ? `<span class="${strainChipCls}" style="flex-shrink:0;">${esc(sl)}</span>` : ''}
   </div>
   <!-- Middle: flame + star — popover is a sibling span, not inside the button -->
@@ -317,9 +318,8 @@ function expandPanel(m) {
   const aa       = pipe?.active_assignments || {};
 
   // Top bar content
-  const geneName = (m.target_gene_ids || []).join(', ') || '—';
   const strainLbl = strainLabel(m);
-  const metaStr   = [strainLbl, m.mutation_type, m.creator_name].filter(Boolean).join(' · ');
+  const metaStr   = [m.mutant_id, strainLbl, m.mutation_type, m.creator_name].filter(Boolean).join(' · ');
 
   // Stage checklist tiles
   const tiles = STAGES.map(s => {
@@ -400,8 +400,8 @@ function expandPanel(m) {
   <!-- Top bar -->
   <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
     <div style="flex:1;min-width:0;">
-      <div style="font-size:12px;font-weight:700;color:#1f2937;">${esc(m.name || mutantId)}</div>
-      <div style="font-size:10px;color:#9ca3af;margin-top:1px;">${esc(geneName)} · ${esc(metaStr)}</div>
+      <div style="font-size:13px;font-weight:700;color:#111;">${esc(m.name || mutantId)}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">${esc(metaStr)}</div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <!-- Remove -->
@@ -674,9 +674,11 @@ window.__plConfirmRemove = async function(mutantId) {
 };
 
 window.__plGoToMutant = function(mutantId) {
-  window.__openMutant = mutantId;
-  const tabBtn = document.querySelector('[data-tab="mutants"]');
-  if (tabBtn) tabBtn.click();
+  const m = _allMutants.find(x => x.mutant_id === mutantId);
+  if (!m) return;
+  window.__mutantCollection = m.collection || 'CT_L2';
+  window.__openMutantId = m.id; // UUID — mutants.js uses __openMutantId to pre-select the record
+  document.querySelector('[data-tab="mutants"]')?.click();
 };
 
 function _rerenderAll() {
@@ -853,9 +855,9 @@ function renderGroup(def) {
   }
 
   return `
-<div class="mb-4" id="group-${esc(key)}">
+<div class="mb-5" id="group-${esc(key)}">
+  ${header}
   <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);">
-    ${header}
     <div id="group-rows-${esc(key)}">
       ${rowsHtml || '<div style="padding:16px;text-align:center;font-size:12px;color:#9ca3af;">No mutants in this group.</div>'}
     </div>
@@ -906,7 +908,8 @@ window.__plAddMutant = async function(groupKey) {
 };
 
 window.__plExpandAll = function() {
-  _allMutants.forEach(m => _expandedIds.add(m.mutant_id));
+  // Expand all groups (show all rows), not individual mutant cards
+  GROUP_DEFS.forEach(def => { _showAll[def.key] = true; });
   _rerenderAll();
 };
 
