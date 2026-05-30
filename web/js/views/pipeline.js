@@ -5,21 +5,32 @@ import { sb, state } from '../client.js?v=82';
 // SECTION 1: Constants, helpers, data layer (Task 4)
 // ─────────────────────────────────────────────────────────────
 
+// Each stage tracks completion via a new _completed_date column (added in migration 029)
+// plus an optional dbOldDate fallback for existing records that used the pre-migration columns.
+// dbBool is only used for wgs_complete (the only boolean we added).
 export const STAGES = [
   { key: 'plasmid',        label: 'Plasmid',   short: 'Plasmid',
-    dbBool: 'plasmid_complete',        dbBy: 'plasmid_completed_by',        dbDate: 'plasmid_completed_date' },
+    dbDate: 'plasmid_completed_date',        dbOldDate: null,
+    dbBy:   'plasmid_completed_by' },
   { key: 'transformation', label: 'Transform', short: 'Transform',
-    dbBool: 'transformation_complete', dbBy: 'transformation_completed_by', dbDate: 'transformation_completed_date' },
+    dbDate: 'transformation_completed_date', dbOldDate: 'transformed_date',
+    dbBy:   'transformation_completed_by' },
   { key: 'cloning',        label: 'Clone',     short: 'Clone',
-    dbBool: 'cloning_complete',        dbBy: 'cloning_completed_by',        dbDate: 'cloning_completed_date' },
+    dbDate: 'cloning_completed_date',        dbOldDate: 'plaque_cloned_date',
+    dbBy:   'cloning_completed_by' },
   { key: 'genotyping',     label: 'PCR',       short: 'PCR',
-    dbBool: 'genotyping_complete',     dbBy: 'genotyping_completed_by',     dbDate: 'genotyping_completed_date' },
+    dbDate: 'genotyping_completed_date',     dbOldDate: 'genotyped_date',
+    dbBy:   'genotyping_completed_by' },
   { key: 'wgs',            label: 'WGS',       short: 'WGS',
-    dbBool: 'wgs_complete',            dbBy: 'wgs_completed_by',            dbDate: 'wgs_completed_date' },
+    dbDate: 'wgs_completed_date',            dbOldDate: 'sequenced_date',
+    dbBool: 'wgs_complete',
+    dbBy:   'wgs_completed_by' },
   { key: 'invitro',        label: 'In vitro',  short: 'Vitro',
-    dbBool: 'invitro_test_complete',   dbBy: 'invitro_completed_by',        dbDate: 'invitro_completed_date' },
+    dbDate: 'invitro_completed_date',        dbOldDate: 'in_vitro_date',
+    dbBy:   'invitro_completed_by' },
   { key: 'invivo',         label: 'In vivo',   short: 'Vivo',
-    dbBool: 'invivo_test_complete',    dbBy: 'invivo_completed_by',         dbDate: 'invivo_completed_date' },
+    dbDate: 'invivo_completed_date',         dbOldDate: 'in_vivo_date',
+    dbBy:   'invivo_completed_by' },
 ];
 
 export const PERSONNEL = {
@@ -76,9 +87,24 @@ function toLab(name) {
   return p ? p.lab : '';
 }
 
+// Stage completion helpers — check new date column, old date fallback, or boolean flag
+function isDone(pipe, stage) {
+  if (!pipe) return false;
+  if (stage.dbBool  && pipe[stage.dbBool])                      return true;
+  if (pipe[stage.dbDate])                                        return true;
+  if (stage.dbOldDate && pipe[stage.dbOldDate])                  return true;
+  return false;
+}
+function completedBy(pipe, stage) {
+  return pipe?.[stage.dbBy] || '';
+}
+function completedDate(pipe, stage) {
+  return pipe?.[stage.dbDate] || (stage.dbOldDate ? pipe?.[stage.dbOldDate] : '') || '';
+}
+
 function progressScore(pipe) {
   if (!pipe) return 0;
-  return STAGES.filter(s => pipe[s.dbBool]).length;
+  return STAGES.filter(s => isDone(pipe, s)).length;
 }
 
 function categoryKey(m) {
@@ -98,18 +124,13 @@ function strainLabel(m) {
 }
 
 async function fetchData() {
-  const selectCols = STAGES.flatMap(s => [s.dbBool, s.dbBy, s.dbDate]).join(',\n      ');
-
   const [mutantsRes, favRes] = await Promise.all([
     sb.from('mutants')
       .select(`
         id, mutant_id, name, collection, target_gene_ids, mutation_type,
         creator_name, notes, is_priority, is_planned,
         strains!background_strain_id(common_name),
-        mutant_pipeline (
-          ${selectCols},
-          active_assignments
-        )
+        mutant_pipeline (*)
       `)
       .eq('show_in_pipeline', true)
       .order('mutant_id', { ascending: true }),
@@ -149,8 +170,8 @@ const STAR_OFF  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" s
 function stageStrip(pipe, stuckStage, isPlanned, activeAssignments) {
   const aa = activeAssignments || {};
   const pills = STAGES.map(s => {
-    const done   = pipe && pipe[s.dbBool];
-    const who    = done ? (pipe[s.dbBy] || '') : '';
+    const done   = isDone(pipe, s);
+    const who    = done ? completedBy(pipe, s) : '';
     const active = !done && aa[s.key];
     const stuck  = !done && stuckStage === s.key;
 
@@ -174,7 +195,7 @@ function stageStrip(pipe, stuckStage, isPlanned, activeAssignments) {
       title = `${s.label}: assigned to ${active.who}`;
     } else if (isPlanned) {
       // First incomplete stage on a planned mutant
-      const firstIncomplete = STAGES.find(st => !(pipe && pipe[st.dbBool]));
+      const firstIncomplete = STAGES.find(st => !isDone(pipe, st));
       if (firstIncomplete && firstIncomplete.key === s.key) {
         cls   = 'pl-sd pl-sd-planned';
         inner = '…';
@@ -307,9 +328,9 @@ function expandPanel(m) {
 
   // Stage checklist tiles
   const tiles = STAGES.map(s => {
-    const done    = pipe && pipe[s.dbBool];
-    const who     = done ? (pipe[s.dbBy] || '') : '';
-    const dt      = done ? (pipe[s.dbDate] || '') : '';
+    const done    = isDone(pipe, s);
+    const who     = done ? completedBy(pipe, s) : '';
+    const dt      = done ? completedDate(pipe, s) : '';
     const active  = !done && aa[s.key];
     const stuck   = false;
 
@@ -521,12 +542,14 @@ window.__plPickerSave = async function(mutantId, stageKey) {
   const m = _allMutants.find(x => x.mutant_id === mutantId);
   if (!m) return;
 
+  const updatePayload = {
+    [stage.dbDate]: dt || null,
+    [stage.dbBy]:   who,
+  };
+  if (stage.dbBool) updatePayload[stage.dbBool] = true;
+
   const { error } = await sb.from('mutant_pipeline')
-    .update({
-      [stage.dbBool]: true,
-      [stage.dbBy]:   who,
-      [stage.dbDate]: dt || null,
-    })
+    .update(updatePayload)
     .eq('mutant_id', m.id);
 
   if (error) {
@@ -536,9 +559,9 @@ window.__plPickerSave = async function(mutantId, stageKey) {
   }
   if (m) {
     if (!m.pipe) m.pipe = {};
-    m.pipe[stage.dbBool] = true;
-    m.pipe[stage.dbBy]   = who;
     m.pipe[stage.dbDate] = dt || null;
+    m.pipe[stage.dbBy]   = who;
+    if (stage.dbBool) m.pipe[stage.dbBool] = true;
   }
 
   // Replace expand panel
