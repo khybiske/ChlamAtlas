@@ -113,7 +113,8 @@ CREATE TABLE mutants (
     creator                 TEXT,
     created_at              DATE,
     notes                   TEXT,
-    priority                TEXT,
+    is_priority             BOOLEAN NOT NULL DEFAULT false,
+    is_planned              BOOLEAN NOT NULL DEFAULT false,
 
     -- Mutant construction details
     plasmid_used            TEXT,
@@ -160,10 +161,42 @@ CREATE TABLE mutant_pipeline (
     transformation_complete             BOOLEAN NOT NULL DEFAULT false,
     cloning_complete                    BOOLEAN NOT NULL DEFAULT false,
     genotyping_complete                 BOOLEAN NOT NULL DEFAULT false,
+    wgs_complete                        BOOLEAN NOT NULL DEFAULT false,
     invitro_test_complete               BOOLEAN NOT NULL DEFAULT false,
     invivo_test_complete                BOOLEAN NOT NULL DEFAULT false,
     include_in_pipeline_after_genotyping BOOLEAN NOT NULL DEFAULT false,
+
+    -- Per-stage completion metadata (who completed it and when)
+    plasmid_completed_by                TEXT,
+    plasmid_completed_date              DATE,
+    transformation_completed_by         TEXT,
+    transformation_completed_date       DATE,
+    cloning_completed_by                TEXT,
+    cloning_completed_date              DATE,
+    genotyping_completed_by             TEXT,
+    genotyping_completed_date           DATE,
+    wgs_completed_by                    TEXT,
+    wgs_completed_date                  DATE,
+    invitro_completed_by                TEXT,
+    invitro_completed_date              DATE,
+    invivo_completed_by                 TEXT,
+    invivo_completed_date               DATE,
+
+    -- Per-stage active assignments: JSONB keyed by stage name
+    -- e.g. { "wgs": {"who": "D. Rockey", "initials": "DR", "lab": "osu"} }
+    active_assignments                  JSONB NOT NULL DEFAULT '{}'::jsonb,
+
     UNIQUE (mutant_id)
+);
+
+
+-- ─── PIPELINE FAVORITES ──────────────────────────────────────
+CREATE TABLE pipeline_favorites (
+    id         SERIAL PRIMARY KEY,
+    user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    mutant_id  TEXT NOT NULL REFERENCES mutants(mutant_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, mutant_id)
 );
 
 

@@ -1,6 +1,6 @@
 // ChlamAtlas — Bug Reports view
 
-import { sb, state } from '../client.js?v=81';
+import { sb, state } from '../client.js?v=82';
 
 export async function renderBugs(container) {
   container.innerHTML = `
