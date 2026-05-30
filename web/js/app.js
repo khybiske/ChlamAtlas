@@ -1,5 +1,5 @@
 // ChlamAtlas — main application entry point
-import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=80';
+import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=81';
 import { renderHome } from './views/home.js?v=81';
 import { renderGenomes } from './views/genomes.js?v=87';
 import { renderMutants } from './views/mutants.js?v=92';
@@ -8,6 +8,7 @@ import { renderRoadmap }  from './views/roadmap.js?v=90';
 import { renderAlignment } from './views/alignment.js?v=96';
 import { renderStructureAlignment } from './views/structure-alignment.js?v=6';
 import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
+import { renderBugs } from './views/bugs.js?v=1';
 
 export { sb, state };
 
@@ -59,13 +60,14 @@ function showToolsPopover(anchor) {
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'alignment', 'structure-alignment', 'genome-alignment'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'bugs', 'alignment', 'structure-alignment', 'genome-alignment'];
 const RENDERERS = {
   home:      renderHome,
   genomes:   renderGenomes,
   mutants:   renderMutants,
   pipeline:  renderPipeline,
   roadmap:   renderRoadmap,
+  bugs:      renderBugs,
   alignment: renderAlignment,
   'structure-alignment': renderStructureAlignment,
   'genome-alignment':    renderGenomeAlignment,
@@ -287,6 +289,11 @@ function showUserDropdown() {
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
       What's new
     </button>
+    <button id="dd-bugs"
+      style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
+      onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+      Bug reports
+    </button>
     <button id="dd-sign-out"
       style="width:100%;text-align:left;padding:7px 12px;font-size:12px;color:#374151;background:none;border:none;cursor:pointer;border-top:1px solid #f3f4f6;"
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
@@ -297,6 +304,7 @@ function showUserDropdown() {
 
   document.getElementById('dd-my-account').addEventListener('click', () => { hideUserDropdown(); showAccountModal(); });
   document.getElementById('dd-whats-new').addEventListener('click', () => { hideUserDropdown(); activateTab('roadmap'); });
+  document.getElementById('dd-bugs').addEventListener('click', () => { hideUserDropdown(); activateTab('bugs'); });
   document.getElementById('dd-sign-out').addEventListener('click', () => { hideUserDropdown(); signOut(); });
   document.getElementById('dd-request-access')?.addEventListener('click', () => { hideUserDropdown(); requestLabAccess(); });
   document.getElementById('dd-admin-panel')?.addEventListener('click', () => { hideUserDropdown(); showAdminPanel(); });
