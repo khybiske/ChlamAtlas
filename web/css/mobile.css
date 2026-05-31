@@ -884,3 +884,255 @@
   gap: 5px;
 }
 .mob-switch-btn:active { background: #eef1ee; }
+
+/* =========================================================
+   MUTANT DETAIL — targeted-genes scrollable window
+   ========================================================= */
+
+.mob-tg-win {
+  position: relative;
+  margin-top: 13px;
+  border: 1px solid var(--mob-line);
+  border-radius: 14px;
+  background: var(--mob-bg-warm);
+  overflow: hidden;
+}
+.mob-tg-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.mob-tg-scroll::-webkit-scrollbar { width: 5px; }
+.mob-tg-scroll::-webkit-scrollbar-thumb { background: #cfd6d1; border-radius: 9px; }
+
+.mob-tg-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  position: relative;
+  cursor: pointer;
+  background: var(--mob-card);
+  transition: background .12s;
+}
+.mob-tg-row:active { background: #f1f5f2; }
+.mob-tg-row + .mob-tg-row { border-top: .5px solid var(--mob-line); }
+.mob-tg-bar  { width: 3px; align-self: stretch; border-radius: 3px; flex: 0 0 3px; }
+.mob-tg-meta { flex: 1; min-width: 0; }
+.mob-tg-name {
+  font-family: var(--mob-sans);
+  font-weight: 800;
+  font-size: 14.5px;
+  color: var(--mob-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -.01em;
+}
+.mob-tg-name .loc {
+  font-family: var(--mob-mono);
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--mob-ink-3);
+  margin-left: 6px;
+}
+.mob-tg-func {
+  font-size: 11.5px;
+  color: var(--mob-ink-3);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mob-role-badge {
+  flex: 0 0 auto;
+  font-family: var(--mob-sans);
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.mob-tg-fade {
+  position: absolute;
+  left: 1px; right: 1px; bottom: 1px;
+  height: 30px;
+  pointer-events: none;
+  background: linear-gradient(0deg, var(--mob-bg-warm), rgba(247,248,246,0));
+  border-radius: 0 0 14px 14px;
+  transition: opacity .2s ease;
+}
+.mob-tg-count-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px;
+  font-family: var(--mob-mono);
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--mob-ink-3);
+  background: var(--mob-bg-warm);
+  border-top: .5px solid var(--mob-line);
+}
+
+.mob-mut-tile {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mob-mono);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.mob-genotype {
+  font-family: var(--mob-mono);
+  font-size: 13.5px;
+  background: var(--mob-bg-warm);
+  border: 1px solid var(--mob-line);
+  border-radius: 10px;
+  padding: 9px 11px;
+  margin-top: 10px;
+  word-break: break-all;
+  color: var(--mob-ink);
+}
+
+.mob-avail-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-family: var(--mob-sans);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* =========================================================
+   CHIMERA — recombined region map
+   ========================================================= */
+
+.mob-rr-ruler {
+  position: relative;
+  height: 30px;
+  margin: 18px 3px 0;
+}
+.mob-rr-ruler .base {
+  position: absolute;
+  left: 0; right: 0;
+  top: 24px;
+  height: 1.5px;
+  background: var(--mob-line);
+}
+.mob-rr-lm {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mob-rr-lm .nm {
+  font-family: var(--mob-mono);
+  font-style: italic;
+  font-size: 10px;
+  color: var(--mob-ink-3);
+  white-space: nowrap;
+}
+.mob-rr-lm .tick { width: 1px; height: 7px; background: #cfd6d1; margin-top: 3px; }
+.mob-rr-barwrap { position: relative; margin: 4px 3px 0; }
+.mob-rr-kb {
+  position: absolute;
+  right: 0; top: -15px;
+  font-family: var(--mob-mono);
+  font-size: 10px;
+  color: var(--mob-ink-3);
+}
+.mob-rr-bar {
+  position: relative;
+  height: 26px;
+  border-radius: 6px;
+  background: #2f9e6e;
+  overflow: hidden;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.08);
+}
+.mob-rr-block {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: #3f7fc4;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.14);
+}
+.mob-rr-span {
+  text-align: center;
+  font-family: var(--mob-mono);
+  font-size: 10.5px;
+  color: var(--mob-ink-2);
+  margin-top: 8px;
+}
+.mob-rr-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 13px;
+  flex-wrap: wrap;
+}
+.mob-rr-leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--mob-ink-2);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.mob-rr-leg .sw { width: 12px; height: 12px; border-radius: 3px; }
+
+/* Gene-exchange table */
+.mob-gx-colhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  background: var(--mob-bg-warm);
+  border-bottom: .5px solid var(--mob-line);
+  font-family: var(--mob-mono);
+  font-size: 9.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.mob-gx-colhead .h {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.mob-gx-colhead .h b { font-family: var(--mob-sans); font-weight: 800; font-size: 11px; letter-spacing: 0; }
+.mob-gx-row {
+  display: flex;
+  align-items: stretch;
+  gap: 9px;
+  padding: 9px 11px;
+  background: var(--mob-card);
+}
+.mob-gx-row + .mob-gx-row { border-top: .5px solid var(--mob-line); }
+.mob-gx-bar   { width: 3px; align-self: stretch; border-radius: 3px; flex: 0 0 3px; }
+.mob-gx-main  { flex: 1; min-width: 0; }
+.mob-gx-pair  { display: flex; align-items: center; gap: 8px; }
+.mob-gx-side  { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mob-gx-side.r { text-align: right; }
+.mob-gx-loc   { font-family: var(--mob-mono); font-size: 10.5px; color: var(--mob-ink-3); }
+.mob-gx-sym   { font-weight: 800; font-size: 13px; color: var(--mob-ink); margin-left: 5px; }
+.mob-gx-prod  { font-size: 11px; color: var(--mob-ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mob-gx-none  {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+  color: #c2702b; background: #f6ecdd; padding: 3px 8px; border-radius: 999px;
+}
+.mob-gx-row.noortho { background: #fdf8f0; }
+.mob-gx-row.noortho .mob-gx-bar { background: #d99a3e; }
