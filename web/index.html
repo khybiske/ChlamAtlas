@@ -176,24 +176,45 @@
 
   <!-- ─── MOBILE BOTTOM NAV ─────────────────────────────────── -->
   <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex safe-area-pb" id="mobile-nav">
+    <!-- Home -->
     <button data-tab="home" class="mob-tab-btn active">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 11L12 3l9 8v9a1 1 0 0 1-1 1H15v-6H9v6H4a1 1 0 0 1-1-1v-9z"/>
+      </svg>
       <span class="mob-tab-label">Home</span>
     </button>
+    <!-- Genomes — clean DNA double helix -->
     <button data-tab="genomes" class="mob-tab-btn">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16.1A5 5 0 0 1 5.5 8h.5a6 6 0 0 1 6-6 6 6 0 0 1 6 6h.5a5 5 0 0 1 3.5 8.4"/><path d="m12 12 4 10"/><path d="m12 12-4 10"/><path d="M12 2v10"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M5 3c0 5 5 5 7 9s7 4 7 9"/>
+        <path d="M19 3c0 5-5 5-7 9s-7 4-7 9"/>
+        <line x1="5" y1="9" x2="19" y2="9"/>
+        <line x1="5" y1="15" x2="19" y2="15"/>
+      </svg>
       <span class="mob-tab-label">Genomes</span>
     </button>
+    <!-- Mutants — lightning bolt -->
     <button data-tab="mutants" class="mob-tab-btn">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M9 3h6"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M3 9v6"/><path d="M21 9v6"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M9 21h6"/><circle cx="12" cy="12" r="3"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L4 13h7l-1 9 10-12h-7z"/>
+      </svg>
       <span class="mob-tab-label">Mutants</span>
     </button>
+    <!-- Pipeline — ascending bars -->
     <button data-tab="pipeline" class="mob-tab-btn" id="mob-tab-pipeline" style="display:none">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="14" width="4" height="7" rx="1"/>
+        <rect x="10" y="9" width="4" height="12" rx="1"/>
+        <rect x="17" y="4" width="4" height="17" rx="1"/>
+      </svg>
       <span class="mob-tab-label">Pipeline</span>
     </button>
+    <!-- Tools — flask -->
     <button data-tab="tools" class="mob-tab-btn" id="mob-tab-tools">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H7a2 2 0 0 0-2 2v2"/><path d="M15 3h2a2 2 0 0 1 2 2v2"/><path d="M5 21v-2a2 2 0 0 1 2-2h2"/><path d="M19 21v-2a2 2 0 0 1-2-2h-2"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 3h6M9 3v6l-5 9a1 1 0 0 0 .9 1.5h14.2A1 1 0 0 0 20 18l-5-9V3"/>
+        <line x1="6.5" y1="15" x2="17.5" y2="15"/>
+      </svg>
       <span class="mob-tab-label">Tools</span>
     </button>
   </nav>

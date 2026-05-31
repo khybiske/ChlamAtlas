@@ -48,6 +48,15 @@
   box-sizing: border-box;
 }
 
+/* ── Force mobile-only shell elements hidden on desktop ── */
+@media (min-width: 640px) {
+  #mob-bar,
+  #mob-nav-left,
+  #mob-nav-right,
+  #mob-detail,
+  #mob-search { display: none !important; }
+}
+
 /* ── Collapsing nav bar styles ── */
 #mob-bar {
   position: fixed;
@@ -554,11 +563,10 @@
 
 .mob-hero {
   background: var(--mob-pine);
-  border-radius: 0 0 30px 30px;
+  border-radius: 0;
   color: #fff;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(20,40,30,.14);
 }
 .mob-hero-inner {
   padding: calc(var(--mob-nav-h) + 16px) 22px 42px;

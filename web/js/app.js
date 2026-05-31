@@ -233,6 +233,9 @@ function initMobileShell() {
     });
   };
 
+  // Apply active state for the tab that was already activated before this hook was registered
+  window.__activateTabHook(state.currentTab);
+
   updateMobPipelineVisibility();
 }
 

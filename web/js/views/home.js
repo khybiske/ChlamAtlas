@@ -71,13 +71,8 @@ async function renderHomeMobile(container) {
   container.innerHTML = `
     <div>
       <div class="mob-hero">
+        <chlam-globe-bg variant="globe" tint="#163b2b"></chlam-globe-bg>
         <div class="mob-hero-inner">
-          <div class="mob-hero-eyebrow">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-              stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            MODEL ORGANISM DB
-          </div>
           <h1>ChlamAtlas</h1>
           <p>The authoritative research database for <em>Chlamydia</em> — genomics, mutant phenotypes, and structural biology across three model strains.</p>
         </div>
@@ -95,7 +90,7 @@ async function renderHomeMobile(container) {
           <path d="M16 2C16 5 8 7 8 10C8 13 16 15 16 18C16 21 8 22 8 22"/>
           <line x1="8" y1="2" x2="16" y2="2"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
         <span class="t">Genomes</span>
-        <button class="more" id="mob-home-all-genomes">Browse →</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
       <div id="mob-home-strain-cards"></div>
 
@@ -103,7 +98,7 @@ async function renderHomeMobile(container) {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
           style="color:var(--mob-green-ink)"><path d="M13 2L4.5 13H11L10 22L19.5 11H13L13 2Z"/></svg>
         <span class="t">Mutants</span>
-        <button class="more" id="mob-home-all-mutants">All →</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
       <div id="mob-home-collection-rows"></div>
 
@@ -119,13 +114,6 @@ async function renderHomeMobile(container) {
 
       <div class="mob-pad-bottom"></div>
     </div>`;
-
-  container.querySelector('#mob-home-all-genomes').addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
-  });
-  container.querySelector('#mob-home-all-mutants').addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
-  });
 
   // Fetch data in parallel
   const [strainRes, mutRes, geneRes] = await Promise.all([
@@ -171,9 +159,11 @@ async function renderHomeMobile(container) {
           <div class="sbar" style="background:${color};"></div>
           <img class="sicon" src="${esc(icon)}" alt="${esc(s.common_name)}" onerror="this.style.display='none'">
           <div style="flex:1;min-width:0;">
-            <div class="scode" style="color:${color};">${esc(s.common_name)}</div>
-            <div class="sname"><em>${esc(species)}</em></div>
-            <div class="scount">${Number(gCount).toLocaleString()} genes</div>
+            <div style="font-style:italic;font-size:15px;color:var(--mob-ink);font-weight:500;margin-bottom:3px;"><em>${esc(species)}</em></div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span class="scode" style="color:${color};font-size:13px;">${esc(s.common_name)}</span>
+              <span class="scount" style="margin-top:0;">· ${Number(gCount).toLocaleString()} genes</span>
+            </div>
           </div>
           ${chevron}
         </div>`;
