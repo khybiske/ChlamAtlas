@@ -12,6 +12,273 @@ import { renderBugs } from './views/bugs.js?v=1';
 
 export { sb, state };
 
+// ─── Mobile viewport detection ─────────────────────────────
+export function isMobileViewport() {
+  return window.innerWidth < 640;
+}
+
+// ─── Mobile push/pop detail overlay ────────────────────────
+let _mobDetailStack = [];
+let _mobDetailDrag  = { active: false, x0: 0, dx: 0 };
+
+export function pushMobileDetail({ render, title = '' }) {
+  const overlay = document.getElementById('mob-detail');
+  const scroll  = document.getElementById('mob-detail-scroll');
+  if (!overlay || !scroll) return;
+
+  _mobDetailStack.push({ title });
+  scroll.innerHTML = '';
+  render(scroll);
+
+  _setMobNavTitle(title);
+  _showMobBack(true);
+
+  overlay.style.transition = 'none';
+  overlay.style.transform   = 'translateX(100%)';
+  requestAnimationFrame(() => {
+    overlay.style.transition = 'transform .34s cubic-bezier(.32,.72,0,1)';
+    overlay.style.transform   = 'translateX(0)';
+    overlay.classList.add('open');
+  });
+
+  scroll.onscroll = () => {
+    const show = scroll.scrollTop > 26;
+    document.getElementById('mob-bar')?.classList.toggle('show', show);
+  };
+
+  overlay.removeEventListener('touchstart', _mobSwipeStart);
+  overlay.removeEventListener('touchmove',  _mobSwipeMove);
+  overlay.removeEventListener('touchend',   _mobSwipeEnd);
+  overlay.addEventListener('touchstart', _mobSwipeStart, { passive: true });
+  overlay.addEventListener('touchmove',  _mobSwipeMove,  { passive: true });
+  overlay.addEventListener('touchend',   _mobSwipeEnd,   { passive: false });
+}
+
+export function popMobileDetail() {
+  const overlay = document.getElementById('mob-detail');
+  if (!overlay) return;
+
+  overlay.style.transition = 'transform .3s cubic-bezier(.4,0,.6,1)';
+  overlay.style.transform   = 'translateX(100%)';
+
+  _mobDetailStack.pop();
+  const prev     = _mobDetailStack[_mobDetailStack.length - 1];
+  const hasDetail = _mobDetailStack.length > 0;
+
+  setTimeout(() => {
+    overlay.classList.remove('open');
+    const s = document.getElementById('mob-detail-scroll');
+    if (s) s.innerHTML = '';
+    overlay.removeEventListener('touchstart', _mobSwipeStart);
+    overlay.removeEventListener('touchmove',  _mobSwipeMove);
+    overlay.removeEventListener('touchend',   _mobSwipeEnd);
+
+    _showMobBack(hasDetail);
+    _setMobNavTitle(hasDetail && prev ? prev.title : _currentTabTitle());
+    document.getElementById('mob-bar')?.classList.remove('show');
+  }, 290);
+}
+
+function _mobSwipeStart(e) {
+  const x = e.touches[0].clientX;
+  if (x > 40) return;
+  _mobDetailDrag = { active: true, x0: x, dx: 0 };
+  const overlay = document.getElementById('mob-detail');
+  if (overlay) overlay.style.transition = 'none';
+}
+function _mobSwipeMove(e) {
+  if (!_mobDetailDrag.active) return;
+  const dx = Math.max(0, e.touches[0].clientX - _mobDetailDrag.x0);
+  _mobDetailDrag.dx = dx;
+  const overlay = document.getElementById('mob-detail');
+  if (overlay) overlay.style.transform = `translateX(${dx}px)`;
+}
+function _mobSwipeEnd() {
+  if (!_mobDetailDrag.active) return;
+  _mobDetailDrag.active = false;
+  if (_mobDetailDrag.dx > 90) {
+    popMobileDetail();
+  } else {
+    const overlay = document.getElementById('mob-detail');
+    if (overlay) {
+      overlay.style.transition = 'transform .25s ease';
+      overlay.style.transform   = 'translateX(0)';
+    }
+  }
+}
+
+// ─── Mobile search overlay ──────────────────────────────────
+export function pushMobileSearch() {
+  const overlay = document.getElementById('mob-search');
+  if (!overlay) return;
+  overlay.style.transition = 'none';
+  overlay.style.transform   = 'translateX(100%)';
+  requestAnimationFrame(() => {
+    overlay.style.transition = 'transform .34s cubic-bezier(.32,.72,0,1)';
+    overlay.style.transform   = 'translateX(0)';
+    overlay.classList.add('open');
+  });
+  setTimeout(() => document.getElementById('mob-search-input')?.focus(), 350);
+  _showMobBack(false);
+}
+
+export function popMobileSearch() {
+  const overlay = document.getElementById('mob-search');
+  if (!overlay) return;
+  overlay.style.transition = 'transform .3s cubic-bezier(.4,0,.6,1)';
+  overlay.style.transform   = 'translateX(100%)';
+  setTimeout(() => {
+    overlay.classList.remove('open');
+    const inp = document.getElementById('mob-search-input');
+    const res = document.getElementById('mob-search-results');
+    if (inp) inp.value = '';
+    if (res) res.innerHTML = '';
+  }, 290);
+}
+
+// ─── Collapsing nav bar ─────────────────────────────────────
+const _TAB_TITLES = {
+  home: 'ChlamAtlas', genomes: 'Genomes', mutants: 'Mutants',
+  pipeline: 'Pipeline', tools: 'Tools',
+};
+
+function _currentTabTitle() {
+  return _TAB_TITLES[state.currentTab] ?? 'ChlamAtlas';
+}
+
+function _setMobNavTitle(title) {
+  const el = document.getElementById('mob-bar-title');
+  if (el) el.textContent = title;
+}
+
+function _showMobBack(show) {
+  const left = document.getElementById('mob-nav-left');
+  if (!left) return;
+  if (show) {
+    left.innerHTML = `
+      <button class="mob-gbtn" id="mob-back-btn" aria-label="Back">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>`;
+    document.getElementById('mob-back-btn').addEventListener('click', popMobileDetail);
+  } else {
+    left.innerHTML = '';
+  }
+}
+
+export function onMobScroll(scrollEl, threshold, title) {
+  scrollEl.addEventListener('scroll', () => {
+    const show = scrollEl.scrollTop > threshold;
+    document.getElementById('mob-bar')?.classList.toggle('show', show);
+  }, { passive: true });
+  _setMobNavTitle(title);
+}
+
+// ─── Mobile shell initializer ────────────────────────────────
+function updateMobPipelineVisibility() {
+  const tab = document.getElementById('mob-tab-pipeline');
+  if (!tab) return;
+  tab.style.display = ['lab_member', 'admin'].includes(state.userRole) ? '' : 'none';
+}
+
+function initMobileShell() {
+  if (!isMobileViewport()) return;
+
+  document.getElementById('mob-btn-search')?.addEventListener('click', pushMobileSearch);
+  document.getElementById('mob-search-back')?.addEventListener('click', popMobileSearch);
+
+  const searchInput   = document.getElementById('mob-search-input');
+  const searchResults = document.getElementById('mob-search-results');
+  if (searchInput && searchResults) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) { searchResults.innerHTML = ''; return; }
+      _renderMobSearchResults(q, searchResults);
+    });
+  }
+
+  document.getElementById('mob-btn-saved')?.addEventListener('click', (e) => {
+    showSavedPopover(e.currentTarget);
+  });
+
+  document.getElementById('mob-btn-account')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (state.user) toggleUserDropdown();
+    else showAuthModal('signin');
+  });
+
+  document.querySelectorAll('.mob-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (!tab) return;
+
+      if (_mobDetailStack.length > 0) {
+        const overlay = document.getElementById('mob-detail');
+        if (overlay) {
+          overlay.classList.remove('open');
+          overlay.style.transform = 'translateX(100%)';
+        }
+        _mobDetailStack = [];
+        _showMobBack(false);
+      }
+
+      activateTab(tab);
+      document.getElementById('mob-bar')?.classList.remove('show');
+      _setMobNavTitle(_TAB_TITLES[tab] ?? tab);
+    });
+  });
+
+  window.__activateTabHook = (name) => {
+    document.querySelectorAll('.mob-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === name);
+    });
+  };
+
+  updateMobPipelineVisibility();
+}
+
+async function _renderMobSearchResults(q, container) {
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  container.innerHTML = '<div style="padding:12px 20px;font-size:13px;color:var(--mob-ink-3)">Searching…</div>';
+  const { data } = await sb
+    .from('genes')
+    .select('id,locus_tag,gene_name,gene_symbol,functional_category,proteins(alphafold_results(thumbnail_path))')
+    .or(`locus_tag.ilike.%${q}%,gene_name.ilike.%${q}%,gene_symbol.ilike.%${q}%,product.ilike.%${q}%`)
+    .limit(30);
+
+  if (!data || data.length === 0) {
+    const safeQ = q.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mob-ink-3);font-size:14px;">No results for "${safeQ}"</div>`;
+    return;
+  }
+
+  const rows = data.map(g => {
+    const thumb = g.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
+    return `
+      <div class="mob-grow" data-mob-search-gene="${g.id}">
+        <div class="mob-bar" style="background:#2f9e6e;"></div>
+        <div class="mob-thumb mob-stile">
+          ${thumb ? `<img src="${thumb}" alt="">` : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><circle cx="12" cy="12" r="8"/></svg>'}
+        </div>
+        <div class="mob-meta">
+          <div class="mob-gname">${esc(g.gene_name || g.gene_symbol || g.locus_tag)}<span class="mob-loc">${g.gene_name ? esc(g.locus_tag) : ''}</span></div>
+          <div class="mob-gfunc">${esc(g.functional_category ?? '')}</div>
+        </div>
+        <span class="mob-chev"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <div class="mob-sep"></div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `<div style="background:#fff;">${rows}</div>`;
+
+  container.querySelectorAll('[data-mob-search-gene]').forEach(row => {
+    row.addEventListener('click', () => {
+      popMobileSearch();
+      window.__openGeneId = row.dataset.mobSearchGene;
+      activateTab('genomes');
+    });
+  });
+}
+
 // ─── Nav stub buttons ──────────────────────────────────────
 function wireNavStubs() {
   document.getElementById('btn-nav-search')?.addEventListener('click', (e) => {
@@ -107,6 +374,7 @@ function activateTab(name) {
   }
 
   history.replaceState(null, '', `#/${name}`);
+  window.__activateTabHook?.(name);
 }
 
 // Used by the Pipeline tab to navigate directly to a specific mutant record,
@@ -656,6 +924,7 @@ function updateNavVisibility() {
   document.querySelectorAll('[data-tab="pipeline"]').forEach(btn => {
     btn.style.display = showPipeline ? '' : 'none';
   });
+  updateMobPipelineVisibility();
 }
 
 // ─── Auth modal ────────────────────────────────────────────
@@ -1226,3 +1495,4 @@ updateNavVisibility();
 wireNavStubs();
 const _hash = location.hash.replace(/^#\/?/, '');
 activateTab(TABS.includes(_hash) ? _hash : 'home');
+initMobileShell();

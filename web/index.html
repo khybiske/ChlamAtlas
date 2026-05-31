@@ -38,6 +38,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="/web/css/app.css?v=80" />
+  <link rel="stylesheet" href="/web/css/mobile.css?v=1" />
   <link rel="stylesheet" href="/web/css/pipeline.css">
   <!-- Leaflet (community world map) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
@@ -45,7 +46,7 @@
 <body class="bg-white text-gray-900 font-sans min-h-screen">
 
   <!-- ─── TOP NAV ─────────────────────────────────────────── -->
-  <header class="sticky top-0 z-50 shadow-md" style="background:#0f4530;">
+  <header class="hidden sm:sticky sm:top-0 sm:z-50 sm:shadow-md sm:block" style="background:#0f4530;">
     <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14 gap-4">
 
       <!-- Logo / wordmark -->
@@ -103,6 +104,27 @@
     </div>
   </header>
 
+  <!-- ─── MOBILE COLLAPSING NAV BAR ──────────────────────────── -->
+  <div id="mob-bar" class="sm:hidden" aria-hidden="true">
+    <span id="mob-bar-title">ChlamAtlas</span>
+  </div>
+
+  <!-- Left nav area: Back button appears here when a detail is open -->
+  <div id="mob-nav-left" class="sm:hidden"></div>
+
+  <!-- Right nav area: Search, Saved, Account glass buttons -->
+  <div id="mob-nav-right" class="sm:hidden">
+    <button class="mob-gbtn" id="mob-btn-search" aria-label="Search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="mob-gbtn" id="mob-btn-saved" aria-label="Saved">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </button>
+    <button class="mob-gbtn" id="mob-btn-account" aria-label="Account">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 5-5 8-5s6.5 1 8 5"/></svg>
+    </button>
+  </div>
+
   <!-- ─── MAIN CONTENT ─────────────────────────────────────── -->
   <main class="pb-24 sm:pb-8">
 
@@ -153,27 +175,26 @@
   </main>
 
   <!-- ─── MOBILE BOTTOM NAV ─────────────────────────────────── -->
-  <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 flex safe-area-pb" id="mobile-nav">
-    <button data-tab="home" class="mobile-tab active flex-1">
-      <span class="tab-icon-wrap">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      </span>
-      <span class="text-[10px] font-medium mt-0.5">Home</span>
+  <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex safe-area-pb" id="mobile-nav">
+    <button data-tab="home" class="mob-tab-btn active">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="mob-tab-label">Home</span>
     </button>
-    <button data-tab="genomes" class="mobile-tab flex-1">
-      <span class="tab-icon-wrap">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16.1A5 5 0 0 1 5.5 8h.5a6 6 0 0 1 6-6 6 6 0 0 1 6 6h.5a5 5 0 0 1 3.5 8.4"/><path d="m12 12 4 10"/><path d="m12 12-4 10"/><path d="M12 2v10"/></svg>
-      </span>
-      <span class="text-[10px] font-medium mt-0.5">Genomes</span>
+    <button data-tab="genomes" class="mob-tab-btn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16.1A5 5 0 0 1 5.5 8h.5a6 6 0 0 1 6-6 6 6 0 0 1 6 6h.5a5 5 0 0 1 3.5 8.4"/><path d="m12 12 4 10"/><path d="m12 12-4 10"/><path d="M12 2v10"/></svg>
+      <span class="mob-tab-label">Genomes</span>
     </button>
-    <button data-tab="mutants" class="mobile-tab flex-1">
-      <span class="tab-icon-wrap">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M9 3h6"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M3 9v6"/><path d="M21 9v6"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M9 21h6"/><circle cx="12" cy="12" r="3"/></svg>
-      </span>
-      <span class="text-[10px] font-medium mt-0.5">Mutants</span>
+    <button data-tab="mutants" class="mob-tab-btn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M9 3h6"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M3 9v6"/><path d="M21 9v6"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M9 21h6"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="mob-tab-label">Mutants</span>
     </button>
-    <button data-tab="pipeline" class="mobile-tab flex-1" style="display:none">
-      <span class="text-[10px] font-medium mt-0.5">Pipeline</span>
+    <button data-tab="pipeline" class="mob-tab-btn" id="mob-tab-pipeline" style="display:none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="mob-tab-label">Pipeline</span>
+    </button>
+    <button data-tab="tools" class="mob-tab-btn" id="mob-tab-tools">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H7a2 2 0 0 0-2 2v2"/><path d="M15 3h2a2 2 0 0 1 2 2v2"/><path d="M5 21v-2a2 2 0 0 1 2-2h2"/><path d="M19 21v-2a2 2 0 0 1-2-2h-2"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      <span class="mob-tab-label">Tools</span>
     </button>
   </nav>
 
@@ -364,6 +385,32 @@
           Change password →
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ─── MOBILE DETAIL OVERLAY (gene / mutant push layer) ── -->
+  <div id="mob-detail" class="sm:hidden" aria-modal="true" role="dialog" aria-label="Detail">
+    <div id="mob-detail-scroll"></div>
+  </div>
+
+  <!-- ─── MOBILE SEARCH OVERLAY ──────────────────────────────── -->
+  <div id="mob-search" class="sm:hidden" aria-modal="true" role="search" aria-label="Search">
+    <div id="mob-search-scroll">
+      <div style="padding: 12px 16px 8px; display:flex; align-items:center; gap:10px;">
+        <button class="mob-gbtn" id="mob-search-back" aria-label="Close search">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2 style="font-family:var(--mob-serif);font-weight:700;font-size:28px;color:var(--mob-ink);margin:0;">Search</h2>
+      </div>
+      <div style="padding: 6px 16px 10px;">
+        <div style="display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--mob-line);border-radius:13px;padding:0 12px;height:44px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa39c" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="mob-search-input" type="search" autocomplete="off"
+            placeholder="Genes, locus tags, products…"
+            style="border:none;outline:none;flex:1;font-family:var(--mob-sans);font-size:15px;background:transparent;color:var(--mob-ink);" />
+        </div>
+      </div>
+      <div id="mob-search-results"></div>
     </div>
   </div>
 
