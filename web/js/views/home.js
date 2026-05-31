@@ -1,5 +1,8 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../client.js?v=82';
+import { isMobileViewport } from '../app.js?v=82';
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const ORGANISMS = [
   {
@@ -64,7 +67,172 @@ function countryLatLng(country) {
   return COUNTRY_CENTROIDS[country.toLowerCase().trim()] ?? null;
 }
 
+async function renderHomeMobile(container) {
+  container.innerHTML = `
+    <div>
+      <div class="mob-hero">
+        <div class="mob-hero-inner">
+          <div class="mob-hero-eyebrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            MODEL ORGANISM DB
+          </div>
+          <h1>ChlamAtlas</h1>
+          <p>The authoritative research database for <em>Chlamydia</em> — genomics, mutant phenotypes, and structural biology across three model strains.</p>
+        </div>
+      </div>
+
+      <div class="mob-hero-stats">
+        <div class="mob-hstat"><div class="n" id="mob-stat-genes">—</div><div class="l">Genes</div></div>
+        <div class="mob-hstat"><div class="n" id="mob-stat-mutants">—</div><div class="l">Mutants</div></div>
+        <div class="mob-hstat"><div class="n" id="mob-stat-strains">3</div><div class="l">Strains</div></div>
+      </div>
+
+      <div class="mob-home-sec-h">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+          style="color:var(--mob-green-ink)"><path d="M8 2C8 5 16 7 16 10C16 13 8 15 8 18C8 21 16 22 16 22"/>
+          <path d="M16 2C16 5 8 7 8 10C8 13 16 15 16 18C16 21 8 22 8 22"/>
+          <line x1="8" y1="2" x2="16" y2="2"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        <span class="t">Genomes</span>
+        <button class="more" id="mob-home-all-genomes">Browse →</button>
+      </div>
+      <div id="mob-home-strain-cards"></div>
+
+      <div class="mob-home-sec-h">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+          style="color:var(--mob-green-ink)"><path d="M13 2L4.5 13H11L10 22L19.5 11H13L13 2Z"/></svg>
+        <span class="t">Mutants</span>
+        <button class="more" id="mob-home-all-mutants">All →</button>
+      </div>
+      <div id="mob-home-collection-rows"></div>
+
+      <div class="mob-home-sec-h">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+          style="color:var(--mob-green-ink)"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="t">Community</span>
+      </div>
+      <div id="mob-home-map" class="mob-map-card">
+        <div id="mob-leaflet-map" style="width:100%;height:100%;"></div>
+      </div>
+
+      <div class="mob-pad-bottom"></div>
+    </div>`;
+
+  container.querySelector('#mob-home-all-genomes').addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+  });
+  container.querySelector('#mob-home-all-mutants').addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
+  });
+
+  // Fetch data in parallel
+  const [strainRes, mutRes, geneRes] = await Promise.all([
+    sb.from('strains').select('common_name,genes(count)').eq('is_active', true),
+    sb.from('mutants').select('collection'),
+    sb.from('genes').select('id', { count: 'exact', head: true }),
+  ]);
+
+  const geneCount    = geneRes.count ?? 0;
+  const mutantCounts = {};
+  (mutRes.data ?? []).forEach(m => {
+    mutantCounts[m.collection] = (mutantCounts[m.collection] ?? 0) + 1;
+  });
+  const totalMutants = (mutRes.data ?? []).length;
+
+  const statGenesEl   = container.querySelector('#mob-stat-genes');
+  const statMutantsEl = container.querySelector('#mob-stat-mutants');
+  if (statGenesEl)   statGenesEl.textContent   = geneCount.toLocaleString();
+  if (statMutantsEl) statMutantsEl.textContent  = totalMutants.toLocaleString();
+
+  const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#b14a93', 'CM': '#3f7fc4' };
+  const strainIcons   = {
+    'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
+    'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
+    'CM':    '/design/icons_transparent/CMicon_transparent.png',
+  };
+  const strainSpecies = {
+    'CT-L2': 'C. trachomatis L2/434',
+    'CT-D':  'C. trachomatis D/UW-3',
+    'CM':    'C. muridarum Nigg',
+  };
+  const chevron = `<svg style="margin-left:auto;flex-shrink:0;color:#c8cec9" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+  const strainCards = container.querySelector('#mob-home-strain-cards');
+  if (strainCards && strainRes.data) {
+    strainCards.innerHTML = strainRes.data.map(s => {
+      const color   = strainColors[s.common_name] ?? '#2f9e6e';
+      const icon    = strainIcons[s.common_name]  ?? '';
+      const species = strainSpecies[s.common_name] ?? '';
+      const gCount  = s.genes?.[0]?.count ?? '—';
+      return `
+        <div class="mob-strain-card" data-strain="${esc(s.common_name)}">
+          <div class="sbar" style="background:${color};"></div>
+          <img class="sicon" src="${esc(icon)}" alt="${esc(s.common_name)}" onerror="this.style.display='none'">
+          <div style="flex:1;min-width:0;">
+            <div class="scode" style="color:${color};">${esc(s.common_name)}</div>
+            <div class="sname"><em>${esc(species)}</em></div>
+            <div class="scount">${Number(gCount).toLocaleString()} genes</div>
+          </div>
+          ${chevron}
+        </div>`;
+    }).join('');
+
+    strainCards.querySelectorAll('[data-strain]').forEach(card => {
+      card.addEventListener('click', () => {
+        window.__preferredStrain = card.dataset.strain;
+        window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+      });
+    });
+  }
+
+  const COLLECTIONS_MOBILE = [
+    { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   icon: '/design/icons_transparent/L2icon_transparent.png' },
+    { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      icon: '/design/icons_transparent/CMicon_transparent.png' },
+    { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', icon: '/design/icons_transparent/L17icon_transparent.png' },
+    { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', icon: '/design/icons_transparent/Chimeraicon_transparent.png' },
+  ];
+  const collRows = container.querySelector('#mob-home-collection-rows');
+  if (collRows) {
+    collRows.innerHTML = COLLECTIONS_MOBILE.map(c => {
+      const n = mutantCounts[c.id] ?? 0;
+      return `
+        <div class="mob-minirow" data-collection="${esc(c.id)}">
+          <img src="${esc(c.icon)}" alt="${esc(c.label)}" style="width:34px;height:34px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+          <div style="flex:1;min-width:0;">
+            <div class="mn">${esc(c.label)}</div>
+            <div class="ms">${esc(c.sub)} · ${n} mutants</div>
+          </div>
+          ${chevron}
+        </div>`;
+    }).join('');
+
+    collRows.querySelectorAll('[data-collection]').forEach(row => {
+      row.addEventListener('click', () => {
+        window.__mutantCollection = row.dataset.collection;
+        window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
+      });
+    });
+  }
+
+  // Community map
+  const mapEl = container.querySelector('#mob-leaflet-map');
+  if (mapEl && window.L) {
+    try {
+      const map = window.L.map(mapEl, { zoomControl: false, attributionControl: true })
+        .setView([30, 0], 1);
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap · © CARTO', maxZoom: 10,
+      }).addTo(map);
+    } catch (e) { /* map not critical */ }
+  }
+}
+
 export async function renderHome(container) {
+  if (isMobileViewport()) {
+    return renderHomeMobile(container);
+  }
   container.innerHTML = `
     <!-- ── Masthead ── -->
     <div class="home-masthead" style="background:#0f4530;overflow:hidden;position:relative;">
@@ -495,8 +663,8 @@ async function loadTopContributors(container) {
       return `
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:13px;line-height:1;">${medals[i]}</span>
-          <span style="font-size:12px;font-weight:600;color:#111;flex:1;">${name}</span>
-          ${lab ? `<span style="font-size:11px;color:#9ca3af;">${lab}</span>` : ''}
+          <span style="font-size:12px;font-weight:600;color:#111;flex:1;">${esc(name)}</span>
+          ${lab ? `<span style="font-size:11px;color:#9ca3af;">${esc(lab)}</span>` : ''}
           <span style="font-size:11px;font-family:'DM Mono',monospace;color:#bbb;margin-left:8px;">${t.count}</span>
         </div>`;
     }).join('');
@@ -533,7 +701,7 @@ async function loadActivityFeed(container) {
     }
 
     const lines = data.map(u =>
-      `${u.title} <span style="color:#bbb">· ${relativeTime(u.created_at)}</span>`
+      `${esc(u.title)} <span style="color:#bbb">· ${relativeTime(u.created_at)}</span>`
     );
 
     let i = 0;

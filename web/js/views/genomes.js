@@ -1,5 +1,6 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=82';
+import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=82';
 
 const STRAINS = [
   { id: 'CT-L2', label: 'CT L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -177,6 +178,306 @@ async function openGeneById(geneId, container) {
   }
 }
 
+// ─── Mobile gene list ─────────────────────────────────────
+function _renderMobileGeneList(container) {
+  const currentStrain = STRAINS.find(s => s.id === _strain) ?? STRAINS[0];
+
+  container.style.padding = '0';
+  container.innerHTML = `
+    <div class="mob-lt-wrap" style="padding-top:8px;">
+      <div class="mob-lt-eyebrow">Genomes</div>
+      <h1 class="mob-lt-title">${_strain}</h1>
+    </div>
+
+    <div class="mob-strain-ctx">
+      <img src="${currentStrain.icon}" alt="${currentStrain.id}" onerror="this.style.display='none'">
+      <div style="flex:1;min-width:0;">
+        <div class="spc">${currentStrain.label}</div>
+        <div class="cnt" id="mob-gene-count">Loading…</div>
+      </div>
+      <button class="mob-switch-btn" id="mob-strain-switch-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+        Switch
+      </button>
+    </div>
+
+    <div class="mob-sticky-bar" id="mob-gene-toolbar">
+      <div class="mob-search-field">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa39c" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="mob-gene-search" type="search" autocomplete="off"
+          placeholder="Search genes, locus, products…" />
+        <button id="mob-gene-search-clear" style="display:none;background:none;border:none;color:var(--mob-ink-3);cursor:pointer;padding:0;font-size:14px;">✕</button>
+      </div>
+      <div class="mob-chip-row" style="padding:0;">
+        <div class="mob-seg" id="mob-gene-sort">
+          <button class="mob-seg-btn active" data-sort="locus_tag">Locus</button>
+          <button class="mob-seg-btn" data-sort="gene_name">A–Z</button>
+          <button class="mob-seg-btn" data-sort="functional_category">Function</button>
+        </div>
+        <div style="width:.5px;background:var(--mob-line);margin:6px 0;flex-shrink:0;"></div>
+        <button class="mob-chip active" data-filter="all">All</button>
+        <button class="mob-chip" data-filter="characterized">Characterized</button>
+        <button class="mob-chip" data-filter="inc">
+          <span class="mob-dot" style="background:#E4B47E;"></span>Inc
+        </button>
+        <button class="mob-chip" data-filter="secreted">
+          <span class="mob-dot" style="background:#00A551;"></span>Secreted
+        </button>
+        <button class="mob-chip" data-filter="hypothetical">Hypothetical</button>
+      </div>
+    </div>
+
+    <div id="mob-gene-list" style="background:var(--mob-bg);"></div>
+    <div id="mob-gene-sentinel" style="height:1px;"></div>
+    <div class="mob-pad-bottom"></div>`;
+
+  onMobScroll(container, 60, _strain);
+
+  const searchInput = container.querySelector('#mob-gene-search');
+  const searchClear = container.querySelector('#mob-gene-search-clear');
+  let searchTimer;
+  searchInput.addEventListener('input', () => {
+    _search = searchInput.value;
+    searchClear.style.display = _search ? '' : 'none';
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { _offset = 0; _mobFetchGenes(container); }, 250);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = ''; _search = '';
+    searchClear.style.display = 'none';
+    _offset = 0; _mobFetchGenes(container);
+  });
+
+  container.querySelectorAll('#mob-gene-sort .mob-seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('#mob-gene-sort .mob-seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _sortField = btn.dataset.sort;
+      _sortAsc   = true;
+      _offset    = 0;
+      _mobFetchGenes(container);
+    });
+  });
+
+  container.querySelectorAll('.mob-chip[data-filter]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      container.querySelectorAll('.mob-chip[data-filter]').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const f = chip.dataset.filter;
+      _filters = { favorites: false, characterized: false, hypothetical: false,
+                   inc: false, membrane: false, secreted: false, dnaBinding: false,
+                   hasAf3: false, hasCrystal: false };
+      if (f === 'characterized') _filters.characterized = true;
+      if (f === 'inc')           _filters.inc           = true;
+      if (f === 'secreted')      _filters.secreted      = true;
+      if (f === 'hypothetical')  _filters.hypothetical  = true;
+      _categoryFilter = null;
+      _offset = 0;
+      _mobFetchGenes(container);
+    });
+  });
+
+  container.querySelector('#mob-strain-switch-btn').addEventListener('click', () => {
+    _showMobStrainSheet(container);
+  });
+
+  _mobFetchGenes(container);
+}
+
+async function _mobFetchGenes(container) {
+  if (_loading) return;
+  _loading = true;
+
+  const list = container.querySelector('#mob-gene-list');
+  if (!list) { _loading = false; return; }
+
+  if (_offset === 0) {
+    list.innerHTML = '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;">Loading…</div>';
+  }
+
+  let query = sb
+    .from('genes')
+    .select(
+      'id,locus_tag,gene_name,gene_symbol,product,functional_category,' +
+      'is_characterized,is_hypothetical,is_t3_secreted,is_membrane_protein,' +
+      'sort_index,strand,start_bp,end_bp,strain_id,' +
+      'strains!inner(common_name),' +
+      'proteins(alphafold_results(thumbnail_path))',
+      { count: 'exact' }
+    )
+    .eq('strains.common_name', _strain)
+    .order(_sortField, { ascending: _sortAsc })
+    .range(_offset, _offset + PAGE_SIZE - 1);
+
+  if (_search) {
+    query = query.or(
+      `locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,` +
+      `gene_symbol.ilike.%${_search}%,product.ilike.%${_search}%`
+    );
+  }
+  if (_filters.characterized) query = query.eq('is_characterized', true);
+  if (_filters.hypothetical)  query = query.eq('is_hypothetical',  true);
+  if (_filters.inc)           query = query.eq('functional_category', 'Inclusion membrane protein');
+  if (_filters.secreted)      query = query.eq('is_t3_secreted', true);
+  if (_categoryFilter)        query = query.eq('functional_category', _categoryFilter);
+
+  let data, count;
+  try {
+    ({ data, count } = await query);
+  } catch (err) {
+    _loading = false;
+    console.error('[ChlamAtlas] _mobFetchGenes error:', err);
+    const errList = container.querySelector('#mob-gene-list');
+    if (errList && _offset === 0) errList.innerHTML = '<div style="padding:24px 20px;color:#ef4444;font-size:14px;">Error loading genes. Please try again.</div>';
+    return;
+  }
+  _loading = false;
+
+  if (!data) return;
+
+  data.forEach(g => _geneCache.set(String(g.id), g));
+
+  _total   = count ?? 0;
+  _hasMore = _offset + data.length < _total;
+  _offset += data.length;
+
+  const countEl = container.querySelector('#mob-gene-count');
+  if (countEl) countEl.textContent = `${_total.toLocaleString()} genes`;
+
+  const html = _mobGroupAndRenderGenes(data);
+  if (_offset <= data.length) {
+    list.innerHTML = html || '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;text-align:center;">No genes found.</div>';
+  } else {
+    list.insertAdjacentHTML('beforeend', html);
+  }
+
+  list.querySelectorAll('.mob-grow:not([data-wired])').forEach(row => {
+    row.dataset.wired = '1';
+    row.addEventListener('click', () => {
+      const gene = _geneCache.get(row.dataset.id);
+      if (gene) showGeneDetailMobile(gene, container);
+    });
+  });
+
+  _mobSetupInfiniteScroll(container);
+}
+
+function _mobGroupAndRenderGenes(genes) {
+  if (!genes.length) return '';
+
+  const groups = new Map();
+  genes.forEach(g => {
+    let key;
+    if (_sortField === 'functional_category') key = g.functional_category ?? 'Unknown';
+    else if (_sortField === 'gene_name') key = g.gene_name ? g.gene_name[0].toUpperCase() : '#';
+    else key = g.locus_tag.slice(0, -3) + '___';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(g);
+  });
+
+  const stickyTop = _mobToolbarHeight();
+  let html = '';
+  groups.forEach((rows, key) => {
+    const catColor = _sortField === 'functional_category'
+      ? (CATEGORY_COLORS[key] ?? CATEGORY_COLOR_DEFAULT) : null;
+    const dot = catColor ? `<span style="width:10px;height:10px;border-radius:3px;background:${catColor};flex-shrink:0;display:inline-block;"></span>` : '';
+    html += `
+      <div class="mob-section-h" style="top:${stickyTop}px;">
+        ${dot}<span>${key}</span>
+        <span class="mob-sh-count">· ${rows.length}</span>
+      </div>
+      <div style="background:var(--mob-paper);">
+        ${rows.map((g, i) => _mobGeneRow(g, i < rows.length - 1)).join('')}
+      </div>`;
+  });
+  return html;
+}
+
+function _mobToolbarHeight() {
+  const bar = document.querySelector('#mob-gene-toolbar');
+  const navH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--mob-nav-h')) || 52;
+  return bar ? bar.getBoundingClientRect().height + navH : navH + 116;
+}
+
+function _mobGeneRow(g, hasSep) {
+  const color   = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+  const isFav   = state.favorites.genes.has(String(g.id));
+  const thumb   = g.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
+  const display = g.gene_name || g.gene_symbol || g.locus_tag;
+  const chevron = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  return `
+    <div class="mob-grow" data-id="${g.id}">
+      <div class="mob-bar" style="background:${color};"></div>
+      <div class="mob-thumb mob-stile">
+        ${thumb
+          ? `<img src="${esc(thumb)}" alt="structure" loading="lazy">`
+          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg>`}
+      </div>
+      <div class="mob-meta">
+        <div class="mob-gname">${esc(display)}${g.gene_name ? `<span class="mob-loc">${esc(g.locus_tag)}</span>` : ''}</div>
+        <div class="mob-gfunc">${esc(g.functional_category ?? '')}</div>
+      </div>
+      ${state.user ? `<button class="mob-star${isFav ? ' on' : ''}" data-fav-id="${g.id}" aria-label="Save">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </button>` : ''}
+      <span class="mob-chev">${chevron}</span>
+      ${hasSep ? '<div class="mob-sep"></div>' : ''}
+    </div>`;
+}
+
+function _mobSetupInfiniteScroll(container) {
+  if (!_hasMore) return;
+  const sentinel = container.querySelector('#mob-gene-sentinel');
+  if (!sentinel) return;
+  if (sentinel._obs) {
+    sentinel._obs.disconnect();
+    sentinel._obs = null;
+  }
+  const obs = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !_loading && _hasMore) _mobFetchGenes(container);
+  }, { root: container, threshold: 0 });
+  obs.observe(sentinel);
+  sentinel._obs = obs;
+}
+
+function _showMobStrainSheet(container) {
+  document.getElementById('mob-strain-sheet')?.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-strain-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()">
+      <div class="mob-sheet-handle"></div>
+      <div class="mob-sheet-caption">Switch strain</div>
+      ${STRAINS.map(s => `
+        <div class="mob-strain-sheet-row" data-id="${s.id}"
+          style="display:flex;align-items:center;gap:13px;padding:12px 8px;border-radius:14px;cursor:pointer;
+                 background:${s.id === _strain ? '#f1f6f3' : 'transparent'};">
+          <img src="${s.icon}" alt="${s.id}" style="width:38px;height:38px;object-fit:contain;">
+          <div style="flex:1;">
+            <div style="font-weight:800;font-size:16px;color:${s.id === 'CT-L2' ? '#2f9e6e' : s.id === 'CT-D' ? '#b14a93' : '#3f7fc4'};">${s.id}</div>
+            <div style="font-size:13px;font-style:italic;color:var(--mob-ink-2);">${s.label}</div>
+          </div>
+          ${s.id === _strain ? '<span style="color:var(--mob-green);font-weight:800;">✓</span>' : ''}
+        </div>`).join('')}
+    </div>`;
+
+  backdrop.addEventListener('click', () => backdrop.remove());
+  backdrop.querySelectorAll('.mob-strain-sheet-row').forEach(row => {
+    row.addEventListener('click', () => {
+      _strain = row.dataset.id;
+      backdrop.remove();
+      _offset = 0; _search = '';
+      _renderMobileGeneList(container);
+    });
+  });
+
+  document.body.appendChild(backdrop);
+}
+
 // ─── Gene list ────────────────────────────────────────────
 
 function showGeneList(container) {
@@ -187,8 +488,12 @@ function showGeneList(container) {
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
   container.style.padding = '0';
+  if (isMobile) {
+    _renderMobileGeneList(container);
+    return;
+  }
   container.innerHTML = `
-    <div style="display:${isMobile ? 'block' : 'grid'};grid-template-columns:260px 1fr;height:calc(100vh - 56px${isMobile ? ' - 52px' : ''});width:100%;overflow:hidden;padding:0 12px;box-sizing:border-box;">
+    <div style="display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 56px);width:100%;overflow:hidden;padding:0 12px;box-sizing:border-box;">
 
       <!-- ── List panel ── -->
       <div id="list-panel" style="border-right:1px solid #ececec;display:flex;flex-direction:column;overflow:hidden;">
@@ -2446,13 +2751,235 @@ function showGeneDetailDesktop(gene, container) {
   // Fire async queries in parallel
   loadDetailAsync(detail, gene);
 }
-function showGeneDetailMobile(gene, container) {
-  // Full-screen mobile detail — shares section renderers with desktop.
-  // TODO: implement tab bar in a follow-up session.
-  // For now: fall back to desktop layout inside the full container.
-  container.querySelector('#detail-panel').style.display = 'block';
-  container.querySelector('#list-panel').style.display   = 'none';
-  showGeneDetailDesktop(gene, container);
+function showGeneDetailMobile(gene, _container) {
+  const title = gene.gene_name || gene.gene_symbol || gene.locus_tag;
+  pushMobileDetail({
+    title,
+    render: (scroll) => {
+      _renderGeneDetailMobileHTML(gene, scroll);
+    },
+  });
+}
+
+function _renderGeneDetailMobileHTML(gene, scroll) {
+  const color      = CATEGORY_COLORS[gene.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+  const catBadge   = CATEGORY_BADGE[gene.functional_category] ?? { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' };
+  const isFav      = state.favorites.genes.has(String(gene.id));
+  const thumb      = gene.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
+  const strain     = gene.strains?.common_name ?? _strain;
+  const displayName = gene.gene_name || gene.gene_symbol || gene.locus_tag;
+  const locusShow   = gene.gene_name ? gene.locus_tag : '';
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const hexToRgba = (hex, a) => {
+    if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return `rgba(0,0,0,${a})`;
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  };
+
+  scroll.innerHTML = `
+    <div style="background:${hexToRgba(color,.08)};border-bottom:3px solid ${color};padding-bottom:12px;">
+      <div class="mob-d-head">
+        <div class="mob-d-thumb" style="background:${hexToRgba(color,.15)};">
+          ${thumb
+            ? `<img src="${esc(thumb)}" alt="structure" loading="lazy">`
+            : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg>`}
+        </div>
+        <div class="mob-d-title-block">
+          <div class="mob-d-title">${esc(displayName)}</div>
+          ${locusShow ? `<span class="mob-d-loc">${esc(locusShow)}</span>` : ''}
+        </div>
+        <div class="mob-d-actions">
+          <button class="mob-gbtn mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${gene.id}" aria-label="Save gene">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="mob-tags-row" style="padding:0 20px 0;">
+        <span class="mob-tag" style="color:${color};border-color:${color};background:${hexToRgba(color,.1)};">${esc(strain)}</span>
+        ${gene.functional_category ? `<span class="mob-tag" style="color:${catBadge.text};border-color:${catBadge.border};background:${catBadge.bg};">${esc(gene.functional_category)}</span>` : ''}
+        ${gene.is_characterized ? `<span class="mob-tag" style="color:#1c8c7e;border-color:#1c8c7e;background:rgba(28,140,126,.08);">Characterized</span>` : ''}
+        ${gene.is_t3_secreted   ? `<span class="mob-tag" style="color:#7c3aed;border-color:#7c3aed;background:rgba(124,58,237,.08);">T3 Secreted</span>` : ''}
+        ${gene.is_dna_binding   ? `<span class="mob-tag" style="color:#b45309;border-color:#b45309;background:rgba(180,83,9,.08);">DNA Binding</span>` : ''}
+      </div>
+      <div class="mob-meta-row" style="padding:8px 20px 0;">
+        <a class="mob-copybtn" href="https://www.uniprot.org/uniprot/?query=${esc(gene.locus_tag)}" target="_blank" rel="noopener">UniProt ↗</a>
+        <a class="mob-copybtn" href="https://www.ncbi.nlm.nih.gov/gene/?term=${esc(gene.locus_tag)}" target="_blank" rel="noopener">NCBI ↗</a>
+      </div>
+    </div>
+
+    <div class="mob-card">
+      <div class="mob-card-h">Gene Info</div>
+      <div class="mob-kv-grid">
+        <div class="mob-kv"><div class="mob-k">Length</div><div class="mob-v sm">${gene.end_bp && gene.start_bp ? (gene.end_bp - gene.start_bp).toLocaleString() + ' bp' : '—'}</div></div>
+        <div class="mob-kv"><div class="mob-k">Strand</div><div class="mob-v sm">${gene.strand === '+' || gene.strand === '1' ? '+ (sense)' : gene.strand ? '− (antisense)' : '—'}</div></div>
+        <div class="mob-kv"><div class="mob-k">Position</div><div class="mob-v sm">${gene.start_bp ? gene.start_bp.toLocaleString() + '–' + (gene.end_bp ?? '?').toLocaleString() : '—'}</div></div>
+        <div class="mob-kv"><div class="mob-k">Organism</div><div class="mob-v sm" style="font-style:italic;">${esc(gene.strains?.common_name ?? _strain)}</div></div>
+      </div>
+    </div>
+
+    <div class="mob-card" id="mob-ctx-card">
+      <div class="mob-card-h">Genomic Context <span style="color:var(--mob-ink-3);font-weight:400;">${esc(strain)} chromosome</span></div>
+      <div id="mob-ctx-inner" style="margin-top:8px;min-height:80px;display:flex;align-items:center;justify-content:center;">
+        <span style="color:var(--mob-ink-3);font-size:13px;">Loading…</span>
+      </div>
+    </div>
+
+    <div class="mob-card">
+      <div class="mob-card-h">Protein</div>
+      <div class="mob-kv-grid" id="mob-protein-kv">
+        <div class="mob-kv"><div class="mob-k">Mass</div><div class="mob-v sm">—</div></div>
+        <div class="mob-kv"><div class="mob-k">Length</div><div class="mob-v sm">—</div></div>
+        <div class="mob-kv"><div class="mob-k">TM domains</div><div class="mob-v sm">—</div></div>
+        <div class="mob-kv"><div class="mob-k">Signal peptide</div><div class="mob-v sm">—</div></div>
+      </div>
+    </div>
+
+    <div class="mob-card">
+      <div class="mob-card-h">Structure</div>
+      <div id="mob-structure-inner" style="margin-top:12px;text-align:center;color:var(--mob-ink-3);font-size:13px;">
+        ${thumb
+          ? `<img src="${esc(thumb)}" alt="AlphaFold structure" style="width:100%;max-height:180px;object-fit:contain;border-radius:12px;border:.5px solid var(--mob-line);">`
+          : 'No structure available'}
+      </div>
+    </div>
+
+    <div class="mob-card">
+      <div class="mob-card-h">Transcriptomics</div>
+      <div style="margin-top:10px;">
+        ${gene.expression_pattern
+          ? `<div style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#eef2ef;font-weight:800;font-size:13px;color:var(--mob-ink);">
+               <span style="width:8px;height:8px;border-radius:50%;background:var(--mob-green);"></span>
+               ${esc(gene.expression_pattern)}
+             </div>`
+          : `<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">No expression data</div>`}
+      </div>
+    </div>
+
+    <div class="mob-card">
+      <div class="mob-card-h">EB / RB Proteomics</div>
+      <div id="mob-proteomics-inner" style="margin-top:12px;font-style:italic;color:var(--mob-ink-3);font-size:14px;">Loading…</div>
+    </div>
+
+    <div class="mob-pad-bottom"></div>`;
+
+  scroll.querySelector('.mob-fav-btn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    await toggleFavoriteDB('gene', gene.id);
+    const nowFav = state.favorites.genes.has(String(gene.id));
+    btn.classList.toggle('saved-on', nowFav);
+    const svg = btn.querySelector('svg');
+    if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
+    if (nowFav) btn.classList.add('mob-star-pop');
+    btn.addEventListener('animationend', () => btn.classList.remove('mob-star-pop'), { once: true });
+  });
+
+  if (gene.id) {
+    sb.from('proteins')
+      .select('mass_kd,length_aa,transmembrane_domains,signal_peptide')
+      .eq('gene_id', gene.id)
+      .maybeSingle()
+      .then(({ data: p }) => {
+        const kvEl = scroll.querySelector('#mob-protein-kv');
+        if (kvEl && p) {
+          kvEl.innerHTML = `
+            <div class="mob-kv"><div class="mob-k">Mass</div><div class="mob-v sm">${p.mass_kd ? p.mass_kd.toFixed(1) + ' kDa' : '—'}</div></div>
+            <div class="mob-kv"><div class="mob-k">Length</div><div class="mob-v sm">${p.length_aa ? p.length_aa.toLocaleString() + ' aa' : '—'}</div></div>
+            <div class="mob-kv"><div class="mob-k">TM domains</div><div class="mob-v sm">${p.transmembrane_domains ?? '0'}</div></div>
+            <div class="mob-kv"><div class="mob-k">Signal peptide</div><div class="mob-v sm">${p.signal_peptide ? 'Yes' : 'No'}</div></div>`;
+        }
+      });
+
+    sb.from('proteins')
+      .select('eb_enriched,rb_enriched')
+      .eq('gene_id', gene.id)
+      .maybeSingle()
+      .then(({ data: p }) => {
+        const el = scroll.querySelector('#mob-proteomics-inner');
+        if (!el) return;
+        if (!p || (p.eb_enriched == null && p.rb_enriched == null)) {
+          el.textContent = 'No proteomic data available';
+        } else {
+          el.innerHTML = `
+            <div class="mob-kv-grid">
+              <div class="mob-kv"><div class="mob-k">EB enriched</div><div class="mob-v sm">${p.eb_enriched ? 'Yes' : 'No'}</div></div>
+              <div class="mob-kv"><div class="mob-k">RB enriched</div><div class="mob-v sm">${p.rb_enriched ? 'Yes' : 'No'}</div></div>
+            </div>`;
+        }
+      });
+  }
+
+  _buildMobGenomicContext(gene, scroll.querySelector('#mob-ctx-inner'));
+}
+
+async function _buildMobGenomicContext(gene, inner) {
+  if (!inner || !gene.strain_id || gene.sort_index == null) {
+    if (inner) inner.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;padding:10px 0;">Context unavailable</div>';
+    return;
+  }
+
+  const { data: neighbors } = await sb
+    .from('genes')
+    .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
+    .eq('strain_id', gene.strain_id)
+    .gte('sort_index', gene.sort_index - 5)
+    .lte('sort_index', gene.sort_index + 5)
+    .order('sort_index');
+
+  if (!neighbors || neighbors.length === 0) {
+    inner.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;padding:10px 0;">No neighbors found</div>';
+    return;
+  }
+
+  const cols = neighbors.map(g => {
+    const isFocal = String(g.id) === String(gene.id);
+    const col     = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+    const bp      = (g.end_bp ?? 0) - (g.start_bp ?? 0);
+    const width   = Math.max(72, Math.min(150, bp * 0.05)) + 'px';
+    const isPlus  = g.strand === '+' || g.strand === '1' || g.strand === 1;
+    const sym     = g.gene_symbol || g.gene_name || g.locus_tag.slice(-6);
+    const opacity = isFocal ? '1' : '0.82';
+
+    const plusArrow  = isPlus  ? `<div class="mob-ctx-arrow plus"  style="width:${width};"><div class="body" style="background:${col};opacity:${opacity};"></div></div>` : '';
+    const minusArrow = !isPlus ? `<div class="mob-ctx-arrow minus" style="width:${width};"><div class="body" style="background:${col};opacity:${opacity};"></div></div>` : '';
+
+    return `
+      <div class="mob-ctx-col${isFocal ? ' focal' : ''}" ${isFocal ? 'data-focal="1"' : ''}>
+        <div class="mob-ctx-lab">${isPlus ? `<span class="sym">${sym}</span>` : ''}</div>
+        <div class="mob-ctx-arrow-slot plus">${plusArrow}</div>
+        <div class="mob-ctx-center"></div>
+        <div class="mob-ctx-arrow-slot minus">${minusArrow}</div>
+        <div class="mob-ctx-lab mono">${!isPlus ? `<span class="sym">${sym}</span>` : ''}</div>
+      </div>`;
+  }).join('');
+
+  inner.innerHTML = `
+    <div class="mob-ctx-wrap">
+      <div class="mob-ctx-scroll" id="mob-ctx-scr">
+        <div class="mob-ctx-track">
+          <div class="mob-ctx-strand p">+</div>
+          <div class="mob-ctx-strand m">−</div>
+          ${cols}
+        </div>
+      </div>
+      <div class="mob-ctx-fade l"></div>
+      <div class="mob-ctx-fade r"></div>
+      <div class="mob-ctx-hint" id="mob-ctx-hint">↔ swipe</div>
+    </div>`;
+
+  const scr   = inner.querySelector('#mob-ctx-scr');
+  const focal = inner.querySelector('[data-focal]');
+  if (scr && focal) {
+    const doCenter = () => {
+      scr.scrollLeft = focal.offsetLeft - (scr.clientWidth - focal.offsetWidth) / 2;
+    };
+    requestAnimationFrame(doCenter);
+    setTimeout(doCenter, 140);
+
+    const hint = inner.querySelector('#mob-ctx-hint');
+    if (hint) scr.addEventListener('scroll', () => { hint.style.opacity = '0'; }, { once: true, passive: true });
+  }
 }
 
 const CATEGORY_OPTIONS = Object.keys(CATEGORY_COLORS);
