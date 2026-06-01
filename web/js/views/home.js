@@ -85,28 +85,21 @@ async function renderHomeMobile(container) {
       </div>
 
       <div class="mob-home-sec-h">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--mob-green-ink);flex-shrink:0;">
-          <path d="M5.5 3c0 5 5 5.5 6.5 8.5S18.5 16 18.5 21"/><path d="M18.5 3c0 5-5 5.5-6.5 8.5S5.5 16 5.5 21"/>
-          <line x1="5.5" y1="8" x2="18.5" y2="8"/><line x1="5.5" y1="16" x2="18.5" y2="16"/>
-        </svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mob-green-ink);flex-shrink:0;"><path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/></svg>
         <span class="t">Genomes</span>
         <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
       <div id="mob-home-strain-cards"></div>
 
       <div class="mob-home-sec-h">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="color:var(--mob-green-ink);flex-shrink:0;">
-          <path d="M13 2L4.5 13.5H11l-1 8.5L20.5 10H14z"/>
-        </svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mob-green-ink);flex-shrink:0;"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
         <span class="t">Mutants</span>
         <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
       <div id="mob-home-collection-rows"></div>
 
       <div class="mob-home-sec-h">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-          style="color:var(--mob-green-ink)"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mob-green-ink);flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
         <span class="t">Community</span>
       </div>
       <div id="mob-home-map" class="mob-map-card">

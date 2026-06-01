@@ -140,6 +140,7 @@ export function renderGenomes(container) {
   delete window.__openGeneId;
   delete window.__geneDetailId;
 
+  _loading = false; // reset in case a previous in-flight fetch was abandoned
   _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
   _expressionFilter = null; _ebRbFilter = null;
   _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
@@ -159,7 +160,7 @@ export function renderGenomes(container) {
 async function openGeneById(geneId, container) {
   const cached = _geneCache.get(String(geneId));
   if (cached) {
-    showGeneDetailDesktop(cached, container);
+    _openGeneByData(cached, container);
     return;
   }
   const { data } = await sb.from('genes')
@@ -168,19 +169,29 @@ async function openGeneById(geneId, container) {
       'start_bp,end_bp,strand,functional_category,is_characterized,' +
       'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
       'expression_pattern,eb_enriched,rb_enriched,dna_sequence,' +
-      'strains!inner(common_name,color_hex)'
+      'strains!inner(common_name,color_hex),' +
+      'proteins(alphafold_results(thumbnail_path))'
     )
     .eq('id', geneId)
     .single();
   if (data) {
     _geneCache.set(String(data.id), data);
-    showGeneDetailDesktop(data, container);
+    _openGeneByData(data, container);
   }
+}
+
+function _openGeneByData(gene, container) {
+  if (isMobileViewport()) showGeneDetailMobile(gene, container);
+  else showGeneDetailDesktop(gene, container);
 }
 
 // ─── Mobile gene list ─────────────────────────────────────
 function _renderMobileGeneList(container) {
   const currentStrain = STRAINS.find(s => s.id === _strain) ?? STRAINS[0];
+
+  // Reset scroll wiring so the listener re-attaches for any container changes
+  const panel = document.getElementById('tab-genomes');
+  if (panel) panel._mobScrollWired = false;
 
   container.style.padding = '0';
   container.innerHTML = `
@@ -339,8 +350,9 @@ async function _mobFetchGenes(container) {
   const countEl = container.querySelector('#mob-gene-count');
   if (countEl) countEl.textContent = `${_total.toLocaleString()} genes`;
 
+  const isFirstPage = (_offset - data.length) === 0;
   const html = _mobGroupAndRenderGenes(data);
-  if (_offset <= data.length) {
+  if (isFirstPage) {
     list.innerHTML = html || '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;text-align:center;">No genes found.</div>';
   } else {
     list.insertAdjacentHTML('beforeend', html);
@@ -349,13 +361,13 @@ async function _mobFetchGenes(container) {
   list.querySelectorAll('.mob-grow:not([data-wired])').forEach(row => {
     row.dataset.wired = '1';
     row.addEventListener('click', e => {
-      if (e.target.closest('.mob-star')) return; // handled by delegation below
+      if (e.target.closest('.mob-star')) return;
       const gene = _geneCache.get(row.dataset.id);
       if (gene) showGeneDetailMobile(gene, container);
     });
   });
 
-  // Star toggle delegation — wire once on the list container
+  // Star toggle delegation — wire once
   if (!list.dataset.starWired) {
     list.dataset.starWired = '1';
     list.addEventListener('click', async e => {
@@ -371,6 +383,7 @@ async function _mobFetchGenes(container) {
     });
   }
 
+  // Set up infinite scroll once (panel._mobScrollWired prevents double-setup)
   _mobSetupInfiniteScroll(container);
 }
 
@@ -446,18 +459,19 @@ function _mobGeneRow(g, hasSep) {
 }
 
 function _mobSetupInfiniteScroll(container) {
-  if (!_hasMore) return;
-  const sentinel = container.querySelector('#mob-gene-sentinel');
-  if (!sentinel) return;
-  if (sentinel._obs) {
-    sentinel._obs.disconnect();
-    sentinel._obs = null;
-  }
-  const obs = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting && !_loading && _hasMore) _mobFetchGenes(container);
-  }, { root: container, threshold: 0 });
-  obs.observe(sentinel);
-  sentinel._obs = obs;
+  // Attach a scroll listener to the tab-panel (the actual overflow scroll container).
+  // IntersectionObserver with root:null incorrectly reports items in a
+  // position:fixed overflow container as intersecting on initial fire.
+  const panel = document.getElementById('tab-genomes');
+  if (!panel || panel._mobScrollWired) return;
+  panel._mobScrollWired = true;
+
+  panel.addEventListener('scroll', () => {
+    if (!_loading && _hasMore) {
+      const nearBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 300;
+      if (nearBottom) _mobFetchGenes(container);
+    }
+  }, { passive: true });
 }
 
 function _showMobStrainSheet(container) {
@@ -2795,10 +2809,6 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     return `rgba(${r},${g},${b},${a})`;
   };
 
-  const productPill = gene.product
-    ? `<span class="mob-tag" style="color:#4a5650;border-color:#c8d0cb;background:#f0f2f0;font-weight:600;text-transform:none;font-size:10.5px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(gene.product.length > 55 ? gene.product.slice(0,52) + '…' : gene.product)}</span>`
-    : '';
-
   scroll.innerHTML = `
     <!-- ── Header: gradient bleed ── -->
     <div style="margin-top:calc(-1 * var(--mob-nav-h));padding-top:calc(var(--mob-nav-h) + 10px);
@@ -2827,13 +2837,14 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         ${gene.is_characterized ? `<span class="mob-tag" style="color:#1c8c7e;border-color:#1c8c7e;background:rgba(28,140,126,.08);">Characterized</span>` : ''}
         ${gene.is_t3_secreted   ? `<span class="mob-tag" style="color:#7c3aed;border-color:#7c3aed;background:rgba(124,58,237,.08);">T3 Secreted</span>` : ''}
         ${gene.is_dna_binding   ? `<span class="mob-tag" style="color:#b45309;border-color:#b45309;background:rgba(180,83,9,.08);">DNA Binding</span>` : ''}
-        ${productPill}
       </div>
       <div class="mob-meta-row" style="padding:10px 16px 0;">
         <a class="mob-copybtn" href="https://www.uniprot.org/uniprot/?query=${esc(gene.locus_tag)}" target="_blank" rel="noopener">UniProt ↗</a>
         <a class="mob-copybtn" href="https://www.ncbi.nlm.nih.gov/gene/?term=${esc(gene.locus_tag)}" target="_blank" rel="noopener">NCBI ↗</a>
       </div>
     </div>
+
+    <!-- Desktop L→R top→bottom: Gene Info | Orthologs → Gene Map → Protein | Localization → Transcriptomics → Proteomics → Structure → Mutants -->
 
     <!-- ── Gene Info ── -->
     <div class="mob-card">
@@ -2844,6 +2855,12 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         <div class="mob-kv"><div class="mob-k">Position</div><div class="mob-v sm">${gene.start_bp ? gene.start_bp.toLocaleString() + '–' + (gene.end_bp ?? '?').toLocaleString() : '—'}</div></div>
         <div class="mob-kv"><div class="mob-k">Organism</div><div class="mob-v sm">${esc(gene.strains?.common_name ?? _strain)}</div></div>
       </div>
+    </div>
+
+    <!-- ── Orthologs ── -->
+    <div class="mob-card">
+      <div class="mob-card-h">Orthologs</div>
+      <div id="mob-orthologs-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
     </div>
 
     <!-- ── Genomic Context ── -->
@@ -2869,18 +2886,10 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
       </div>
     </div>
 
-    <!-- ── Structure ── -->
+    <!-- ── Cell Localization ── -->
     <div class="mob-card">
-      <div class="mob-card-h">Structure</div>
-      <div id="mob-structure-inner" style="margin-top:12px;">
-        ${thumb
-          ? `<div id="mob-struct-thumb-wrap" style="position:relative;border-radius:12px;overflow:hidden;border:.5px solid var(--mob-line);">
-               <img id="mob-struct-thumb" src="${esc(thumb)}" alt="AlphaFold structure" style="width:100%;max-height:200px;object-fit:contain;display:block;">
-             </div>`
-          : '<div style="color:var(--mob-ink-3);font-size:13px;font-style:italic;">No structure available</div>'}
-      </div>
-      <div id="mob-structure-meta" style="margin-top:10px;"></div>
-      <div id="mob-struct-load-wrap"></div>
+      <div class="mob-card-h" id="mob-loc-head">Cell Localization</div>
+      <div id="mob-loc-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
     </div>
 
     <!-- ── Transcriptomics ── -->
@@ -2895,16 +2904,18 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
       <div id="mob-proteomics-inner" style="margin-top:12px;font-style:italic;color:var(--mob-ink-3);font-size:14px;">Loading…</div>
     </div>
 
-    <!-- ── Cell Localization ── -->
+    <!-- ── Structure ── -->
     <div class="mob-card">
-      <div class="mob-card-h" id="mob-loc-head">Cell Localization</div>
-      <div id="mob-loc-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
-    </div>
-
-    <!-- ── Orthologs ── -->
-    <div class="mob-card">
-      <div class="mob-card-h">Orthologs</div>
-      <div id="mob-orthologs-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+      <div class="mob-card-h">Structure</div>
+      <div id="mob-structure-inner" style="margin-top:12px;">
+        ${thumb
+          ? `<div id="mob-struct-thumb-wrap" style="position:relative;border-radius:12px;overflow:hidden;border:.5px solid var(--mob-line);">
+               <img id="mob-struct-thumb" src="${esc(thumb)}" alt="AlphaFold structure" style="width:100%;max-height:200px;object-fit:contain;display:block;">
+             </div>`
+          : '<div style="color:var(--mob-ink-3);font-size:13px;font-style:italic;">No structure available</div>'}
+      </div>
+      <div id="mob-structure-meta" style="margin-top:10px;"></div>
+      <div id="mob-struct-load-wrap"></div>
     </div>
 
     <!-- ── Mutants ── -->
