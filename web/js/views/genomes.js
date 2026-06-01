@@ -2992,54 +2992,13 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     }
 
     // ── Structure ──
-    const afRows  = p?.alphafold_results ?? [];
-    const af3     = afRows.find(r => r.af_version === 'AF3');
-    const bestAf  = af3 ?? afRows.find(r => r.af_version === 'AF2' || r.af_version === 'AFDB') ?? afRows[0];
-    const mmcif   = bestAf?.mmcif_path ?? null;
-    const homolog = bestAf?.top_homolog_description ?? null;
-    const pdbId   = bestAf?.top_homolog_pdb_id ?? null;
-    const inferFn = bestAf?.inferred_function ?? null;
-
-    const metaEl = scroll.querySelector('#mob-structure-meta');
-    if (metaEl && (homolog || inferFn)) {
-      metaEl.innerHTML = `
-        ${homolog ? `<div style="font-size:13px;font-weight:600;color:var(--mob-ink);margin-bottom:2px;">${esc(homolog)}${pdbId ? ` <span style="font-family:var(--mob-mono);font-size:11px;color:var(--mob-ink-3);">${esc(pdbId)}</span>` : ''}</div>` : ''}
-        ${inferFn ? `<div style="font-size:12.5px;color:#444;background:#f0fdf4;border-radius:8px;padding:8px 10px;border-left:3px solid #16a34a;line-height:1.5;margin-top:6px;"><strong style="color:#1a6b4a;">Inferred:</strong> ${esc(inferFn)}</div>` : ''}`;
-    }
-    const loadWrap = scroll.querySelector('#mob-struct-load-wrap');
-    if (loadWrap && mmcif) {
-      loadWrap.innerHTML = `<button id="mob-struct-3d-btn" style="margin-top:12px;width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--mob-line);background:var(--mob-bg-warm);font-family:var(--mob-sans);font-size:14px;font-weight:700;color:var(--mob-green-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        View in 3D
-      </button>`;
-      loadWrap.querySelector('#mob-struct-3d-btn').addEventListener('click', async (e) => {
-        const btn = e.currentTarget;
-        btn.textContent = 'Loading viewer…';
-        btn.disabled = true;
-        const container = document.createElement('div');
-        container.style.cssText = 'position:relative;width:100%;height:320px;border-radius:12px;overflow:hidden;margin-top:12px;background:#111;';
-        loadWrap.appendChild(container);
-        await loadMolstar(container, mmcif);
-        btn.remove();
-      });
-    }
+    _renderMobStructure(scroll, p);
 
     // ── Transcriptomics ──
     _renderMobTranscriptomics(scroll.querySelector('#mob-transcriptomics-inner'), gene, exprs);
 
     // ── EB / RB Proteomics ──
-    const protEl = scroll.querySelector('#mob-proteomics-inner');
-    if (protEl) {
-      if (!p || (p.eb_enriched == null && p.rb_enriched == null)) {
-        protEl.textContent = 'No proteomic data available';
-      } else {
-        protEl.innerHTML = `
-          <div class="mob-kv-grid">
-            <div class="mob-kv"><div class="mob-k">EB enriched</div><div class="mob-v sm">${p.eb_enriched ? 'Yes' : 'No'}</div></div>
-            <div class="mob-kv"><div class="mob-k">RB enriched</div><div class="mob-v sm">${p.rb_enriched ? 'Yes' : 'No'}</div></div>
-          </div>`;
-      }
-    }
+    _renderMobProteomics(scroll.querySelector('#mob-proteomics-inner'), gene, exprs);
 
     // ── Cell Localization ──
     _renderMobLocalization(scroll, gene, p);
@@ -3114,6 +3073,198 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
   }).catch(err => console.warn('[ChlamAtlas] gene detail fetch:', err));
 }
 
+function _renderMobStructure(scroll, p) {
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const structEl   = scroll.querySelector('#mob-structure-inner');
+  const metaEl     = scroll.querySelector('#mob-structure-meta');
+  const loadWrap   = scroll.querySelector('#mob-struct-load-wrap');
+  if (!structEl) return;
+
+  const afRows    = p?.alphafold_results ?? [];
+  const uniprotId = p?.uniprot_id ?? null;
+
+  const crystal      = afRows.find(r => r.af_version === 'crystal');
+  const af3Available = afRows.find(r => r.af_version === 'AF3' && r.mmcif_path);
+  const af2 = afRows.find(r => r.af_version === 'AF2' || r.af_version === 'AFDB')
+    ?? (uniprotId ? { af_version:'AF2', _synthetic:true, _uniprotId:uniprotId,
+                      mmcif_path:null, thumbnail_path:null, homology_score:null,
+                      ptm_score:null, top_homolog_pdb_id:null, top_homolog_description:null,
+                      homology_method:null, inferred_function:null } : null);
+
+  const tabs = [
+    ['crystal','Crystal',   crystal],
+    ['af3',    'AlphaFold 3', af3Available],
+    ['af2',    'AlphaFold 2', af2],
+  ].filter(([,,rec]) => rec);
+
+  if (!tabs.length) { structEl.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;">No structure data</div>'; return; }
+
+  let activeTabId = crystal ? 'crystal' : af3Available ? 'af3' : 'af2';
+  let activeRecord = crystal ?? af3Available ?? af2;
+
+  const tabStyle = (id) =>
+    `font-family:var(--mob-sans);font-size:12px;font-weight:700;padding:5px 10px;border:none;
+     background:none;cursor:pointer;border-bottom:2px solid ${activeTabId===id?'var(--mob-green)':'transparent'};
+     color:${activeTabId===id?'var(--mob-green)':'var(--mob-ink-3)'};white-space:nowrap;transition:color .15s;`;
+
+  const tabRow = `<div id="mob-struct-tabs" style="display:flex;gap:0;overflow-x:auto;border-bottom:1px solid var(--mob-line);margin-bottom:10px;scrollbar-width:none;">
+    ${tabs.map(([id,label]) => `<button class="mob-struct-tab" data-tab="${id}" style="${tabStyle(id)}">${label}</button>`).join('')}
+  </div>`;
+
+  function bodyFor(rec) {
+    if (!rec) return '';
+    const thumb = rec.thumbnail_path;
+    const mmcif = rec.mmcif_path;
+    const recUniprot = rec._uniprotId ?? uniprotId;
+    const canLoad = mmcif || recUniprot;
+
+    let scoreHtml = '';
+    if (rec.af_version === 'AF3' && rec.ptm_score != null) {
+      scoreHtml = `<div style="display:flex;align-items:baseline;gap:6px;margin:8px 0;">
+        <span style="font-family:var(--mob-mono);font-size:20px;font-weight:700;color:${ptmColor(rec.ptm_score)};">${rec.ptm_score.toFixed(2)}</span>
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mob-ink-3);">pTM score</span>
+      </div>`;
+    } else if (rec.af_version === 'AF2' || rec.af_version === 'AFDB') {
+      const db = rec.homology_score;
+      const pre = db != null
+        ? `<span style="font-family:var(--mob-mono);font-size:20px;font-weight:700;color:${plddtColor(db)};">${db.toFixed(1)}</span>
+           <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mob-ink-3);"> mean pLDDT · ${plddtLabel(db)}</span>` : '';
+      scoreHtml = `<div id="mob-af2-score" style="display:flex;align-items:baseline;gap:6px;margin:8px 0;min-height:28px;">${pre}</div>`;
+    }
+
+    let versionNote = '';
+    if (rec.af_version === 'AF3') versionNote = 'AlphaFold v3 (2024) diffusion-based predictions generated by the Hybiske Lab.';
+    else if (rec.af_version === 'AF2' || rec.af_version === 'AFDB') versionNote = 'AlphaFold v2 (2021) prediction from the EBI AlphaFold Database.';
+
+    const srcLabel = rec.af_version === 'crystal' ? 'Crystal Structure · RCSB PDB'
+      : rec.af_version === 'AF3' ? 'AlphaFold v3 · Hybiske Lab'
+      : 'AlphaFold v2 · AlphaFoldDB';
+
+    const homolog = (rec.af_version !== 'crystal' && rec.top_homolog_description)
+      ? `<div style="font-size:13px;font-weight:600;color:var(--mob-ink);margin-bottom:2px;">${esc(rec.top_homolog_description)}
+           ${rec.top_homolog_pdb_id ? `<span style="font-family:var(--mob-mono);font-size:11px;color:var(--mob-ink-3);"> ${esc(rec.top_homolog_pdb_id)}</span>` : ''}
+         </div>` : '';
+
+    const inferred = (rec.af_version !== 'crystal' && rec.inferred_function)
+      ? `<div style="font-size:12.5px;color:#444;background:#f0fdf4;border-radius:8px;padding:8px 10px;border-left:3px solid #16a34a;line-height:1.55;margin:8px 0;">
+           <strong style="color:#1a6b4a;">Inferred function:</strong> ${esc(rec.inferred_function)}</div>` : '';
+
+    const crystalId = rec.af_version === 'crystal' && rec.top_homolog_pdb_id
+      ? `<div style="font-family:var(--mob-mono);font-size:22px;font-weight:700;color:var(--mob-ink);margin:6px 0 2px;">${esc(rec.top_homolog_pdb_id)}</div>
+         <div id="mob-rcsb-detail" style="font-size:11px;color:var(--mob-ink-3);min-height:14px;margin-bottom:8px;"></div>` : '';
+
+    const viewerAttrs = (rec.af_version === 'AF2' || rec.af_version === 'AFDB') && recUniprot
+      ? `data-uniprot-id="${esc(recUniprot)}"`
+      : `data-url="${esc(mmcif ?? '')}"`;
+
+    return `
+      <div id="mob-struct-viewer-wrap" ${viewerAttrs}
+        style="position:relative;border-radius:12px;overflow:hidden;border:.5px solid var(--mob-line);background:#0a1628;height:240px;margin-bottom:10px;">
+        ${thumb ? `<img id="mob-struct-thumb" src="${esc(thumb)}" style="width:100%;height:100%;object-fit:contain;display:block;">` : ''}
+      </div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mob-ink-3);margin-bottom:4px;">${srcLabel}</div>
+      ${crystalId}
+      ${scoreHtml}
+      ${versionNote ? `<div style="font-size:11px;color:var(--mob-ink-3);line-height:1.5;margin-bottom:6px;">${versionNote}</div>` : ''}
+      ${homolog}${inferred}`;
+  }
+
+  structEl.innerHTML = tabRow + `<div id="mob-struct-body">${bodyFor(activeRecord)}</div>`;
+  if (metaEl) metaEl.innerHTML = '';
+  if (loadWrap) loadWrap.innerHTML = '';
+
+  // Wire tabs
+  const card = structEl.closest('.mob-card');
+  card?.querySelectorAll('.mob-struct-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTabId = btn.dataset.tab;
+      activeRecord = activeTabId === 'crystal' ? crystal : activeTabId === 'af3' ? af3Available : af2;
+      card.querySelectorAll('.mob-struct-tab').forEach(t => {
+        const on = t.dataset.tab === activeTabId;
+        t.style.color = on ? 'var(--mob-green)' : 'var(--mob-ink-3)';
+        t.style.borderBottomColor = on ? 'var(--mob-green)' : 'transparent';
+      });
+      card.querySelector('#mob-struct-body').innerHTML = bodyFor(activeRecord);
+      _setupMobMolstarObserver(card, activeRecord, uniprotId);
+      if (activeTabId === 'crystal' && activeRecord?.top_homolog_pdb_id) {
+        fetchRcsbMetadata(card.querySelector('#mob-struct-viewer-wrap')?.closest('div'), activeRecord.top_homolog_pdb_id);
+      }
+    });
+  });
+
+  _setupMobMolstarObserver(card, activeRecord, uniprotId);
+  if (activeTabId === 'crystal' && activeRecord?.top_homolog_pdb_id) {
+    fetchRcsbMetadata(card?.querySelector('#mob-struct-viewer-wrap')?.closest('div'), activeRecord.top_homolog_pdb_id);
+  }
+}
+
+function _setupMobMolstarObserver(card, record, uniprotId) {
+  const wrap = card?.querySelector('#mob-struct-viewer-wrap');
+  if (!wrap || wrap.dataset.molstarInitiated) return;
+  const url      = wrap.dataset.url;
+  const uniprot  = wrap.dataset.uniprotId;
+  if (!url && !uniprot) return;
+  wrap.dataset.molstarInitiated = 'true';
+
+  let fired = false;
+  const obs = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting || fired) return;
+    fired = true;
+    obs.disconnect();
+    if (uniprot) {
+      // Provide a minimal panel-like object so loadMolstarViaAfdbApi can update the score display
+      const fakePanelEl = { querySelector: (sel) => sel === '#af2-score-display' ? card.querySelector('#mob-af2-score') : null };
+      loadMolstarViaAfdbApi(wrap, uniprot, fakePanelEl);
+    } else {
+      loadMolstar(wrap, url);
+    }
+  }, { threshold: 0.1 });
+  obs.observe(wrap);
+}
+
+function _renderMobProteomics(el, gene, exprs) {
+  if (!el) return;
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // expression_data rows that have proteomics values (eb_expression / rb_expression)
+  const protRow = exprs.find(r => r.eb_expression != null || r.rb_expression != null) ?? null;
+
+  if (!protRow) {
+    el.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;">No proteomic data available</div>';
+    return;
+  }
+
+  const ebVal  = protRow.eb_expression ?? 0;
+  const rbVal  = protRow.rb_expression ?? 0;
+  const maxVal = Math.max(ebVal, rbVal, 1);
+
+  const bar = (label, val) => {
+    const pct = Math.round((val / maxVal) * 100);
+    return `<div style="margin-bottom:10px;">
+      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mob-ink-3);margin-bottom:4px;">${label}</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="height:6px;background:var(--mob-line-2);border-radius:3px;flex:1;">
+          <div style="height:6px;border-radius:3px;background:var(--mob-green);width:${pct}%;"></div>
+        </div>
+        <span style="font-family:var(--mob-mono);font-size:12px;color:var(--mob-ink);white-space:nowrap;">${val}</span>
+      </div>
+    </div>`;
+  };
+
+  const ebEnriched = gene.eb_enriched;
+  const rbEnriched = gene.rb_enriched;
+  const enrichLabel = ebEnriched ? 'EB enriched' : rbEnriched ? 'RB enriched' : null;
+  const enrichPill = enrichLabel
+    ? `<span style="display:inline-block;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;background:#eef9f4;color:var(--mob-green-ink);border:1px solid rgba(47,158,110,.2);margin-top:4px;">${enrichLabel}</span>`
+    : '';
+
+  el.innerHTML = `
+    ${bar('EB (elementary body)', ebVal)}
+    ${bar('RB (reticulate body)', rbVal)}
+    ${enrichPill}
+    <div style="font-size:10.5px;color:var(--mob-ink-3);margin-top:8px;">CT-L2 spectral counts · Saka et al. 2011 · PMID 22014092</div>`;
+}
+
 function _renderMobTranscriptomics(el, gene, exprs) {
   if (!el) return;
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3172,43 +3323,73 @@ function _renderMobLocalization(scroll, gene, protein) {
   if (!el) return;
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-  const source   = protein?.localization_source ?? null;
-  const slTerms  = protein?.subcellular_location_sl ?? [];
-  const goTerms  = protein?.subcellular_location_go ?? [];
+  const source  = protein?.localization_source ?? null;
+  const slTerms = protein?.subcellular_location_sl ?? [];
+  const goTerms = protein?.subcellular_location_go ?? [];
+  const taxid   = Number(STRAIN_TAXID[gene.strains?.common_name]) || 813;
 
+  let diagramUrl  = null;
   let activeTerms = [];
   let sourceBadge = '';
-  const badgeHtml = (label, col, bg) =>
+  const badge = (label, col, bg) =>
     `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:${bg};color:${col};letter-spacing:.04em;margin-left:auto;">${label}</span>`;
 
   if (source === 'user') {
+    diagramUrl  = slTerms.length ? `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/,'')).join(',')}` : null;
     activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
-    sourceBadge = badgeHtml('Curated', '#065f46', '#d1fae5');
+    sourceBadge = badge('Curated', '#065f46', '#d1fae5');
   } else if (source === 'lab_flag') {
+    diagramUrl  = `https://www.swissbiopics.org/api/${taxid}/sl/0243`;
     activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
-    sourceBadge = badgeHtml('ChlamAtlas', '#92400e', '#fef3c7');
+    sourceBadge = badge('ChlamAtlas', '#92400e', '#fef3c7');
   } else if (source === 'uniprot_sl') {
+    diagramUrl  = slTerms.length ? `https://www.swissbiopics.org/api/${taxid}/sl/${slTerms.map(t => t.replace(/^SL-/,'')).join(',')}` : null;
     activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
-    sourceBadge = badgeHtml('UniProt', '#6b7280', '#f3f4f6');
+    sourceBadge = badge('UniProt', '#6b7280', '#f3f4f6');
   } else if (source === 'uniprot_go') {
+    const goIds = goTerms.map(t => t.replace(/^GO:/,'')).join(',');
+    diagramUrl  = goIds ? `https://www.swissbiopics.org/api/${taxid}/go/${goIds}` : null;
     activeTerms = goTerms.map(id => ({ id, label: locTermLabel(id) }));
-    sourceBadge = badgeHtml('GO', '#6b7280', '#f3f4f6');
+    sourceBadge = badge('GO', '#6b7280', '#f3f4f6');
   }
 
   if (headEl && sourceBadge) headEl.innerHTML = `Cell Localization ${sourceBadge}`;
 
   if (!activeTerms.length && !protein?.localization) {
-    el.innerHTML = '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">Location unknown</div>';
+    el.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;">Location unknown</div>';
     return;
   }
 
   const pills = activeTerms.length
-    ? activeTerms.map(t => `<span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t.label)}</span>`).join('')
-    : protein?.localization?.split(';').filter(Boolean).map(s => `<span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(s.trim())}</span>`).join('') ?? '';
+    ? activeTerms.map(t => `<span style="font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t.label)}</span>`).join('')
+    : (protein?.localization ?? '').split(';').filter(Boolean).map(s =>
+        `<span style="font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(s.trim())}</span>`
+      ).join('');
 
-  el.innerHTML = pills
-    ? `<div style="display:flex;flex-wrap:wrap;gap:7px;">${pills}</div>`
-    : '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">Location unknown</div>';
+  // Render diagram container + pills
+  el.innerHTML = `
+    ${diagramUrl ? `<div id="mob-sbp-svg" style="max-width:100%;overflow:hidden;margin-bottom:10px;display:flex;align-items:center;justify-content:center;min-height:60px;">
+      <div style="color:var(--mob-ink-3);font-size:12px;">Loading diagram…</div>
+    </div>` : ''}
+    ${pills ? `<div style="display:flex;flex-wrap:wrap;gap:7px;">${pills}</div>` : ''}`;
+
+  // Fetch SwissBioPics SVG
+  if (diagramUrl) {
+    const svgEl = el.querySelector('#mob-sbp-svg');
+    fetch(diagramUrl)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(svg => {
+        if (!svgEl || !el.isConnected) return;
+        const responsive = svg
+          .replace(/(<svg\b[^>]*?)\s(?:width|height)="[^"]*"/g, '$1')
+          .replace(/(<svg\b[^>]*?)\s(?:width|height)="[^"]*"/g, '$1')
+          .replace('<svg', '<svg style="width:100%;height:auto;display:block;overflow:hidden;"');
+        svgEl.innerHTML = responsive;
+      })
+      .catch(() => {
+        if (svgEl) svgEl.innerHTML = '<div style="color:var(--mob-ink-3);font-size:11px;padding:4px 0;">Diagram unavailable</div>';
+      });
+  }
 }
 
 async function _buildMobGenomicContext(gene, inner) {
