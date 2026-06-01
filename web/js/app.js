@@ -200,19 +200,9 @@ function initMobileShell() {
     showSavedPopover(e.currentTarget);
   });
 
-  document.getElementById('mob-btn-account')?.addEventListener('click', (e) => {
-    e.stopPropagation();
+  document.getElementById('mob-btn-account')?.addEventListener('click', () => {
     if (!state.user) { showAuthModal('signin'); return; }
-    toggleUserDropdown();
-    // Reposition dropdown to the mobile button's actual screen location
-    if (_dropdownEl) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      _dropdownEl.style.top       = (rect.bottom + 6) + 'px';
-      _dropdownEl.style.right     = '10px';
-      _dropdownEl.style.minWidth  = '220px';
-      _dropdownEl.style.maxHeight = (window.innerHeight - rect.bottom - 20) + 'px';
-      _dropdownEl.style.overflowY = 'auto';
-    }
+    _showMobAccountSheet();
   });
 
   document.querySelectorAll('.mob-tab-btn').forEach(btn => {
@@ -266,6 +256,82 @@ function initMobileShell() {
   window.__activateTabHook(state.currentTab);
 
   updateMobPipelineVisibility();
+}
+
+// ─── Mobile account bottom sheet ────────────────────────────
+function _showMobAccountSheet() {
+  document.getElementById('mob-account-sheet')?.remove();
+
+  const profile  = state.userProfile;
+  const name     = profile?.display_name || (state.user?.email ?? '').split('@')[0];
+  const email    = state.user?.email ?? '';
+  const role     = state.userRole;
+  const roleLabels = { admin: 'Admin', lab_member: 'Lab member', community: 'Community' };
+  const roleColors = { admin: '#163b2b', lab_member: '#1d6f4a', community: '#6b7280' };
+
+  const initial  = name.charAt(0).toUpperCase();
+  const isAdmin  = role === 'admin';
+  const isCom    = role === 'community';
+  const hasRequest = profile?.role_request;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-account-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+
+  const rowStyle = `display:flex;align-items:center;gap:13px;padding:13px 4px;border-top:.5px solid #f0f0f0;cursor:pointer;font-size:14.5px;font-weight:600;color:#18221c;`;
+
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()" style="padding-bottom:calc(env(safe-area-inset-bottom,14px)+12px);">
+      <div class="mob-sheet-handle"></div>
+      <!-- Identity header -->
+      <div style="display:flex;align-items:center;gap:12px;padding:4px 4px 14px;">
+        <div style="width:42px;height:42px;border-radius:50%;background:#163b2b;color:#fff;display:grid;place-items:center;font-size:18px;font-weight:700;flex-shrink:0;">${initial}</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:700;font-size:15.5px;color:#18221c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+          <div style="font-size:11.5px;color:#8b958f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${email}</div>
+          <span style="display:inline-block;margin-top:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:${roleColors[role]??'#6b7280'};border-radius:4px;padding:2px 7px;">${roleLabels[role]??role}</span>
+        </div>
+      </div>
+      <!-- Menu rows -->
+      <div id="mob-acct-my-account" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        My account
+      </div>
+      ${isCom && !hasRequest ? `<div id="mob-acct-request" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="15" r="5"/><path d="M21 3l-9.4 9.4M17 3h4v4"/></svg>
+        Request lab access
+      </div>` : isCom && hasRequest ? `<div style="padding:11px 4px;border-top:.5px solid #f0f0f0;font-size:13px;color:#9ca3af;font-style:italic;">Lab access request pending</div>` : ''}
+      ${isAdmin ? `<div id="mob-acct-admin" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/><circle cx="18" cy="8" r="2.5"/><path d="M22 20c0-2.5-2-4.5-4-5"/></svg>
+        Manage users
+      </div>` : ''}
+      <div id="mob-acct-whats-new" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        What's new
+      </div>
+      <div id="mob-acct-bugs" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 2l1.5 1.5M16 2l-1.5 1.5M12 8a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0v-3a4 4 0 0 0-4-4z"/><path d="M8 12H4M20 12h-4M8 16H5M19 16h-3"/></svg>
+        Bug reports
+      </div>
+      <div id="mob-acct-signout" style="${rowStyle}color:#c0392b;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </div>
+    </div>`;
+
+  const close = () => backdrop.remove();
+  backdrop.addEventListener('click', close);
+
+  const wire = (id, fn) => backdrop.querySelector('#' + id)?.addEventListener('click', (e) => { e.stopPropagation(); close(); fn(); });
+
+  wire('mob-acct-my-account', () => showAccountModal());
+  wire('mob-acct-request',    () => requestLabAccess?.());
+  wire('mob-acct-admin',      () => showAdminPanel?.());
+  wire('mob-acct-whats-new',  () => activateTab('roadmap'));
+  wire('mob-acct-bugs',       () => activateTab('bugs'));
+  wire('mob-acct-signout',    () => signOut());
+
+  document.body.appendChild(backdrop);
 }
 
 async function _renderMobSearchResults(q, container) {

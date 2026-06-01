@@ -85,18 +85,14 @@ async function renderHomeMobile(container) {
       </div>
 
       <div class="mob-home-sec-h">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-          style="color:var(--mob-green-ink)"><path d="M8 2C8 5 16 7 16 10C16 13 8 15 8 18C8 21 16 22 16 22"/>
-          <path d="M16 2C16 5 8 7 8 10C8 13 16 15 16 18C16 21 8 22 8 22"/>
-          <line x1="8" y1="2" x2="16" y2="2"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        <img src="/design/icons_mobile/dna.png" class="mob-sec-icon" alt="">
         <span class="t">Genomes</span>
         <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
       <div id="mob-home-strain-cards"></div>
 
       <div class="mob-home-sec-h">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-          style="color:var(--mob-green-ink)"><path d="M13 2L4.5 13H11L10 22L19.5 11H13L13 2Z"/></svg>
+        <img src="/design/icons_mobile/bolt.png" class="mob-sec-icon" alt="">
         <span class="t">Mutants</span>
         <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
