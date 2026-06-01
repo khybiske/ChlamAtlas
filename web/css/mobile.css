@@ -125,10 +125,10 @@
 
 /* ── Bottom tab bar styles ── */
 #mobile-nav {
-  background: rgba(252,253,252,.88) !important;
+  background: rgba(252,253,252,.94) !important;
   backdrop-filter: saturate(180%) blur(22px) !important;
   -webkit-backdrop-filter: saturate(180%) blur(22px) !important;
-  border-top: .5px solid var(--mob-line) !important;
+  border-top: 1px solid rgba(0,0,0,.10) !important;
   height: var(--mob-tab-h);
   padding: 8px 4px env(safe-area-inset-bottom, 14px) !important;
   align-items: stretch !important;
@@ -144,7 +144,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--mob-ink-3);
+  color: var(--mob-ink-2);
   padding: 4px 0;
   transition: color .15s;
   font-family: var(--mob-sans);
@@ -160,6 +160,9 @@
 /* ── Page/screen layout utilities ── */
 @media (max-width: 639px) {
   main { padding-top: var(--mob-nav-h) !important; }
+
+  /* Home hero bleeds edge-to-edge; hero inner padding clears nav bar */
+  #tab-home.tab-panel { top: 0 !important; }
 
   .tab-panel {
     position: fixed !important;

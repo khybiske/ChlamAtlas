@@ -112,6 +112,43 @@ async function renderHomeMobile(container) {
         <div id="mob-leaflet-map" style="width:100%;height:100%;"></div>
       </div>
 
+      <!-- Community stats -->
+      <div style="display:flex;gap:8px;margin:10px 16px 0;">
+        <div class="mob-hstat" style="flex:1;">
+          <div class="n" style="font-size:22px;" id="mob-stat-users">—</div>
+          <div class="l">Users</div>
+        </div>
+        <div class="mob-hstat" style="flex:1;">
+          <div class="n" style="font-size:22px;" id="mob-stat-annotations">—</div>
+          <div class="l">Annotations</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="margin:24px 16px 0;padding:16px 0;border-top:.5px solid var(--mob-line);">
+        <div style="font-family:var(--mob-sans);font-size:13px;font-weight:700;color:var(--mob-ink);">Hybiske Lab</div>
+        <div style="font-size:12px;color:var(--mob-ink-3);margin-top:2px;">University of Washington · Seattle, WA</div>
+        <div style="display:flex;gap:16px;margin-top:10px;">
+          <button id="mob-cite-btn" style="font-size:12.5px;color:var(--mob-green);background:none;border:none;cursor:pointer;padding:0;font-family:var(--mob-sans);font-weight:600;">How to cite</button>
+          <a href="https://github.com/khybiske/ChlamAtlas" target="_blank" rel="noopener" style="font-size:12.5px;color:var(--mob-green);text-decoration:none;font-weight:600;">GitHub</a>
+          <a href="mailto:khybiske@uw.edu" style="font-size:12.5px;color:var(--mob-green);text-decoration:none;font-weight:600;">Contact</a>
+        </div>
+      </div>
+
+      <!-- Citation modal (shared with desktop) -->
+      <div id="mob-citation-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:18px;width:calc(100% - 32px);max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+          <div style="padding:16px 20px 14px;background:#163b2b;">
+            <div style="font-family:var(--mob-serif);font-weight:700;font-size:20px;color:#fff;">How to cite</div>
+          </div>
+          <div style="padding:16px 20px;">
+            <p id="mob-citation-text" style="font-family:var(--mob-mono);font-size:12px;line-height:1.6;color:#333;background:#f9f9f9;border-radius:8px;padding:12px;margin:0 0 14px;white-space:pre-wrap;">Hybiske et al., manuscript in preparation.</p>
+            <button id="mob-citation-copy" style="width:100%;background:#163b2b;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:8px;">Copy citation</button>
+            <button id="mob-citation-close" style="width:100%;background:none;border:none;color:#9ca3af;font-size:13px;cursor:pointer;padding:4px;">Close</button>
+          </div>
+        </div>
+      </div>
+
       <div class="mob-pad-bottom"></div>
     </div>`;
 
@@ -147,22 +184,23 @@ async function renderHomeMobile(container) {
   };
   const chevron = `<svg style="margin-left:auto;flex-shrink:0;color:#c8cec9" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
+  // Italicize only the genus+species part (e.g. "C. trachomatis"), not the strain suffix
+  const italicSpecies = (sp) => sp.replace(/^([A-Z]\.\s+\w+)/, '<em>$1</em>');
+
   const strainCards = container.querySelector('#mob-home-strain-cards');
   if (strainCards && strainRes.data) {
     strainCards.innerHTML = strainRes.data.map(s => {
-      const color   = strainColors[s.common_name] ?? '#2f9e6e';
       const icon    = strainIcons[s.common_name]  ?? '';
       const species = strainSpecies[s.common_name] ?? '';
       const gCount  = s.genes?.[0]?.count ?? '—';
       return `
         <div class="mob-strain-card" data-strain="${esc(s.common_name)}">
-          <div class="sbar" style="background:${color};"></div>
-          <img class="sicon" src="${esc(icon)}" alt="${esc(s.common_name)}" onerror="this.style.display='none'">
+          <img class="sicon" src="${esc(icon)}" alt="${esc(s.common_name)}" onerror="this.style.display='none'" style="margin-left:14px;">
           <div style="flex:1;min-width:0;">
-            <div style="font-style:italic;font-size:15px;color:var(--mob-ink);font-weight:500;margin-bottom:3px;"><em>${esc(species)}</em></div>
+            <div style="font-size:15px;color:var(--mob-ink);font-weight:500;margin-bottom:3px;">${italicSpecies(esc(species))}</div>
             <div style="display:flex;align-items:center;gap:5px;">
-              <span class="scode" style="color:${color};font-size:13px;">${esc(s.common_name)}</span>
-              <span class="scount" style="margin-top:0;">· ${Number(gCount).toLocaleString()} genes</span>
+              <span style="font-weight:700;font-size:13px;color:var(--mob-ink-2);">${esc(s.common_name)}</span>
+              <span style="font-size:12.5px;color:var(--mob-ink-3);">· ${Number(gCount).toLocaleString()} genes</span>
             </div>
           </div>
           ${chevron}
@@ -187,11 +225,13 @@ async function renderHomeMobile(container) {
   if (collRows) {
     collRows.innerHTML = COLLECTIONS_MOBILE.map(c => {
       const n = mutantCounts[c.id] ?? 0;
+      // Italicize genus+species labels (C. trachomatis, C. muridarum)
+      const labelHtml = c.label.match(/^[A-Z]\./) ? `<em>${esc(c.label)}</em>` : esc(c.label);
       return `
         <div class="mob-minirow" data-collection="${esc(c.id)}">
           <img src="${esc(c.icon)}" alt="${esc(c.label)}" style="width:34px;height:34px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
           <div style="flex:1;min-width:0;">
-            <div class="mn">${esc(c.label)}</div>
+            <div class="mn">${labelHtml}</div>
             <div class="ms">${esc(c.sub)} · ${n} mutants</div>
           </div>
           ${chevron}
@@ -205,6 +245,37 @@ async function renderHomeMobile(container) {
       });
     });
   }
+
+  // Wire footer citation modal
+  const citeBtn   = container.querySelector('#mob-cite-btn');
+  const citeModal = container.querySelector('#mob-citation-modal');
+  const citeCopy  = container.querySelector('#mob-citation-copy');
+  const citeClose = container.querySelector('#mob-citation-close');
+  const citeText  = container.querySelector('#mob-citation-text');
+  if (citeBtn && citeModal) {
+    citeBtn.addEventListener('click', () => { citeModal.style.display = 'flex'; });
+    citeClose.addEventListener('click', () => { citeModal.style.display = 'none'; });
+    citeModal.addEventListener('click', (e) => { if (e.target === citeModal) citeModal.style.display = 'none'; });
+    // Load citation text
+    sb.from('site_config').select('value').eq('key','citation').maybeSingle().then(({ data }) => {
+      if (data?.value && citeText) citeText.textContent = data.value;
+    });
+    citeCopy?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(citeText?.textContent ?? ''); citeCopy.textContent = 'Copied!'; }
+      catch { citeCopy.textContent = 'Copy failed'; }
+      setTimeout(() => { citeCopy.textContent = 'Copy citation'; }, 2000);
+    });
+  }
+
+  // Fetch community stats
+  sb.from('users').select('id', { count: 'exact', head: true }).then(({ count }) => {
+    const el = container.querySelector('#mob-stat-users');
+    if (el) el.textContent = (count ?? 0).toLocaleString();
+  });
+  sb.from('annotations').select('id', { count: 'exact', head: true }).then(({ count }) => {
+    const el = container.querySelector('#mob-stat-annotations');
+    if (el) el.textContent = (count ?? 0).toLocaleString();
+  });
 
   // Community map
   const mapEl = container.querySelector('#mob-leaflet-map');
