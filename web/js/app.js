@@ -207,8 +207,11 @@ function initMobileShell() {
     // Reposition dropdown to the mobile button's actual screen location
     if (_dropdownEl) {
       const rect = e.currentTarget.getBoundingClientRect();
-      _dropdownEl.style.top   = (rect.bottom + 6) + 'px';
-      _dropdownEl.style.right = (window.innerWidth - rect.right) + 'px';
+      _dropdownEl.style.top       = (rect.bottom + 6) + 'px';
+      _dropdownEl.style.right     = '10px';
+      _dropdownEl.style.minWidth  = '220px';
+      _dropdownEl.style.maxHeight = (window.innerHeight - rect.bottom - 20) + 'px';
+      _dropdownEl.style.overflowY = 'auto';
     }
   });
 
@@ -233,10 +236,30 @@ function initMobileShell() {
     });
   });
 
+  const _MOB_NAV_TABS = new Set(['home','genomes','mutants','pipeline','tools']);
+
   window.__activateTabHook = (name) => {
+    // Sync mob-tab-btn active states
     document.querySelectorAll('.mob-tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === name);
     });
+
+    const left = document.getElementById('mob-nav-left');
+    if (!left) return;
+
+    if (!_MOB_NAV_TABS.has(name) && !_mobDetailStack.length) {
+      // Tab has no mobile nav button (roadmap, bugs, alignment, etc.)
+      // Show a back-to-home button so the user isn't stranded
+      left.innerHTML = `
+        <button class="mob-gbtn" id="mob-back-btn" aria-label="Back">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>`;
+      document.getElementById('mob-back-btn').addEventListener('click', () => {
+        activateTab('home');
+      });
+    } else if (_MOB_NAV_TABS.has(name) && !_mobDetailStack.length) {
+      left.innerHTML = '';
+    }
   };
 
   // Apply active state for the tab that was already activated before this hook was registered
