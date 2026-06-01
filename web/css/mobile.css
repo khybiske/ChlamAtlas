@@ -54,7 +54,8 @@
   #mob-nav-left,
   #mob-nav-right,
   #mob-detail,
-  #mob-search { display: none !important; }
+  #mob-search,
+  #mob-search-backdrop { display: none !important; }
 }
 
 /* ── Collapsing nav bar styles ── */
@@ -157,30 +158,8 @@
 .mob-tab-btn.active  { color: var(--mob-green); }
 .mob-tab-btn:active  { transform: scale(.93); }
 
-/* PNG tab icons — CSS filter colorizes the black silhouettes */
-.mob-tab-icon {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-  /* Inactive: dark gray-green (#4a5650) */
-  filter: brightness(0) saturate(100%) invert(30%) sepia(10%) saturate(400%) hue-rotate(120deg) brightness(85%);
-  transition: filter .15s;
-}
-.mob-tab-btn.active .mob-tab-icon {
-  /* Active: brand green (#2f9e6e) */
-  filter: brightness(0) saturate(100%) invert(52%) sepia(50%) saturate(500%) hue-rotate(111deg) brightness(90%);
-}
-
-/* Section-header PNG icons (green #277a55) */
-.mob-sec-icon {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-  display: block;
-  filter: brightness(0) saturate(100%) invert(40%) sepia(43%) saturate(500%) hue-rotate(112deg) brightness(82%);
-  flex-shrink: 0;
-}
+/* Tab icons (SVG) inherit currentColor from .mob-tab-btn */
+.mob-tab-btn svg { display: block; flex-shrink: 0; }
 
 /* ── Page/screen layout utilities ── */
 @media (max-width: 639px) {
@@ -465,24 +444,40 @@
 }
 #mob-detail-scroll::-webkit-scrollbar { display: none; }
 
-#mob-search {
+/* Search — bottom sheet (slides up from bottom) */
+#mob-search-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 84;
+  background: rgba(15,25,20,.34);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+#mob-search-backdrop.open { opacity: 1; pointer-events: auto; }
+
+#mob-search {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
   z-index: 85;
-  background: var(--mob-bg);
-  transform: translateX(100%);
+  background: transparent;
+  transform: translateY(100%);
   transition: transform .34s cubic-bezier(.32,.72,0,1);
   will-change: transform;
-  overflow: hidden;
 }
-#mob-search.open { transform: translateX(0); }
+#mob-search.open { transform: translateY(0); }
+
 #mob-search-scroll {
-  position: absolute;
-  inset: 0;
+  background: var(--mob-paper);
+  border-radius: 26px 26px 0 0;
+  height: 80vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   scrollbar-width: none;
-  padding-top: var(--mob-nav-h);
+  box-shadow: 0 -8px 30px rgba(0,0,0,.2);
+  display: flex;
+  flex-direction: column;
   padding-bottom: calc(var(--mob-tab-h) + 8px);
 }
 #mob-search-scroll::-webkit-scrollbar { display: none; }

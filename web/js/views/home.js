@@ -85,14 +85,19 @@ async function renderHomeMobile(container) {
       </div>
 
       <div class="mob-home-sec-h">
-        <img src="/design/icons_mobile/dna.png" class="mob-sec-icon" alt="">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--mob-green-ink);flex-shrink:0;">
+          <path d="M5.5 3c0 5 5 5.5 6.5 8.5S18.5 16 18.5 21"/><path d="M18.5 3c0 5-5 5.5-6.5 8.5S5.5 16 5.5 21"/>
+          <line x1="5.5" y1="8" x2="18.5" y2="8"/><line x1="5.5" y1="16" x2="18.5" y2="16"/>
+        </svg>
         <span class="t">Genomes</span>
         <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
       <div id="mob-home-strain-cards"></div>
 
       <div class="mob-home-sec-h">
-        <img src="/design/icons_mobile/bolt.png" class="mob-sec-icon" alt="">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="color:var(--mob-green-ink);flex-shrink:0;">
+          <path d="M13 2L4.5 13.5H11l-1 8.5L20.5 10H14z"/>
+        </svg>
         <span class="t">Mutants</span>
         <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
       </div>
