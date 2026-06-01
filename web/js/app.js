@@ -193,6 +193,9 @@ export async function pushMobileSaved() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#e8b400" stroke="#e8b400" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span style="font-weight:800;font-size:17px;color:var(--mob-ink);">Saved</span>
         <span style="color:var(--mob-ink-3);font-size:13px;font-weight:600;">· ${genes.length + mutants.length}</span>
+        <button id="mob-saved-close" style="margin-left:auto;width:30px;height:30px;border-radius:50%;border:none;background:#f0f2f0;display:grid;place-items:center;cursor:pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       ${genes.length || mutants.length
         ? (genes.length   ? secH('Genes',   genes.length)   + `<div style="background:var(--mob-paper);">${gRows}</div>` : '')
@@ -201,6 +204,7 @@ export async function pushMobileSaved() {
     </div>`;
 
   backdrop.addEventListener('click', () => backdrop.remove());
+  backdrop.querySelector('#mob-saved-close')?.addEventListener('click', (e) => { e.stopPropagation(); backdrop.remove(); });
   backdrop.querySelectorAll('[data-saved-gene]').forEach(row => {
     row.addEventListener('click', () => { backdrop.remove(); window.__openGeneId = row.dataset.savedGene; activateTab('genomes'); });
   });
@@ -284,6 +288,8 @@ function initMobileShell() {
       const tab = btn.dataset.tab;
       if (!tab) return;
 
+      if (tab === 'tools') { _showMobToolsSheet(); return; }
+
       if (_mobDetailStack.length > 0) {
         const overlay = document.getElementById('mob-detail');
         if (overlay) {
@@ -332,6 +338,53 @@ function initMobileShell() {
   updateMobPipelineVisibility();
 }
 
+// ─── Mobile tools bottom sheet ───────────────────────────────
+function _showMobToolsSheet() {
+  document.getElementById('mob-tools-sheet')?.remove();
+
+  const rowStyle = `display:flex;align-items:center;gap:13px;padding:13px 4px;border-top:.5px solid #f0f0f0;cursor:pointer;font-size:14.5px;font-weight:600;color:#18221c;`;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-tools-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()" style="padding-bottom:calc(env(safe-area-inset-bottom,14px)+12px);">
+      <div class="mob-sheet-handle"></div>
+      <div style="display:flex;align-items:center;padding:4px 4px 12px;">
+        <span style="font-weight:800;font-size:17px;color:#18221c;flex:1;">Tools</span>
+        <button id="mob-tools-close" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f2f0;display:grid;place-items:center;cursor:pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="mob-tools-genome-align" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/></svg>
+        Genome Alignment
+      </div>
+      <div id="mob-tools-seq-align" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/></svg>
+        Sequence Alignment
+      </div>
+      <div id="mob-tools-struct-align" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg>
+        Structure Alignment
+      </div>
+    </div>`;
+
+  const close = () => backdrop.remove();
+  backdrop.addEventListener('click', close);
+
+  const wire = (id, tabName) => backdrop.querySelector('#' + id)?.addEventListener('click', (e) => {
+    e.stopPropagation(); close(); activateTab(tabName);
+  });
+
+  backdrop.querySelector('#mob-tools-close')?.addEventListener('click', (e) => { e.stopPropagation(); close(); });
+  wire('mob-tools-genome-align', 'genome-alignment');
+  wire('mob-tools-seq-align',    'alignment');
+  wire('mob-tools-struct-align', 'structure-alignment');
+
+  document.body.appendChild(backdrop);
+}
+
 // ─── Mobile account bottom sheet ────────────────────────────
 function _showMobAccountSheet() {
   document.getElementById('mob-account-sheet')?.remove();
@@ -365,10 +418,13 @@ function _showMobAccountSheet() {
           <div style="font-size:11.5px;color:#8b958f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${email}</div>
           <span style="display:inline-block;margin-top:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:${roleColors[role]??'#6b7280'};border-radius:4px;padding:2px 7px;">${roleLabels[role]??role}</span>
         </div>
+        <button id="mob-acct-close" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f2f0;display:grid;place-items:center;cursor:pointer;flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <!-- Menu rows -->
       <div id="mob-acct-my-account" style="${rowStyle}">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 2v2"/><path d="M17.915 22a6 6 0 0 0-12 0"/><path d="M8 2v2"/><circle cx="12" cy="12" r="4"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
         My account
       </div>
       ${isCom && !hasRequest ? `<div id="mob-acct-request" style="${rowStyle}">
@@ -376,15 +432,15 @@ function _showMobAccountSheet() {
         Request lab access
       </div>` : isCom && hasRequest ? `<div style="padding:11px 4px;border-top:.5px solid #f0f0f0;font-size:13px;color:#9ca3af;font-style:italic;">Lab access request pending</div>` : ''}
       ${isAdmin ? `<div id="mob-acct-admin" style="${rowStyle}">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/><circle cx="18" cy="8" r="2.5"/><path d="M22 20c0-2.5-2-4.5-4-5"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>
         Manage users
       </div>` : ''}
       <div id="mob-acct-whats-new" style="${rowStyle}">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg>
         What's new
       </div>
       <div id="mob-acct-bugs" style="${rowStyle}">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 2l1.5 1.5M16 2l-1.5 1.5M12 8a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0v-3a4 4 0 0 0-4-4z"/><path d="M8 12H4M20 12h-4M8 16H5M19 16h-3"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-9"/><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"/><path d="M14.12 3.88 16 2"/><path d="M21 21a4 4 0 0 0-3.81-4"/><path d="M21 5a4 4 0 0 1-3.55 3.97"/><path d="M22 13h-4"/><path d="M3 21a4 4 0 0 1 3.81-4"/><path d="M3 5a4 4 0 0 0 3.55 3.97"/><path d="M6 13H2"/><path d="m8 2 1.88 1.88"/><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13"/></svg>
         Bug reports
       </div>
       <div id="mob-acct-signout" style="${rowStyle}color:#c0392b;">
@@ -398,6 +454,7 @@ function _showMobAccountSheet() {
 
   const wire = (id, fn) => backdrop.querySelector('#' + id)?.addEventListener('click', (e) => { e.stopPropagation(); close(); fn(); });
 
+  backdrop.querySelector('#mob-acct-close')?.addEventListener('click', (e) => { e.stopPropagation(); close(); });
   wire('mob-acct-my-account', () => showAccountModal());
   wire('mob-acct-request',    () => requestLabAccess?.());
   wire('mob-acct-admin',      () => showAdminPanel?.());

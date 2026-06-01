@@ -36,7 +36,7 @@
   --mob-r-md:   16px;
   --mob-r-sm:   12px;
   --mob-nav-h:  52px;
-  --mob-tab-h:  84px;
+  --mob-tab-h:  70px;
 
   /* Shadows */
   --mob-shadow-card: 0 1px 2px rgba(20,40,30,.05), 0 6px 16px rgba(20,40,30,.04);
@@ -131,7 +131,7 @@
   -webkit-backdrop-filter: saturate(180%) blur(22px) !important;
   border-top: 1px solid rgba(0,0,0,.10) !important;
   height: var(--mob-tab-h);
-  padding: 8px 4px env(safe-area-inset-bottom, 14px) !important;
+  padding: 6px 4px env(safe-area-inset-bottom, 12px) !important;
   align-items: stretch !important;
 }
 
