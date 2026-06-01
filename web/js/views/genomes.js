@@ -184,11 +184,6 @@ function _renderMobileGeneList(container) {
 
   container.style.padding = '0';
   container.innerHTML = `
-    <div class="mob-lt-wrap" style="padding-top:8px;">
-      <div class="mob-lt-eyebrow">Genomes</div>
-      <h1 class="mob-lt-title">${_strain}</h1>
-    </div>
-
     <div class="mob-strain-ctx">
       <img src="${currentStrain.icon}" alt="${currentStrain.id}" onerror="this.style.display='none'">
       <div style="flex:1;min-width:0;">
@@ -353,11 +348,28 @@ async function _mobFetchGenes(container) {
 
   list.querySelectorAll('.mob-grow:not([data-wired])').forEach(row => {
     row.dataset.wired = '1';
-    row.addEventListener('click', () => {
+    row.addEventListener('click', e => {
+      if (e.target.closest('.mob-star')) return; // handled by delegation below
       const gene = _geneCache.get(row.dataset.id);
       if (gene) showGeneDetailMobile(gene, container);
     });
   });
+
+  // Star toggle delegation — wire once on the list container
+  if (!list.dataset.starWired) {
+    list.dataset.starWired = '1';
+    list.addEventListener('click', async e => {
+      const starBtn = e.target.closest('.mob-star');
+      if (!starBtn) return;
+      e.stopPropagation();
+      if (!state.user) { window.__showAuthModal?.('signin'); return; }
+      const geneId = starBtn.dataset.favId;
+      const nowFav = await toggleFavoriteDB('gene', geneId);
+      starBtn.classList.toggle('on', nowFav);
+      const svg = starBtn.querySelector('svg');
+      if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
+    });
+  }
 
   _mobSetupInfiniteScroll(container);
 }
@@ -365,12 +377,18 @@ async function _mobFetchGenes(container) {
 function _mobGroupAndRenderGenes(genes) {
   if (!genes.length) return '';
 
+  // Locus-tag sort: no section headers (they'd just be uninformative "CTL0___" labels)
+  if (_sortField === 'locus_tag') {
+    return `<div style="background:var(--mob-paper);">
+      ${genes.map((g, i) => _mobGeneRow(g, i < genes.length - 1)).join('')}
+    </div>`;
+  }
+
   const groups = new Map();
   genes.forEach(g => {
     let key;
     if (_sortField === 'functional_category') key = g.functional_category ?? 'Unknown';
-    else if (_sortField === 'gene_name') key = g.gene_name ? g.gene_name[0].toUpperCase() : '#';
-    else key = g.locus_tag.slice(0, -3) + '___';
+    else key = g.gene_name ? g.gene_name[0].toUpperCase() : '#';
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(g);
   });
