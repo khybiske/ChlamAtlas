@@ -377,7 +377,7 @@ function _mobRenderMutantRows(container, all, sort, filter, search) {
   });
 }
 
-async function _mobLoadMutantDetail(mutantUUID) {
+export async function _mobLoadMutantDetail(mutantUUID) {
   pushMobileDetail({
     title: '…',
     render: (scroll) => {

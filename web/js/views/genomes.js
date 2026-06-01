@@ -2762,11 +2762,11 @@ function showGeneDetailMobile(gene, _container) {
 }
 
 function _renderGeneDetailMobileHTML(gene, scroll) {
-  const color      = CATEGORY_COLORS[gene.functional_category] ?? CATEGORY_COLOR_DEFAULT;
-  const catBadge   = CATEGORY_BADGE[gene.functional_category] ?? { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' };
-  const isFav      = state.favorites.genes.has(String(gene.id));
-  const thumb      = gene.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
-  const strain     = gene.strains?.common_name ?? _strain;
+  const color       = CATEGORY_COLORS[gene.functional_category] ?? CATEGORY_COLOR_DEFAULT;
+  const catBadge    = CATEGORY_BADGE[gene.functional_category] ?? { bg:'#f9fafb', text:'#6b7280', border:'#e5e7eb' };
+  const isFav       = state.favorites.genes.has(String(gene.id));
+  const thumb       = gene.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
+  const strain      = gene.strains?.common_name ?? _strain;
   const displayName = gene.gene_name || gene.gene_symbol || gene.locus_tag;
   const locusShow   = gene.gene_name ? gene.locus_tag : '';
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2777,9 +2777,16 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     return `rgba(${r},${g},${b},${a})`;
   };
 
+  const productPill = gene.product
+    ? `<span class="mob-tag" style="color:#4a5650;border-color:#c8d0cb;background:#f0f2f0;font-weight:600;text-transform:none;font-size:10.5px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(gene.product.length > 55 ? gene.product.slice(0,52) + '…' : gene.product)}</span>`
+    : '';
+
   scroll.innerHTML = `
-    <div style="background:${hexToRgba(color,.08)};border-bottom:3px solid ${color};padding-bottom:12px;">
-      <div class="mob-d-head">
+    <!-- ── Header: gradient bleed ── -->
+    <div style="margin-top:calc(-1 * var(--mob-nav-h));padding-top:calc(var(--mob-nav-h) + 10px);
+                background:linear-gradient(180deg,${hexToRgba(color,.20)} 0%,${hexToRgba(color,.04)} 100%);
+                border-bottom:2px solid ${hexToRgba(color,.35)};padding-bottom:14px;">
+      <div class="mob-d-head" style="padding:0 12px 0 16px;">
         <div class="mob-d-thumb" style="background:${hexToRgba(color,.15)};">
           ${thumb
             ? `<img src="${esc(thumb)}" alt="structure" loading="lazy">`
@@ -2789,42 +2796,47 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           <div class="mob-d-title">${esc(displayName)}</div>
           ${locusShow ? `<span class="mob-d-loc">${esc(locusShow)}</span>` : ''}
         </div>
-        <div class="mob-d-actions">
-          <button class="mob-gbtn mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${gene.id}" aria-label="Save gene">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <div class="mob-d-actions" style="flex-shrink:0;">
+          <button class="mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${gene.id}" aria-label="Save gene"
+            style="background:none;border:none;padding:8px 4px;cursor:pointer;color:${isFav ? '#e8b400' : 'var(--mob-ink-3)'};">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
           </button>
         </div>
       </div>
-      <div class="mob-tags-row" style="padding:0 20px 0;">
+      <div class="mob-tags-row" style="padding:8px 16px 0;flex-wrap:wrap;">
         <span class="mob-tag" style="color:${color};border-color:${color};background:${hexToRgba(color,.1)};">${esc(strain)}</span>
         ${gene.functional_category ? `<span class="mob-tag" style="color:${catBadge.text};border-color:${catBadge.border};background:${catBadge.bg};">${esc(gene.functional_category)}</span>` : ''}
         ${gene.is_characterized ? `<span class="mob-tag" style="color:#1c8c7e;border-color:#1c8c7e;background:rgba(28,140,126,.08);">Characterized</span>` : ''}
         ${gene.is_t3_secreted   ? `<span class="mob-tag" style="color:#7c3aed;border-color:#7c3aed;background:rgba(124,58,237,.08);">T3 Secreted</span>` : ''}
         ${gene.is_dna_binding   ? `<span class="mob-tag" style="color:#b45309;border-color:#b45309;background:rgba(180,83,9,.08);">DNA Binding</span>` : ''}
+        ${productPill}
       </div>
-      <div class="mob-meta-row" style="padding:8px 20px 0;">
+      <div class="mob-meta-row" style="padding:10px 16px 0;">
         <a class="mob-copybtn" href="https://www.uniprot.org/uniprot/?query=${esc(gene.locus_tag)}" target="_blank" rel="noopener">UniProt ↗</a>
         <a class="mob-copybtn" href="https://www.ncbi.nlm.nih.gov/gene/?term=${esc(gene.locus_tag)}" target="_blank" rel="noopener">NCBI ↗</a>
       </div>
     </div>
 
+    <!-- ── Gene Info ── -->
     <div class="mob-card">
       <div class="mob-card-h">Gene Info</div>
       <div class="mob-kv-grid">
         <div class="mob-kv"><div class="mob-k">Length</div><div class="mob-v sm">${gene.end_bp && gene.start_bp ? (gene.end_bp - gene.start_bp).toLocaleString() + ' bp' : '—'}</div></div>
         <div class="mob-kv"><div class="mob-k">Strand</div><div class="mob-v sm">${gene.strand === '+' || gene.strand === '1' ? '+ (sense)' : gene.strand ? '− (antisense)' : '—'}</div></div>
         <div class="mob-kv"><div class="mob-k">Position</div><div class="mob-v sm">${gene.start_bp ? gene.start_bp.toLocaleString() + '–' + (gene.end_bp ?? '?').toLocaleString() : '—'}</div></div>
-        <div class="mob-kv"><div class="mob-k">Organism</div><div class="mob-v sm" style="font-style:italic;">${esc(gene.strains?.common_name ?? _strain)}</div></div>
+        <div class="mob-kv"><div class="mob-k">Organism</div><div class="mob-v sm">${esc(gene.strains?.common_name ?? _strain)}</div></div>
       </div>
     </div>
 
+    <!-- ── Genomic Context ── -->
     <div class="mob-card" id="mob-ctx-card">
-      <div class="mob-card-h">Genomic Context <span style="color:var(--mob-ink-3);font-weight:400;">${esc(strain)} chromosome</span></div>
+      <div class="mob-card-h">Genomic Context <span style="color:var(--mob-ink-3);font-weight:400;">${esc(strain)}</span></div>
       <div id="mob-ctx-inner" style="margin-top:8px;min-height:80px;display:flex;align-items:center;justify-content:center;">
         <span style="color:var(--mob-ink-3);font-size:13px;">Loading…</span>
       </div>
     </div>
 
+    <!-- ── Protein ── -->
     <div class="mob-card">
       <div class="mob-card-h">Protein</div>
       <div class="mob-kv-grid" id="mob-protein-kv">
@@ -2833,84 +2845,343 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         <div class="mob-kv"><div class="mob-k">TM domains</div><div class="mob-v sm">—</div></div>
         <div class="mob-kv"><div class="mob-k">Signal peptide</div><div class="mob-v sm">—</div></div>
       </div>
+      <div id="mob-protein-product" style="display:none;margin-top:12px;">
+        <div class="mob-k" style="font-family:var(--mob-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mob-ink-3);margin-bottom:5px;">Product</div>
+        <div id="mob-protein-product-text" style="font-size:14px;color:var(--mob-ink);line-height:1.5;"></div>
+      </div>
     </div>
 
+    <!-- ── Structure ── -->
     <div class="mob-card">
       <div class="mob-card-h">Structure</div>
-      <div id="mob-structure-inner" style="margin-top:12px;text-align:center;color:var(--mob-ink-3);font-size:13px;">
+      <div id="mob-structure-inner" style="margin-top:12px;">
         ${thumb
-          ? `<img src="${esc(thumb)}" alt="AlphaFold structure" style="width:100%;max-height:180px;object-fit:contain;border-radius:12px;border:.5px solid var(--mob-line);">`
-          : 'No structure available'}
+          ? `<div id="mob-struct-thumb-wrap" style="position:relative;border-radius:12px;overflow:hidden;border:.5px solid var(--mob-line);">
+               <img id="mob-struct-thumb" src="${esc(thumb)}" alt="AlphaFold structure" style="width:100%;max-height:200px;object-fit:contain;display:block;">
+             </div>`
+          : '<div style="color:var(--mob-ink-3);font-size:13px;font-style:italic;">No structure available</div>'}
       </div>
+      <div id="mob-structure-meta" style="margin-top:10px;"></div>
+      <div id="mob-struct-load-wrap"></div>
     </div>
 
+    <!-- ── Transcriptomics ── -->
     <div class="mob-card">
       <div class="mob-card-h">Transcriptomics</div>
-      <div style="margin-top:10px;">
-        ${gene.expression_pattern
-          ? `<div style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#eef2ef;font-weight:800;font-size:13px;color:var(--mob-ink);">
-               <span style="width:8px;height:8px;border-radius:50%;background:var(--mob-green);"></span>
-               ${esc(gene.expression_pattern)}
-             </div>`
-          : `<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">No expression data</div>`}
-      </div>
+      <div id="mob-transcriptomics-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
     </div>
 
+    <!-- ── EB / RB Proteomics ── -->
     <div class="mob-card">
       <div class="mob-card-h">EB / RB Proteomics</div>
       <div id="mob-proteomics-inner" style="margin-top:12px;font-style:italic;color:var(--mob-ink-3);font-size:14px;">Loading…</div>
     </div>
 
+    <!-- ── Cell Localization ── -->
+    <div class="mob-card">
+      <div class="mob-card-h" id="mob-loc-head">Cell Localization</div>
+      <div id="mob-loc-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+    </div>
+
+    <!-- ── Orthologs ── -->
+    <div class="mob-card">
+      <div class="mob-card-h">Orthologs</div>
+      <div id="mob-orthologs-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+    </div>
+
+    <!-- ── Mutants ── -->
+    <div class="mob-card">
+      <div class="mob-card-h">Mutants</div>
+      <div id="mob-mutants-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+    </div>
+
     <div class="mob-pad-bottom"></div>`;
 
+  // ── Favorite toggle ──
   scroll.querySelector('.mob-fav-btn')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     const btn = e.currentTarget;
     await toggleFavoriteDB('gene', gene.id);
     const nowFav = state.favorites.genes.has(String(gene.id));
     btn.classList.toggle('saved-on', nowFav);
+    btn.style.color = nowFav ? '#e8b400' : 'var(--mob-ink-3)';
     const svg = btn.querySelector('svg');
     if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
     if (nowFav) btn.classList.add('mob-star-pop');
     btn.addEventListener('animationend', () => btn.classList.remove('mob-star-pop'), { once: true });
   });
 
-  if (gene.id) {
-    sb.from('proteins')
-      .select('mass_kd,length_aa,transmembrane_domains,signal_peptide')
-      .eq('gene_id', gene.id)
-      .maybeSingle()
-      .then(({ data: p }) => {
-        const kvEl = scroll.querySelector('#mob-protein-kv');
-        if (kvEl && p) {
-          kvEl.innerHTML = `
-            <div class="mob-kv"><div class="mob-k">Mass</div><div class="mob-v sm">${p.mass_kd ? p.mass_kd.toFixed(1) + ' kDa' : '—'}</div></div>
-            <div class="mob-kv"><div class="mob-k">Length</div><div class="mob-v sm">${p.length_aa ? p.length_aa.toLocaleString() + ' aa' : '—'}</div></div>
-            <div class="mob-kv"><div class="mob-k">TM domains</div><div class="mob-v sm">${p.transmembrane_domains ?? '0'}</div></div>
-            <div class="mob-kv"><div class="mob-k">Signal peptide</div><div class="mob-v sm">${p.signal_peptide ? 'Yes' : 'No'}</div></div>`;
-        }
-      });
+  // ── Genomic context (fast, separate) ──
+  _buildMobGenomicContext(gene, scroll.querySelector('#mob-ctx-inner'));
 
+  if (!gene.id) return;
+
+  // ── Async: fetch all panel data in one round trip ──
+  Promise.all([
     sb.from('proteins')
-      .select('eb_enriched,rb_enriched')
+      .select('mass_kd,length_aa,transmembrane_domains,signal_peptide,eb_enriched,rb_enriched,' +
+              'uniprot_id,localization,localization_source,subcellular_location_sl,subcellular_location_go,' +
+              'alphafold_results(*)')
       .eq('gene_id', gene.id)
-      .maybeSingle()
-      .then(({ data: p }) => {
-        const el = scroll.querySelector('#mob-proteomics-inner');
-        if (!el) return;
-        if (!p || (p.eb_enriched == null && p.rb_enriched == null)) {
-          el.textContent = 'No proteomic data available';
-        } else {
-          el.innerHTML = `
-            <div class="mob-kv-grid">
-              <div class="mob-kv"><div class="mob-k">EB enriched</div><div class="mob-v sm">${p.eb_enriched ? 'Yes' : 'No'}</div></div>
-              <div class="mob-kv"><div class="mob-k">RB enriched</div><div class="mob-v sm">${p.rb_enriched ? 'Yes' : 'No'}</div></div>
-            </div>`;
-        }
+      .maybeSingle(),
+    sb.from('expression_data').select('*').eq('gene_id', gene.id),
+    sb.from('orthologs')
+      .select('id,gene_b:genes!gene_id_b(id,locus_tag,gene_name,strains(common_name,color_hex))')
+      .eq('gene_id_a', gene.id),
+    sb.from('orthologs')
+      .select('id,gene_a:genes!gene_id_a(id,locus_tag,gene_name,strains(common_name,color_hex))')
+      .eq('gene_id_b', gene.id),
+    sb.from('mutants')
+      .select('id,mutant_id,name,mutation_type,is_published,collection')
+      .contains('target_gene_ids', [gene.id])
+      .order('mutant_id'),
+  ]).then(([protRes, exprRes, orthoFwdRes, orthoRevRes, mutRes]) => {
+    if (!scroll.isConnected) return; // navigated away
+
+    const p       = protRes.data;
+    const exprs   = exprRes.data   ?? [];
+    const mutants = mutRes.data    ?? [];
+
+    // Merge orthologs, deduplicate
+    const fwd = (orthoFwdRes.data ?? []).map(o => ({ id: o.id, peer: o.gene_b }));
+    const rev = (orthoRevRes.data ?? []).map(o => ({ id: o.id, peer: o.gene_a }));
+    const seen = new Set(fwd.map(o => o.id));
+    const orthos = [...fwd, ...rev.filter(o => !seen.has(o.id))];
+
+    // ── Protein kv ──
+    const kvEl = scroll.querySelector('#mob-protein-kv');
+    if (kvEl && p) {
+      kvEl.innerHTML = `
+        <div class="mob-kv"><div class="mob-k">Mass</div><div class="mob-v sm">${p.mass_kd ? p.mass_kd.toFixed(1) + ' kDa' : '—'}</div></div>
+        <div class="mob-kv"><div class="mob-k">Length</div><div class="mob-v sm">${p.length_aa ? p.length_aa.toLocaleString() + ' aa' : '—'}</div></div>
+        <div class="mob-kv"><div class="mob-k">TM domains</div><div class="mob-v sm">${p.transmembrane_domains ?? '0'}</div></div>
+        <div class="mob-kv"><div class="mob-k">Signal peptide</div><div class="mob-v sm">${p.signal_peptide ? 'Yes' : 'No'}</div></div>`;
+    }
+    // Product (from gene.product, shown under kv grid)
+    if (gene.product) {
+      const prodWrap = scroll.querySelector('#mob-protein-product');
+      const prodText = scroll.querySelector('#mob-protein-product-text');
+      if (prodWrap && prodText) { prodText.textContent = gene.product; prodWrap.style.display = ''; }
+    }
+
+    // ── Structure ──
+    const afRows  = p?.alphafold_results ?? [];
+    const af3     = afRows.find(r => r.af_version === 'AF3');
+    const bestAf  = af3 ?? afRows.find(r => r.af_version === 'AF2' || r.af_version === 'AFDB') ?? afRows[0];
+    const mmcif   = bestAf?.mmcif_path ?? null;
+    const homolog = bestAf?.top_homolog_description ?? null;
+    const pdbId   = bestAf?.top_homolog_pdb_id ?? null;
+    const inferFn = bestAf?.inferred_function ?? null;
+
+    const metaEl = scroll.querySelector('#mob-structure-meta');
+    if (metaEl && (homolog || inferFn)) {
+      metaEl.innerHTML = `
+        ${homolog ? `<div style="font-size:13px;font-weight:600;color:var(--mob-ink);margin-bottom:2px;">${esc(homolog)}${pdbId ? ` <span style="font-family:var(--mob-mono);font-size:11px;color:var(--mob-ink-3);">${esc(pdbId)}</span>` : ''}</div>` : ''}
+        ${inferFn ? `<div style="font-size:12.5px;color:#444;background:#f0fdf4;border-radius:8px;padding:8px 10px;border-left:3px solid #16a34a;line-height:1.5;margin-top:6px;"><strong style="color:#1a6b4a;">Inferred:</strong> ${esc(inferFn)}</div>` : ''}`;
+    }
+    const loadWrap = scroll.querySelector('#mob-struct-load-wrap');
+    if (loadWrap && mmcif) {
+      loadWrap.innerHTML = `<button id="mob-struct-3d-btn" style="margin-top:12px;width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--mob-line);background:var(--mob-bg-warm);font-family:var(--mob-sans);font-size:14px;font-weight:700;color:var(--mob-green-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        View in 3D
+      </button>`;
+      loadWrap.querySelector('#mob-struct-3d-btn').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.textContent = 'Loading viewer…';
+        btn.disabled = true;
+        const container = document.createElement('div');
+        container.style.cssText = 'position:relative;width:100%;height:320px;border-radius:12px;overflow:hidden;margin-top:12px;background:#111;';
+        loadWrap.appendChild(container);
+        await loadMolstar(container, mmcif);
+        btn.remove();
       });
+    }
+
+    // ── Transcriptomics ──
+    _renderMobTranscriptomics(scroll.querySelector('#mob-transcriptomics-inner'), gene, exprs);
+
+    // ── EB / RB Proteomics ──
+    const protEl = scroll.querySelector('#mob-proteomics-inner');
+    if (protEl) {
+      if (!p || (p.eb_enriched == null && p.rb_enriched == null)) {
+        protEl.textContent = 'No proteomic data available';
+      } else {
+        protEl.innerHTML = `
+          <div class="mob-kv-grid">
+            <div class="mob-kv"><div class="mob-k">EB enriched</div><div class="mob-v sm">${p.eb_enriched ? 'Yes' : 'No'}</div></div>
+            <div class="mob-kv"><div class="mob-k">RB enriched</div><div class="mob-v sm">${p.rb_enriched ? 'Yes' : 'No'}</div></div>
+          </div>`;
+      }
+    }
+
+    // ── Cell Localization ──
+    _renderMobLocalization(scroll, gene, p);
+
+    // ── Orthologs ──
+    const orthoEl = scroll.querySelector('#mob-orthologs-inner');
+    if (orthoEl) {
+      if (!orthos.length) {
+        orthoEl.innerHTML = '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">No orthologs recorded</div>';
+      } else {
+        const rows = orthos.map(o => {
+          const g = o.peer;
+          if (!g) return '';
+          const col = g.strains?.color_hex ?? '#9ca3af';
+          const strainName = g.strains?.common_name ?? '?';
+          const label = g.gene_name ? `${esc(g.locus_tag)} <span style="color:var(--mob-ink-3);">${esc(g.gene_name)}</span>` : `<span style="color:var(--mob-ink-3);">${esc(g.locus_tag)}</span>`;
+          return `<div class="mob-tg-row" data-ortho-id="${g.id}" style="cursor:pointer;border-radius:10px;border:.5px solid var(--mob-line);margin-bottom:7px;">
+            <div style="width:4px;align-self:stretch;border-radius:3px;background:${col};flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;padding:2px 0;">
+              <div style="font-size:10.5px;font-weight:700;color:var(--mob-ink-3);letter-spacing:.04em;">${esc(strainName)}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--mob-ink);margin-top:1px;">${label}</div>
+            </div>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c8cec9" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>`;
+        }).join('');
+        orthoEl.innerHTML = rows;
+        orthoEl.querySelectorAll('[data-ortho-id]').forEach(row => {
+          row.addEventListener('click', () => {
+            const id = row.dataset.orthoId;
+            if (!id) return;
+            sb.from('genes')
+              .select('id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,start_bp,end_bp,strand,functional_category,is_characterized,is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,expression_pattern,strains!inner(common_name,color_hex),proteins(alphafold_results(thumbnail_path))')
+              .eq('id', id).single()
+              .then(({ data }) => { if (data) showGeneDetailMobile(data, _container); });
+          });
+        });
+      }
+    }
+
+    // ── Mutants ──
+    const mutEl = scroll.querySelector('#mob-mutants-inner');
+    if (mutEl) {
+      if (!mutants.length) {
+        mutEl.innerHTML = '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">No mutants target this gene</div>';
+      } else {
+        const TYPE_ACCENT = { transposon:'#059669', deletion:'#dc2626', chimera:'#7c3aed', chemical:'#2563eb', intron:'#ca8a04', recombination:'#db2777' };
+        const rows = mutants.map(m => {
+          const col = TYPE_ACCENT[m.mutation_type] ?? '#8b958f';
+          const pubDot = m.is_published
+            ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(5,150,105,.09);color:#059669;border:1px solid rgba(5,150,105,.2);">Published</span>`
+            : `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(180,83,9,.08);color:#b45309;border:1px solid rgba(180,83,9,.2);">Lab</span>`;
+          return `<div class="mob-tg-row" data-mut-id="${m.id}" style="cursor:pointer;border-radius:10px;border:.5px solid var(--mob-line);margin-bottom:7px;">
+            <div style="width:4px;align-self:stretch;border-radius:3px;background:${col};flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;padding:2px 0;">
+              <div style="font-family:var(--mob-mono);font-size:14px;font-weight:700;color:var(--mob-ink);">${esc(m.name || m.mutant_id)}</div>
+              <div style="font-size:12px;color:var(--mob-ink-3);margin-top:2px;">${esc(m.collection ?? '')} · ${esc(m.mutation_type ?? '')}</div>
+            </div>
+            ${pubDot}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c8cec9" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>`;
+        }).join('');
+        mutEl.innerHTML = rows + `<div style="font-size:11px;color:var(--mob-ink-3);margin-top:4px;">${mutants.length} mutant${mutants.length > 1 ? 's' : ''} targeting this gene</div>`;
+        mutEl.querySelectorAll('[data-mut-id]').forEach(row => {
+          row.addEventListener('click', () => {
+            import('./mutants.js?v=96').then(({ _mobLoadMutantDetail }) => {
+              _mobLoadMutantDetail(row.dataset.mutId);
+            });
+          });
+        });
+      }
+    }
+  }).catch(err => console.warn('[ChlamAtlas] gene detail fetch:', err));
+}
+
+function _renderMobTranscriptomics(el, gene, exprs) {
+  if (!el) return;
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const microarrayRows = exprs.filter(r => r.method === 'microarray');
+  if (!microarrayRows.length) {
+    el.innerHTML = gene.expression_pattern
+      ? `<div style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#eef2ef;font-weight:800;font-size:13px;color:var(--mob-ink);">
+           <span style="width:8px;height:8px;border-radius:50%;background:var(--mob-green);"></span>
+           ${esc(gene.expression_pattern)}
+         </div>`
+      : '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">No expression data</div>';
+    return;
   }
 
-  _buildMobGenomicContext(gene, scroll.querySelector('#mob-ctx-inner'));
+  const TP_ORDER = { T0:0, T1:1, T2:2, T3:3, T4:4, T5:5 };
+  const TP_LABEL = { T0:'1h', T1:'3h', T2:'8h', T3:'16h', T4:'24h', T5:'40h' };
+  const sorted = [...microarrayRows].sort((a, b) => (TP_ORDER[a.timepoint] ?? 99) - (TP_ORDER[b.timepoint] ?? 99));
+  const values = sorted.map(r => r.value ?? 0);
+  const maxVal = Math.max(...values, 1);
+
+  // CT-L2 qualitative (pattern label, no quantitative values)
+  if (values.every(v => v === 0) && sorted[0]?.pattern_label) {
+    const display = String(sorted[0].pattern_label).toUpperCase().replace(/_/g,' ');
+    el.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#eef2ef;font-weight:800;font-size:13px;color:var(--mob-ink);">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--mob-green);"></span>
+        ${esc(display)}
+      </div>
+      <div style="font-size:11px;color:var(--mob-ink-3);margin-top:6px;font-style:italic;">Qualitative · Nicholson et al. 2003</div>`;
+    return;
+  }
+
+  // CT-D quantitative bar chart
+  const bars = sorted.map(r => {
+    const h   = Math.round(((r.value ?? 0) / maxVal) * 44);
+    const pct = Math.max(h, 2);
+    const lbl = TP_LABEL[r.timepoint] ?? r.timepoint;
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+      <div style="height:44px;display:flex;align-items:flex-end;width:100%;">
+        <div title="${lbl}: ${r.value ?? 0}" style="background:var(--mob-green);border-radius:3px 3px 0 0;width:100%;height:${pct}px;opacity:.85;"></div>
+      </div>
+      <div style="font-size:10px;color:var(--mob-ink-3);font-family:var(--mob-mono);margin-top:3px;">${lbl}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div style="display:flex;align-items:flex-end;gap:3px;height:62px;padding-bottom:18px;position:relative;">
+      <div style="position:absolute;bottom:18px;left:0;right:0;height:1px;background:#e5e7eb;"></div>
+      ${bars}
+    </div>
+    <div style="font-size:11px;color:var(--mob-ink-3);margin-top:4px;font-style:italic;">CT-D microarray · Belland et al. 2003 · PMID 12815105</div>`;
+}
+
+function _renderMobLocalization(scroll, gene, protein) {
+  const el     = scroll.querySelector('#mob-loc-inner');
+  const headEl = scroll.querySelector('#mob-loc-head');
+  if (!el) return;
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const source   = protein?.localization_source ?? null;
+  const slTerms  = protein?.subcellular_location_sl ?? [];
+  const goTerms  = protein?.subcellular_location_go ?? [];
+
+  let activeTerms = [];
+  let sourceBadge = '';
+  const badgeHtml = (label, col, bg) =>
+    `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:${bg};color:${col};letter-spacing:.04em;margin-left:auto;">${label}</span>`;
+
+  if (source === 'user') {
+    activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
+    sourceBadge = badgeHtml('Curated', '#065f46', '#d1fae5');
+  } else if (source === 'lab_flag') {
+    activeTerms = [{ id: 'SL-0204', label: 'Secreted' }];
+    sourceBadge = badgeHtml('ChlamAtlas', '#92400e', '#fef3c7');
+  } else if (source === 'uniprot_sl') {
+    activeTerms = slTerms.map(id => ({ id, label: locTermLabel(id) }));
+    sourceBadge = badgeHtml('UniProt', '#6b7280', '#f3f4f6');
+  } else if (source === 'uniprot_go') {
+    activeTerms = goTerms.map(id => ({ id, label: locTermLabel(id) }));
+    sourceBadge = badgeHtml('GO', '#6b7280', '#f3f4f6');
+  }
+
+  if (headEl && sourceBadge) headEl.innerHTML = `Cell Localization ${sourceBadge}`;
+
+  if (!activeTerms.length && !protein?.localization) {
+    el.innerHTML = '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">Location unknown</div>';
+    return;
+  }
+
+  const pills = activeTerms.length
+    ? activeTerms.map(t => `<span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(t.label)}</span>`).join('')
+    : protein?.localization?.split(';').filter(Boolean).map(s => `<span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;">${esc(s.trim())}</span>`).join('') ?? '';
+
+  el.innerHTML = pills
+    ? `<div style="display:flex;flex-wrap:wrap;gap:7px;">${pills}</div>`
+    : '<div style="font-style:italic;color:var(--mob-ink-3);font-size:14px;">Location unknown</div>';
 }
 
 async function _buildMobGenomicContext(gene, inner) {
@@ -2923,8 +3194,8 @@ async function _buildMobGenomicContext(gene, inner) {
     .from('genes')
     .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
     .eq('strain_id', gene.strain_id)
-    .gte('sort_index', gene.sort_index - 5)
-    .lte('sort_index', gene.sort_index + 5)
+    .gte('sort_index', gene.sort_index - 2)
+    .lte('sort_index', gene.sort_index + 2)
     .order('sort_index');
 
   if (!neighbors || neighbors.length === 0) {
@@ -2936,7 +3207,7 @@ async function _buildMobGenomicContext(gene, inner) {
     const isFocal = String(g.id) === String(gene.id);
     const col     = CATEGORY_COLORS[g.functional_category] ?? CATEGORY_COLOR_DEFAULT;
     const bp      = (g.end_bp ?? 0) - (g.start_bp ?? 0);
-    const width   = Math.max(72, Math.min(150, bp * 0.05)) + 'px';
+    const width   = Math.max(52, Math.min(110, bp * 0.04)) + 'px';
     const isPlus  = g.strand === '+' || g.strand === '1' || g.strand === 1;
     const sym     = g.gene_symbol || g.gene_name || g.locus_tag.slice(-6);
     const opacity = isFocal ? '1' : '0.82';
