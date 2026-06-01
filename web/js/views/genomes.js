@@ -3,9 +3,9 @@ import { sb, state, toggleFavoriteDB } from '../client.js?v=82';
 import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=82';
 
 const STRAINS = [
-  { id: 'CT-L2', label: 'CT L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
-  { id: 'CT-D',  label: 'CT D/UW-3', icon: '/design/icons_transparent/CTDicon_transparent.png' },
-  { id: 'CM',    label: 'CM',         icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CT-D',  label: '<i>C. trachomatis</i> D/UW-3', icon: '/design/icons_transparent/CTDicon_transparent.png' },
+  { id: 'CM',    label: '<i>C. muridarum</i> Nigg',      icon: '/design/icons_transparent/CMicon_transparent.png' },
 ];
 
 const ORGANISM_FULL = {
@@ -491,7 +491,7 @@ function _showMobStrainSheet(container) {
           <img src="${s.icon}" alt="${s.id}" style="width:38px;height:38px;object-fit:contain;">
           <div style="flex:1;">
             <div style="font-weight:800;font-size:16px;color:${s.id === 'CT-L2' ? '#2f9e6e' : s.id === 'CT-D' ? '#b14a93' : '#3f7fc4'};">${s.id}</div>
-            <div style="font-size:13px;font-style:italic;color:var(--mob-ink-2);">${s.label}</div>
+            <div style="font-size:13px;color:var(--mob-ink-2);">${s.label}</div>
           </div>
           ${s.id === _strain ? '<span style="color:var(--mob-green);font-weight:800;">✓</span>' : ''}
         </div>`).join('')}
@@ -2860,7 +2860,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     <!-- ── Orthologs ── -->
     <div class="mob-card">
       <div class="mob-card-h">Orthologs</div>
-      <div id="mob-orthologs-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+      <div id="mob-orthologs-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;">Loading…</div>
     </div>
 
     <!-- ── Genomic Context ── -->
@@ -2889,19 +2889,19 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     <!-- ── Cell Localization ── -->
     <div class="mob-card">
       <div class="mob-card-h" id="mob-loc-head">Cell Localization</div>
-      <div id="mob-loc-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+      <div id="mob-loc-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;">Loading…</div>
     </div>
 
     <!-- ── Transcriptomics ── -->
     <div class="mob-card">
       <div class="mob-card-h">Transcriptomics</div>
-      <div id="mob-transcriptomics-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+      <div id="mob-transcriptomics-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;">Loading…</div>
     </div>
 
     <!-- ── EB / RB Proteomics ── -->
     <div class="mob-card">
       <div class="mob-card-h">EB / RB Proteomics</div>
-      <div id="mob-proteomics-inner" style="margin-top:12px;font-style:italic;color:var(--mob-ink-3);font-size:14px;">Loading…</div>
+      <div id="mob-proteomics-inner" style="margin-top:12px;color:var(--mob-ink-3);font-size:14px;">Loading…</div>
     </div>
 
     <!-- ── Structure ── -->
@@ -2912,7 +2912,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           ? `<div id="mob-struct-thumb-wrap" style="position:relative;border-radius:12px;overflow:hidden;border:.5px solid var(--mob-line);">
                <img id="mob-struct-thumb" src="${esc(thumb)}" alt="AlphaFold structure" style="width:100%;max-height:200px;object-fit:contain;display:block;">
              </div>`
-          : '<div style="color:var(--mob-ink-3);font-size:13px;font-style:italic;">No structure available</div>'}
+          : '<div style="color:var(--mob-ink-3);font-size:13px;">No structure available</div>'}
       </div>
       <div id="mob-structure-meta" style="margin-top:10px;"></div>
       <div id="mob-struct-load-wrap"></div>
@@ -2921,7 +2921,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     <!-- ── Mutants ── -->
     <div class="mob-card">
       <div class="mob-card-h">Mutants</div>
-      <div id="mob-mutants-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;font-style:italic;">Loading…</div>
+      <div id="mob-mutants-inner" style="margin-top:10px;color:var(--mob-ink-3);font-size:13px;">Loading…</div>
     </div>
 
     <div class="mob-pad-bottom"></div>`;
@@ -2948,9 +2948,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
   // ── Async: fetch all panel data in one round trip ──
   Promise.all([
     sb.from('proteins')
-      .select('mass_kd,length_aa,transmembrane_domains,signal_peptide,eb_enriched,rb_enriched,' +
-              'uniprot_id,localization,localization_source,subcellular_location_sl,subcellular_location_go,' +
-              'alphafold_results(*)')
+      .select('*,alphafold_results(*)')
       .eq('gene_id', gene.id)
       .maybeSingle(),
     sb.from('expression_data').select('*').eq('gene_id', gene.id),
