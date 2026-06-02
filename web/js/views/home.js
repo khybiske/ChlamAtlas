@@ -1,5 +1,8 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../client.js?v=82';
+import { isMobileViewport } from '../app.js?v=82';
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const ORGANISMS = [
   {
@@ -64,7 +67,227 @@ function countryLatLng(country) {
   return COUNTRY_CENTROIDS[country.toLowerCase().trim()] ?? null;
 }
 
+async function renderHomeMobile(container) {
+  container.innerHTML = `
+    <div>
+      <div class="mob-hero">
+        <chlam-globe-bg variant="globe" tint="#163b2b"></chlam-globe-bg>
+        <div class="mob-hero-inner">
+          <h1>ChlamAtlas</h1>
+          <p>The authoritative research database for <em>Chlamydia</em> — genomics, mutant phenotypes, and structural biology across three model strains.</p>
+        </div>
+      </div>
+
+      <div class="mob-hero-stats">
+        <div class="mob-hstat"><div class="n" id="mob-stat-genes">—</div><div class="l">Genes</div></div>
+        <div class="mob-hstat"><div class="n" id="mob-stat-mutants">—</div><div class="l">Mutants</div></div>
+        <div class="mob-hstat"><div class="n" id="mob-stat-strains">3</div><div class="l">Strains</div></div>
+      </div>
+
+      <div class="mob-home-sec-h">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mob-green-ink);flex-shrink:0;"><path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/></svg>
+        <span class="t">Genomes</span>
+        <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
+      </div>
+      <div id="mob-home-strain-cards"></div>
+
+      <div class="mob-home-sec-h">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mob-green-ink);flex-shrink:0;"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+        <span class="t">Mutants</span>
+        <span style="margin-left:auto;font-size:12px;color:var(--mob-ink-3);font-family:var(--mob-mono);">tap to browse</span>
+      </div>
+      <div id="mob-home-collection-rows"></div>
+
+      <div class="mob-home-sec-h">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--mob-green-ink);flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        <span class="t">Community</span>
+      </div>
+      <div id="mob-home-map" class="mob-map-card">
+        <div id="mob-leaflet-map" style="width:100%;height:100%;"></div>
+      </div>
+
+      <!-- Community stats -->
+      <div style="display:flex;gap:8px;margin:10px 16px 0;">
+        <div class="mob-hstat" style="flex:1;">
+          <div class="n" style="font-size:22px;" id="mob-stat-users">—</div>
+          <div class="l">Users</div>
+        </div>
+        <div class="mob-hstat" style="flex:1;">
+          <div class="n" style="font-size:22px;" id="mob-stat-annotations">—</div>
+          <div class="l">Annotations</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="margin:24px 16px 0;padding:16px 0;border-top:.5px solid var(--mob-line);">
+        <div style="font-family:var(--mob-sans);font-size:13px;font-weight:700;color:var(--mob-ink);">Hybiske Lab</div>
+        <div style="font-size:12px;color:var(--mob-ink-3);margin-top:2px;">University of Washington · Seattle, WA</div>
+        <div style="display:flex;gap:16px;margin-top:10px;">
+          <button id="mob-cite-btn" style="font-size:12.5px;color:var(--mob-green);background:none;border:none;cursor:pointer;padding:0;font-family:var(--mob-sans);font-weight:600;">How to cite</button>
+          <a href="https://github.com/khybiske/ChlamAtlas" target="_blank" rel="noopener" style="font-size:12.5px;color:var(--mob-green);text-decoration:none;font-weight:600;">GitHub</a>
+          <a href="mailto:khybiske@uw.edu" style="font-size:12.5px;color:var(--mob-green);text-decoration:none;font-weight:600;">Contact</a>
+        </div>
+      </div>
+
+      <!-- Citation modal (shared with desktop) -->
+      <div id="mob-citation-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:18px;width:calc(100% - 32px);max-width:360px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+          <div style="padding:16px 20px 14px;background:#163b2b;">
+            <div style="font-family:var(--mob-serif);font-weight:700;font-size:20px;color:#fff;">How to cite</div>
+          </div>
+          <div style="padding:16px 20px;">
+            <p id="mob-citation-text" style="font-family:var(--mob-mono);font-size:12px;line-height:1.6;color:#333;background:#f9f9f9;border-radius:8px;padding:12px;margin:0 0 14px;white-space:pre-wrap;">Hybiske et al., manuscript in preparation.</p>
+            <button id="mob-citation-copy" style="width:100%;background:#163b2b;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:8px;">Copy citation</button>
+            <button id="mob-citation-close" style="width:100%;background:none;border:none;color:#9ca3af;font-size:13px;cursor:pointer;padding:4px;">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mob-pad-bottom"></div>
+    </div>`;
+
+  // Fetch data in parallel
+  const [strainRes, mutRes, geneRes] = await Promise.all([
+    sb.from('strains').select('common_name,genes(count)').eq('is_active', true),
+    sb.from('mutants').select('collection'),
+    sb.from('genes').select('id', { count: 'exact', head: true }),
+  ]);
+
+  const geneCount    = geneRes.count ?? 0;
+  const mutantCounts = {};
+  (mutRes.data ?? []).forEach(m => {
+    mutantCounts[m.collection] = (mutantCounts[m.collection] ?? 0) + 1;
+  });
+  const totalMutants = (mutRes.data ?? []).length;
+
+  const statGenesEl   = container.querySelector('#mob-stat-genes');
+  const statMutantsEl = container.querySelector('#mob-stat-mutants');
+  if (statGenesEl)   statGenesEl.textContent   = geneCount.toLocaleString();
+  if (statMutantsEl) statMutantsEl.textContent  = totalMutants.toLocaleString();
+
+  const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#b14a93', 'CM': '#3f7fc4' };
+  const strainIcons   = {
+    'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
+    'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
+    'CM':    '/design/icons_transparent/CMicon_transparent.png',
+  };
+  const strainSpecies = {
+    'CT-L2': 'C. trachomatis L2/434',
+    'CT-D':  'C. trachomatis D/UW-3',
+    'CM':    'C. muridarum Nigg',
+  };
+  const chevron = `<svg style="margin-left:auto;flex-shrink:0;color:#c8cec9" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+  // Italicize only the genus+species part (e.g. "C. trachomatis"), not the strain suffix
+  const italicSpecies = (sp) => sp.replace(/^([A-Z]\.\s+\w+)/, '<em>$1</em>');
+
+  const strainCards = container.querySelector('#mob-home-strain-cards');
+  if (strainCards && strainRes.data) {
+    strainCards.innerHTML = strainRes.data.map(s => {
+      const icon    = strainIcons[s.common_name]  ?? '';
+      const species = strainSpecies[s.common_name] ?? '';
+      const gCount  = s.genes?.[0]?.count ?? '—';
+      return `
+        <div class="mob-strain-card" data-strain="${esc(s.common_name)}">
+          <img class="sicon" src="${esc(icon)}" alt="${esc(s.common_name)}" onerror="this.style.display='none'" style="margin-left:14px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:15px;color:var(--mob-ink);font-weight:500;margin-bottom:3px;">${italicSpecies(esc(species))}</div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span style="font-weight:700;font-size:13px;color:var(--mob-ink-2);">${esc(s.common_name)}</span>
+              <span style="font-size:12.5px;color:var(--mob-ink-3);">· ${Number(gCount).toLocaleString()} genes</span>
+            </div>
+          </div>
+          ${chevron}
+        </div>`;
+    }).join('');
+
+    strainCards.querySelectorAll('[data-strain]').forEach(card => {
+      card.addEventListener('click', () => {
+        window.__preferredStrain = card.dataset.strain;
+        window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'genomes' } }));
+      });
+    });
+  }
+
+  const COLLECTIONS_MOBILE = [
+    { id: 'CT_L2',    label: 'C. trachomatis', sub: 'CT-L2',   icon: '/design/icons_transparent/L2icon_transparent.png' },
+    { id: 'CM',       label: 'C. muridarum',   sub: 'CM',      icon: '/design/icons_transparent/CMicon_transparent.png' },
+    { id: 'Lucky17',  label: 'Lucky 17',        sub: 'Curated', icon: '/design/icons_transparent/L17icon_transparent.png' },
+    { id: 'Chimeras', label: 'Chimeras',        sub: 'L2 × CM', icon: '/design/icons_transparent/Chimeraicon_transparent.png' },
+  ];
+  const collRows = container.querySelector('#mob-home-collection-rows');
+  if (collRows) {
+    collRows.innerHTML = COLLECTIONS_MOBILE.map(c => {
+      const n = mutantCounts[c.id] ?? 0;
+      // Italicize genus+species labels (C. trachomatis, C. muridarum)
+      const labelHtml = c.label.match(/^[A-Z]\./) ? `<em>${esc(c.label)}</em>` : esc(c.label);
+      return `
+        <div class="mob-minirow" data-collection="${esc(c.id)}">
+          <img src="${esc(c.icon)}" alt="${esc(c.label)}" style="width:34px;height:34px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+          <div style="flex:1;min-width:0;">
+            <div class="mn">${labelHtml}</div>
+            <div class="ms">${esc(c.sub)} · ${n} mutants</div>
+          </div>
+          ${chevron}
+        </div>`;
+    }).join('');
+
+    collRows.querySelectorAll('[data-collection]').forEach(row => {
+      row.addEventListener('click', () => {
+        window.__mutantCollection = row.dataset.collection;
+        window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
+      });
+    });
+  }
+
+  // Wire footer citation modal
+  const citeBtn   = container.querySelector('#mob-cite-btn');
+  const citeModal = container.querySelector('#mob-citation-modal');
+  const citeCopy  = container.querySelector('#mob-citation-copy');
+  const citeClose = container.querySelector('#mob-citation-close');
+  const citeText  = container.querySelector('#mob-citation-text');
+  if (citeBtn && citeModal) {
+    citeBtn.addEventListener('click', () => { citeModal.style.display = 'flex'; });
+    citeClose.addEventListener('click', () => { citeModal.style.display = 'none'; });
+    citeModal.addEventListener('click', (e) => { if (e.target === citeModal) citeModal.style.display = 'none'; });
+    // Load citation text
+    sb.from('site_config').select('value').eq('key','citation').maybeSingle().then(({ data }) => {
+      if (data?.value && citeText) citeText.textContent = data.value;
+    });
+    citeCopy?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(citeText?.textContent ?? ''); citeCopy.textContent = 'Copied!'; }
+      catch { citeCopy.textContent = 'Copy failed'; }
+      setTimeout(() => { citeCopy.textContent = 'Copy citation'; }, 2000);
+    });
+  }
+
+  // Fetch community stats
+  sb.from('users').select('id', { count: 'exact', head: true }).then(({ count }) => {
+    const el = container.querySelector('#mob-stat-users');
+    if (el) el.textContent = (count ?? 0).toLocaleString();
+  });
+  sb.from('annotations').select('id', { count: 'exact', head: true }).then(({ count }) => {
+    const el = container.querySelector('#mob-stat-annotations');
+    if (el) el.textContent = (count ?? 0).toLocaleString();
+  });
+
+  // Community map
+  const mapEl = container.querySelector('#mob-leaflet-map');
+  if (mapEl && window.L) {
+    try {
+      const map = window.L.map(mapEl, { zoomControl: false, attributionControl: true })
+        .setView([30, 0], 1);
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap · © CARTO', maxZoom: 10,
+      }).addTo(map);
+    } catch (e) { /* map not critical */ }
+  }
+}
+
 export async function renderHome(container) {
+  if (isMobileViewport()) {
+    return renderHomeMobile(container);
+  }
   container.innerHTML = `
     <!-- ── Masthead ── -->
     <div class="home-masthead" style="background:#0f4530;overflow:hidden;position:relative;">
@@ -495,8 +718,8 @@ async function loadTopContributors(container) {
       return `
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:13px;line-height:1;">${medals[i]}</span>
-          <span style="font-size:12px;font-weight:600;color:#111;flex:1;">${name}</span>
-          ${lab ? `<span style="font-size:11px;color:#9ca3af;">${lab}</span>` : ''}
+          <span style="font-size:12px;font-weight:600;color:#111;flex:1;">${esc(name)}</span>
+          ${lab ? `<span style="font-size:11px;color:#9ca3af;">${esc(lab)}</span>` : ''}
           <span style="font-size:11px;font-family:'DM Mono',monospace;color:#bbb;margin-left:8px;">${t.count}</span>
         </div>`;
     }).join('');
@@ -533,7 +756,7 @@ async function loadActivityFeed(container) {
     }
 
     const lines = data.map(u =>
-      `${u.title} <span style="color:#bbb">· ${relativeTime(u.created_at)}</span>`
+      `${esc(u.title)} <span style="color:#bbb">· ${relativeTime(u.created_at)}</span>`
     );
 
     let i = 0;

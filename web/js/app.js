@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=82';
-import { renderHome } from './views/home.js?v=81';
-import { renderGenomes } from './views/genomes.js?v=91';
-import { renderMutants } from './views/mutants.js?v=95';
+import { renderHome } from './views/home.js?v=82';
+import { renderGenomes } from './views/genomes.js?v=101';
+import { renderMutants } from './views/mutants.js?v=96';
 import { renderPipeline } from './views/pipeline.js?v=82';
 import { renderRoadmap }  from './views/roadmap.js?v=91';
 import { renderAlignment } from './views/alignment.js?v=97';
@@ -11,6 +11,543 @@ import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
 import { renderBugs } from './views/bugs.js?v=1';
 
 export { sb, state };
+
+// ─── Mobile viewport detection ─────────────────────────────
+export function isMobileViewport() {
+  return window.innerWidth < 640;
+}
+
+// ─── Mobile push/pop detail overlay ────────────────────────
+let _mobDetailStack = [];
+let _mobDetailDrag  = { active: false, x0: 0, dx: 0 };
+
+export function pushMobileDetail({ render, title = '' }) {
+  const overlay = document.getElementById('mob-detail');
+  const scroll  = document.getElementById('mob-detail-scroll');
+  if (!overlay || !scroll) return;
+
+  _mobDetailStack.push({ title });
+  scroll.innerHTML = '';
+  render(scroll);
+
+  _setMobNavTitle(title);
+  _showMobBack(true);
+
+  overlay.style.transition = 'none';
+  overlay.style.transform   = 'translateX(100%)';
+  requestAnimationFrame(() => {
+    overlay.style.transition = 'transform .34s cubic-bezier(.32,.72,0,1)';
+    overlay.style.transform   = 'translateX(0)';
+    overlay.classList.add('open');
+  });
+
+  scroll.onscroll = () => {
+    const show = scroll.scrollTop > 26;
+    document.getElementById('mob-bar')?.classList.toggle('show', show);
+  };
+
+  overlay.removeEventListener('touchstart', _mobSwipeStart);
+  overlay.removeEventListener('touchmove',  _mobSwipeMove);
+  overlay.removeEventListener('touchend',   _mobSwipeEnd);
+  overlay.addEventListener('touchstart', _mobSwipeStart, { passive: true });
+  overlay.addEventListener('touchmove',  _mobSwipeMove,  { passive: true });
+  overlay.addEventListener('touchend',   _mobSwipeEnd,   { passive: false });
+}
+
+export function popMobileDetail() {
+  const overlay = document.getElementById('mob-detail');
+  if (!overlay) return;
+
+  overlay.style.transition = 'transform .3s cubic-bezier(.4,0,.6,1)';
+  overlay.style.transform   = 'translateX(100%)';
+
+  _mobDetailStack.pop();
+  const prev     = _mobDetailStack[_mobDetailStack.length - 1];
+  const hasDetail = _mobDetailStack.length > 0;
+
+  setTimeout(() => {
+    overlay.classList.remove('open');
+    const s = document.getElementById('mob-detail-scroll');
+    if (s) s.innerHTML = '';
+    overlay.removeEventListener('touchstart', _mobSwipeStart);
+    overlay.removeEventListener('touchmove',  _mobSwipeMove);
+    overlay.removeEventListener('touchend',   _mobSwipeEnd);
+
+    _showMobBack(hasDetail);
+    _setMobNavTitle(hasDetail && prev ? prev.title : _currentTabTitle());
+    document.getElementById('mob-bar')?.classList.remove('show');
+  }, 290);
+}
+
+function _mobSwipeStart(e) {
+  const x = e.touches[0].clientX;
+  if (x > 40) return;
+  _mobDetailDrag = { active: true, x0: x, dx: 0 };
+  const overlay = document.getElementById('mob-detail');
+  if (overlay) overlay.style.transition = 'none';
+}
+function _mobSwipeMove(e) {
+  if (!_mobDetailDrag.active) return;
+  const dx = Math.max(0, e.touches[0].clientX - _mobDetailDrag.x0);
+  _mobDetailDrag.dx = dx;
+  const overlay = document.getElementById('mob-detail');
+  if (overlay) overlay.style.transform = `translateX(${dx}px)`;
+}
+function _mobSwipeEnd() {
+  if (!_mobDetailDrag.active) return;
+  _mobDetailDrag.active = false;
+  if (_mobDetailDrag.dx > 90) {
+    popMobileDetail();
+  } else {
+    const overlay = document.getElementById('mob-detail');
+    if (overlay) {
+      overlay.style.transition = 'transform .25s ease';
+      overlay.style.transform   = 'translateX(0)';
+    }
+  }
+}
+
+// ─── Mobile search — bottom sheet ───────────────────────────
+export function pushMobileSearch() {
+  const sheet    = document.getElementById('mob-search');
+  const backdrop = document.getElementById('mob-search-backdrop');
+  if (!sheet) return;
+  sheet.style.transition = 'none';
+  sheet.style.transform   = 'translateY(100%)';
+  requestAnimationFrame(() => {
+    sheet.style.transition = 'transform .34s cubic-bezier(.32,.72,0,1)';
+    sheet.style.transform   = 'translateY(0)';
+    sheet.classList.add('open');
+    backdrop?.classList.add('open');
+  });
+  setTimeout(() => document.getElementById('mob-search-input')?.focus(), 350);
+  backdrop?.addEventListener('click', popMobileSearch, { once: true });
+}
+
+export function popMobileSearch() {
+  const sheet    = document.getElementById('mob-search');
+  const backdrop = document.getElementById('mob-search-backdrop');
+  if (!sheet) return;
+  sheet.style.transition = 'transform .3s cubic-bezier(.4,0,.6,1)';
+  sheet.style.transform   = 'translateY(100%)';
+  backdrop?.classList.remove('open');
+  setTimeout(() => {
+    sheet.classList.remove('open');
+    const inp = document.getElementById('mob-search-input');
+    const res = document.getElementById('mob-search-results');
+    if (inp) inp.value = '';
+    if (res) res.innerHTML = '';
+  }, 290);
+}
+
+// ─── Mobile saved — bottom sheet ────────────────────────────
+export async function pushMobileSaved() {
+  document.getElementById('mob-saved-sheet')?.remove();
+
+  const geneIds   = [...state.favorites.genes];
+  const mutantIds = [...state.favorites.mutants];
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const chev = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+  const MOB_TYPE_COLORS = { deletion:'#C0392B', transposon:'#059669', chimera:'#8466C4', chemical:'#2563eb', intron:'#ca8a04', recombination:'#8466C4' };
+
+  const [genesRes, mutantsRes] = await Promise.all([
+    geneIds.length   ? sb.from('genes').select('id,locus_tag,gene_name,functional_category,proteins(alphafold_results(thumbnail_path))').in('id', geneIds)       : Promise.resolve({ data: [] }),
+    mutantIds.length ? sb.from('mutants').select('id,mutant_id,name,collection,mutation_type').in('id', mutantIds) : Promise.resolve({ data: [] }),
+  ]);
+
+  const genes   = genesRes.data   ?? [];
+  const mutants = mutantsRes.data ?? [];
+
+  const secH = (label, n) => `<div class="mob-section-h" style="position:static;background:var(--mob-paper);">${esc(label)} <span class="mob-sh-count">· ${n}</span></div>`;
+
+  const gRows = genes.map((g, i) => {
+    const thumb = g.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
+    return `<div class="mob-grow" data-saved-gene="${g.id}" style="background:var(--mob-paper);">
+      <div class="mob-bar" style="background:#2f9e6e;"></div>
+      <div class="mob-thumb mob-stile">${thumb ? `<img src="${esc(thumb)}" alt="">` : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><circle cx="12" cy="12" r="8"/></svg>'}</div>
+      <div class="mob-meta"><div class="mob-gname">${esc(g.gene_name || g.locus_tag)}<span class="mob-loc">${g.gene_name ? esc(g.locus_tag) : ''}</span></div><div class="mob-gfunc">${esc(g.functional_category ?? '')}</div></div>
+      <span class="mob-chev">${chev}</span>${i < genes.length - 1 ? '<div class="mob-sep"></div>' : ''}
+    </div>`;
+  }).join('');
+
+  const mRows = mutants.map((m, i) => {
+    const col = MOB_TYPE_COLORS[m.mutation_type] ?? '#8b958f';
+    const glyph = m.mutation_type === 'deletion' ? 'Δ' : (m.mutation_type === 'chimera' || m.mutation_type === 'recombination') ? '×' : '::';
+    return `<div class="mob-grow" data-saved-mut="${m.id}" style="background:var(--mob-paper);">
+      <div class="mob-bar" style="background:${col};"></div>
+      <div class="mob-thumb mob-stile" style="background:${col}14;display:grid;place-items:center;font-family:var(--mob-mono);font-weight:600;font-size:16px;color:${col};">${glyph}</div>
+      <div class="mob-meta"><div class="mob-gname" style="font-family:var(--mob-mono);font-weight:600;">${esc(m.name || m.mutant_id)}</div><div class="mob-gfunc">${esc(m.collection ?? '')}</div></div>
+      <span class="mob-chev">${chev}</span>${i < mutants.length - 1 ? '<div class="mob-sep"></div>' : ''}
+    </div>`;
+  }).join('');
+
+  const empty = `<div style="padding:28px 20px;text-align:center;color:var(--mob-ink-3);font-size:14px;">Nothing saved yet.<br>Tap ★ on any gene or mutant.</div>`;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-saved-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()" style="max-height:76vh;overflow-y:auto;padding:10px 0 calc(env(safe-area-inset-bottom,14px)+12px);">
+      <div class="mob-sheet-handle"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 20px 12px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#e8b400" stroke="#e8b400" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span style="font-weight:800;font-size:17px;color:var(--mob-ink);">Saved</span>
+        <span style="color:var(--mob-ink-3);font-size:13px;font-weight:600;">· ${genes.length + mutants.length}</span>
+        <button id="mob-saved-close" style="margin-left:auto;width:30px;height:30px;border-radius:50%;border:none;background:#f0f2f0;display:grid;place-items:center;cursor:pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      ${genes.length || mutants.length
+        ? (genes.length   ? secH('Genes',   genes.length)   + `<div style="background:var(--mob-paper);">${gRows}</div>` : '')
+        + (mutants.length ? secH('Mutants', mutants.length) + `<div style="background:var(--mob-paper);">${mRows}</div>` : '')
+        : empty}
+    </div>`;
+
+  backdrop.addEventListener('click', () => backdrop.remove());
+  backdrop.querySelector('#mob-saved-close')?.addEventListener('click', (e) => { e.stopPropagation(); backdrop.remove(); });
+  backdrop.querySelectorAll('[data-saved-gene]').forEach(row => {
+    row.addEventListener('click', () => { backdrop.remove(); window.__openGeneId = row.dataset.savedGene; activateTab('genomes'); });
+  });
+  backdrop.querySelectorAll('[data-saved-mut]').forEach(row => {
+    row.addEventListener('click', () => { backdrop.remove(); _mobLoadMutantDetail(row.dataset.savedMut); });
+  });
+  document.body.appendChild(backdrop);
+}
+
+// ─── Collapsing nav bar ─────────────────────────────────────
+const _TAB_TITLES = {
+  home: 'ChlamAtlas', genomes: 'Genomes', mutants: 'Mutants',
+  pipeline: 'Pipeline', tools: 'Tools',
+};
+
+function _currentTabTitle() {
+  return _TAB_TITLES[state.currentTab] ?? 'ChlamAtlas';
+}
+
+function _setMobNavTitle(title) {
+  const el = document.getElementById('mob-bar-title');
+  if (el) el.textContent = title;
+}
+
+function _showMobBack(show) {
+  const left = document.getElementById('mob-nav-left');
+  if (!left) return;
+  if (show) {
+    left.innerHTML = `
+      <button class="mob-gbtn" id="mob-back-btn" aria-label="Back">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>`;
+    document.getElementById('mob-back-btn').addEventListener('click', popMobileDetail);
+  } else {
+    left.innerHTML = '';
+  }
+}
+
+export function onMobScroll(scrollEl, threshold, title) {
+  scrollEl.addEventListener('scroll', () => {
+    const show = scrollEl.scrollTop > threshold;
+    document.getElementById('mob-bar')?.classList.toggle('show', show);
+  }, { passive: true });
+  _setMobNavTitle(title);
+}
+
+// ─── Mobile shell initializer ────────────────────────────────
+function updateMobPipelineVisibility() {
+  const tab = document.getElementById('mob-tab-pipeline');
+  if (!tab) return;
+  tab.style.display = ['lab_member', 'admin'].includes(state.userRole) ? '' : 'none';
+}
+
+function initMobileShell() {
+  if (!isMobileViewport()) return;
+
+  document.getElementById('mob-btn-search')?.addEventListener('click', pushMobileSearch);
+  document.getElementById('mob-search-back')?.addEventListener('click', popMobileSearch);
+
+  const searchInput   = document.getElementById('mob-search-input');
+  const searchResults = document.getElementById('mob-search-results');
+  if (searchInput && searchResults) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) { searchResults.innerHTML = ''; return; }
+      _renderMobSearchResults(q, searchResults);
+    });
+  }
+
+  document.getElementById('mob-btn-saved')?.addEventListener('click', () => {
+    pushMobileSaved();
+  });
+
+  document.getElementById('mob-btn-account')?.addEventListener('click', () => {
+    if (!state.user) { showAuthModal('signin'); return; }
+    _showMobAccountSheet();
+  });
+
+  document.querySelectorAll('.mob-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (!tab) return;
+
+      if (tab === 'tools') { _showMobToolsSheet(); return; }
+
+      if (_mobDetailStack.length > 0) {
+        const overlay = document.getElementById('mob-detail');
+        if (overlay) {
+          overlay.classList.remove('open');
+          overlay.style.transform = 'translateX(100%)';
+        }
+        _mobDetailStack = [];
+        _showMobBack(false);
+      }
+
+      activateTab(tab);
+      document.getElementById('mob-bar')?.classList.remove('show');
+      _setMobNavTitle(_TAB_TITLES[tab] ?? tab);
+    });
+  });
+
+  const _MOB_NAV_TABS = new Set(['home','genomes','mutants','pipeline','tools']);
+
+  window.__activateTabHook = (name) => {
+    // Sync mob-tab-btn active states
+    document.querySelectorAll('.mob-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === name);
+    });
+
+    const left = document.getElementById('mob-nav-left');
+    if (!left) return;
+
+    if (!_MOB_NAV_TABS.has(name) && !_mobDetailStack.length) {
+      // Tab has no mobile nav button (roadmap, bugs, alignment, etc.)
+      // Show a back-to-home button so the user isn't stranded
+      left.innerHTML = `
+        <button class="mob-gbtn" id="mob-back-btn" aria-label="Back">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>`;
+      document.getElementById('mob-back-btn').addEventListener('click', () => {
+        activateTab('home');
+      });
+    } else if (_MOB_NAV_TABS.has(name) && !_mobDetailStack.length) {
+      left.innerHTML = '';
+    }
+  };
+
+  // Apply active state for the tab that was already activated before this hook was registered
+  window.__activateTabHook(state.currentTab);
+
+  updateMobPipelineVisibility();
+}
+
+// ─── Mobile tools bottom sheet ───────────────────────────────
+function _showMobToolsSheet() {
+  document.getElementById('mob-tools-sheet')?.remove();
+
+  const rowStyle = `display:flex;align-items:center;gap:13px;padding:13px 4px;border-top:.5px solid #f0f0f0;cursor:pointer;font-size:14.5px;font-weight:600;color:#18221c;`;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-tools-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()" style="padding-bottom:calc(env(safe-area-inset-bottom,14px)+12px);">
+      <div class="mob-sheet-handle"></div>
+      <div style="display:flex;align-items:center;padding:4px 4px 12px;">
+        <span style="font-weight:800;font-size:17px;color:#18221c;flex:1;">Tools</span>
+        <button id="mob-tools-close" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f2f0;display:grid;place-items:center;cursor:pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="mob-tools-genome-align" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/></svg>
+        Genome Alignment
+      </div>
+      <div id="mob-tools-seq-align" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/></svg>
+        Sequence Alignment
+      </div>
+      <div id="mob-tools-struct-align" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg>
+        Structure Alignment
+      </div>
+    </div>`;
+
+  const close = () => backdrop.remove();
+  backdrop.addEventListener('click', close);
+
+  const wire = (id, tabName) => backdrop.querySelector('#' + id)?.addEventListener('click', (e) => {
+    e.stopPropagation(); close(); activateTab(tabName);
+  });
+
+  backdrop.querySelector('#mob-tools-close')?.addEventListener('click', (e) => { e.stopPropagation(); close(); });
+  wire('mob-tools-genome-align', 'genome-alignment');
+  wire('mob-tools-seq-align',    'alignment');
+  wire('mob-tools-struct-align', 'structure-alignment');
+
+  document.body.appendChild(backdrop);
+}
+
+// ─── Mobile account bottom sheet ────────────────────────────
+function _showMobAccountSheet() {
+  document.getElementById('mob-account-sheet')?.remove();
+
+  const profile  = state.userProfile;
+  const name     = profile?.display_name || (state.user?.email ?? '').split('@')[0];
+  const email    = state.user?.email ?? '';
+  const role     = state.userRole;
+  const roleLabels = { admin: 'Admin', lab_member: 'Lab member', community: 'Community' };
+  const roleColors = { admin: '#163b2b', lab_member: '#1d6f4a', community: '#6b7280' };
+
+  const initial  = name.charAt(0).toUpperCase();
+  const isAdmin  = role === 'admin';
+  const isCom    = role === 'community';
+  const hasRequest = profile?.role_request;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-account-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+
+  const rowStyle = `display:flex;align-items:center;gap:13px;padding:13px 4px;border-top:.5px solid #f0f0f0;cursor:pointer;font-size:14.5px;font-weight:600;color:#18221c;`;
+
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()" style="padding-bottom:calc(env(safe-area-inset-bottom,14px)+12px);">
+      <div class="mob-sheet-handle"></div>
+      <!-- Identity header -->
+      <div style="display:flex;align-items:center;gap:12px;padding:4px 4px 14px;">
+        <div style="width:42px;height:42px;border-radius:50%;background:#163b2b;color:#fff;display:grid;place-items:center;font-size:18px;font-weight:700;flex-shrink:0;">${initial}</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:700;font-size:15.5px;color:#18221c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+          <div style="font-size:11.5px;color:#8b958f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${email}</div>
+          <span style="display:inline-block;margin-top:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:${roleColors[role]??'#6b7280'};border-radius:4px;padding:2px 7px;">${roleLabels[role]??role}</span>
+        </div>
+        <button id="mob-acct-close" style="width:30px;height:30px;border-radius:50%;border:none;background:#f0f2f0;display:grid;place-items:center;cursor:pointer;flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <!-- Menu rows -->
+      <div id="mob-acct-my-account" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 2v2"/><path d="M17.915 22a6 6 0 0 0-12 0"/><path d="M8 2v2"/><circle cx="12" cy="12" r="4"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+        My account
+      </div>
+      ${isCom && !hasRequest ? `<div id="mob-acct-request" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="15" r="5"/><path d="M21 3l-9.4 9.4M17 3h4v4"/></svg>
+        Request lab access
+      </div>` : isCom && hasRequest ? `<div style="padding:11px 4px;border-top:.5px solid #f0f0f0;font-size:13px;color:#9ca3af;font-style:italic;">Lab access request pending</div>` : ''}
+      ${isAdmin ? `<div id="mob-acct-admin" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>
+        Manage users
+      </div>` : ''}
+      <div id="mob-acct-whats-new" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg>
+        What's new
+      </div>
+      <div id="mob-acct-bugs" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-9"/><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"/><path d="M14.12 3.88 16 2"/><path d="M21 21a4 4 0 0 0-3.81-4"/><path d="M21 5a4 4 0 0 1-3.55 3.97"/><path d="M22 13h-4"/><path d="M3 21a4 4 0 0 1 3.81-4"/><path d="M3 5a4 4 0 0 0 3.55 3.97"/><path d="M6 13H2"/><path d="m8 2 1.88 1.88"/><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13"/></svg>
+        Bug reports
+      </div>
+      <div id="mob-acct-signout" style="${rowStyle}color:#c0392b;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </div>
+    </div>`;
+
+  const close = () => backdrop.remove();
+  backdrop.addEventListener('click', close);
+
+  const wire = (id, fn) => backdrop.querySelector('#' + id)?.addEventListener('click', (e) => { e.stopPropagation(); close(); fn(); });
+
+  backdrop.querySelector('#mob-acct-close')?.addEventListener('click', (e) => { e.stopPropagation(); close(); });
+  wire('mob-acct-my-account', () => showAccountModal());
+  wire('mob-acct-request',    () => requestLabAccess?.());
+  wire('mob-acct-admin',      () => showAdminPanel?.());
+  wire('mob-acct-whats-new',  () => activateTab('roadmap'));
+  wire('mob-acct-bugs',       () => activateTab('bugs'));
+  wire('mob-acct-signout',    () => signOut());
+
+  document.body.appendChild(backdrop);
+}
+
+async function _renderMobSearchResults(q, container) {
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const safeQ = esc(q);
+  const chev = `<span class="mob-chev"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>`;
+
+  container.innerHTML = '<div style="padding:12px 20px;font-size:13px;color:var(--mob-ink-3)">Searching…</div>';
+
+  const [geneRes, mutRes] = await Promise.all([
+    sb.from('genes')
+      .select('id,locus_tag,gene_name,gene_symbol,functional_category,proteins(alphafold_results(thumbnail_path))')
+      .or(`locus_tag.ilike.%${q}%,gene_name.ilike.%${q}%,gene_symbol.ilike.%${q}%,product.ilike.%${q}%`)
+      .limit(20),
+    sb.from('mutants')
+      .select('id,mutant_id,name,mutation_type,collection')
+      .or(`mutant_id.ilike.%${q}%,name.ilike.%${q}%`)
+      .limit(10),
+  ]);
+
+  const genes   = geneRes.data   ?? [];
+  const mutants = mutRes.data    ?? [];
+
+  if (!genes.length && !mutants.length) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mob-ink-3);font-size:14px;">No results for "${safeQ}"</div>`;
+    return;
+  }
+
+  const MOB_TYPE_COLORS = { deletion:'#C0392B', transposon:'#059669', chimera:'#8466C4', chemical:'#2563eb', intron:'#ca8a04', recombination:'#8466C4' };
+
+  const geneRows = genes.map((g, i) => {
+    const thumb = g.proteins?.alphafold_results?.find(r => r.thumbnail_path)?.thumbnail_path;
+    return `
+      <div class="mob-grow" data-mob-search-gene="${g.id}">
+        <div class="mob-bar" style="background:#2f9e6e;"></div>
+        <div class="mob-thumb mob-stile">
+          ${thumb ? `<img src="${esc(thumb)}" alt="">` : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><circle cx="12" cy="12" r="8"/></svg>'}
+        </div>
+        <div class="mob-meta">
+          <div class="mob-gname">${esc(g.gene_name || g.gene_symbol || g.locus_tag)}<span class="mob-loc">${g.gene_name ? esc(g.locus_tag) : ''}</span></div>
+          <div class="mob-gfunc">${esc(g.functional_category ?? '')}</div>
+        </div>
+        ${chev}
+        ${i < genes.length - 1 ? '<div class="mob-sep"></div>' : ''}
+      </div>`;
+  }).join('');
+
+  const mutRows = mutants.map((m, i) => {
+    const col = MOB_TYPE_COLORS[m.mutation_type] ?? '#8b958f';
+    return `
+      <div class="mob-grow" data-mob-search-mut="${m.id}">
+        <div class="mob-bar" style="background:${col};"></div>
+        <div class="mob-thumb mob-stile" style="background:${col}14;box-shadow:inset 0 0 0 1px ${col}33;display:grid;place-items:center;font-family:var(--mob-mono);font-weight:600;font-size:16px;color:${col};">
+          ${m.mutation_type === 'deletion' ? 'Δ' : m.mutation_type === 'chimera' || m.mutation_type === 'recombination' ? '×' : '::'}
+        </div>
+        <div class="mob-meta">
+          <div class="mob-gname" style="font-family:var(--mob-mono);font-weight:600;">${esc(m.name || m.mutant_id)}</div>
+          <div class="mob-gfunc">${esc(m.collection ?? '')} · ${esc(m.mutation_type ?? '')}</div>
+        </div>
+        ${chev}
+        ${i < mutants.length - 1 ? '<div class="mob-sep"></div>' : ''}
+      </div>`;
+  }).join('');
+
+  const secH = (label, n) => `<div class="mob-section-h" style="position:static;">${label} <span class="mob-sh-count">· ${n}</span></div>`;
+
+  container.innerHTML = `<div style="background:#fff;">
+    ${genes.length   ? secH('Genes',   genes.length)   + geneRows   : ''}
+    ${mutants.length ? secH('Mutants', mutants.length) + mutRows    : ''}
+  </div>`;
+
+  container.querySelectorAll('[data-mob-search-gene]').forEach(row => {
+    row.addEventListener('click', () => {
+      popMobileSearch();
+      window.__openGeneId = row.dataset.mobSearchGene;
+      activateTab('genomes');
+    });
+  });
+  container.querySelectorAll('[data-mob-search-mut]').forEach(row => {
+    row.addEventListener('click', () => {
+      popMobileSearch();
+      _mobLoadMutantDetail(row.dataset.mobSearchMut);
+    });
+  });
+}
 
 // ─── Nav stub buttons ──────────────────────────────────────
 function wireNavStubs() {
@@ -107,6 +644,7 @@ function activateTab(name) {
   }
 
   history.replaceState(null, '', `#/${name}`);
+  window.__activateTabHook?.(name);
 }
 
 // Used by the Pipeline tab to navigate directly to a specific mutant record,
@@ -656,6 +1194,7 @@ function updateNavVisibility() {
   document.querySelectorAll('[data-tab="pipeline"]').forEach(btn => {
     btn.style.display = showPipeline ? '' : 'none';
   });
+  updateMobPipelineVisibility();
 }
 
 // ─── Auth modal ────────────────────────────────────────────
@@ -1226,3 +1765,4 @@ updateNavVisibility();
 wireNavStubs();
 const _hash = location.hash.replace(/^#\/?/, '');
 activateTab(TABS.includes(_hash) ? _hash : 'home');
+initMobileShell();
