@@ -425,7 +425,7 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: var(--mob-bg);
+  background: #fff;
   transform: translateX(100%);
   transition: transform .34s cubic-bezier(.32,.72,0,1);
   will-change: transform;
@@ -443,7 +443,37 @@
   scrollbar-width: none;
   padding-top: var(--mob-nav-h);
   padding-bottom: calc(var(--mob-tab-h) + 8px);
+  background: #fff;
 }
+
+/* ── Gene detail: section layout (card-free) ── */
+.mob-det-sec {
+  padding: 18px 16px 20px;
+  border-top: 1px solid var(--mob-line);
+}
+.mob-det-h {
+  font-family: var(--mob-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mob-green-ink);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* Contained card (structure viewer, localization diagram) */
+.mob-det-card {
+  background: var(--mob-bg-warm);
+  border-radius: 14px;
+  border: .5px solid var(--mob-line);
+  overflow: hidden;
+}
+/* Gene map: flush full-width, horizontally scrollable */
+.mob-det-sec--map {
+  padding: 18px 0 20px;
+}
+.mob-det-sec--map .mob-det-h { padding: 0 16px; }
 #mob-detail-scroll::-webkit-scrollbar { display: none; }
 
 /* Search — bottom sheet (slides up from bottom) */
@@ -752,7 +782,7 @@
   grid-auto-flow: column;
   grid-template-rows: 22px 30px 0px 30px 22px;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 16px;
   min-width: max-content;
 }
 .mob-ctx-track::before {
