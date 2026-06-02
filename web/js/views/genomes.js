@@ -214,23 +214,7 @@ function _renderMobileGeneList(container) {
           placeholder="Search genes, locus, products…" />
         <button id="mob-gene-search-clear" style="display:none;background:none;border:none;color:var(--mob-ink-3);cursor:pointer;padding:0;font-size:14px;">✕</button>
       </div>
-      <div class="mob-chip-row" style="padding:0;">
-        <div class="mob-seg" id="mob-gene-sort">
-          <button class="mob-seg-btn active" data-sort="locus_tag">Locus</button>
-          <button class="mob-seg-btn" data-sort="gene_name">A–Z</button>
-          <button class="mob-seg-btn" data-sort="functional_category">Function</button>
-        </div>
-        <div style="width:.5px;background:var(--mob-line);margin:6px 0;flex-shrink:0;"></div>
-        <button class="mob-chip active" data-filter="all">All</button>
-        <button class="mob-chip" data-filter="characterized">Characterized</button>
-        <button class="mob-chip" data-filter="inc">
-          <span class="mob-dot" style="background:#E4B47E;"></span>Inc
-        </button>
-        <button class="mob-chip" data-filter="secreted">
-          <span class="mob-dot" style="background:#00A551;"></span>Secreted
-        </button>
-        <button class="mob-chip" data-filter="hypothetical">Hypothetical</button>
-      </div>
+      <div id="filter-bar" style="flex-shrink:0;"></div>
     </div>
 
     <div id="mob-gene-list" style="background:var(--mob-bg);"></div>
@@ -254,33 +238,12 @@ function _renderMobileGeneList(container) {
     _offset = 0; _mobFetchGenes(container);
   });
 
-  container.querySelectorAll('#mob-gene-sort .mob-seg-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('#mob-gene-sort .mob-seg-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      _sortField = btn.dataset.sort;
-      _sortAsc   = true;
-      _offset    = 0;
-      _mobFetchGenes(container);
-    });
-  });
+  const mobFetchFn = c => _mobFetchGenes(c);
+  renderFilterBar(container, false, mobFetchFn);
 
-  container.querySelectorAll('.mob-chip[data-filter]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      container.querySelectorAll('.mob-chip[data-filter]').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      const f = chip.dataset.filter;
-      _filters = { favorites: false, characterized: false, hypothetical: false,
-                   inc: false, membrane: false, secreted: false, dnaBinding: false,
-                   hasAf3: false, hasCrystal: false };
-      if (f === 'characterized') _filters.characterized = true;
-      if (f === 'inc')           _filters.inc           = true;
-      if (f === 'secreted')      _filters.secreted      = true;
-      if (f === 'hypothetical')  _filters.hypothetical  = true;
-      _categoryFilter = null;
-      _offset = 0;
-      _mobFetchGenes(container);
-    });
+  // Dismiss sort dropdown on outside click (same as desktop)
+  document.addEventListener('click', () => {
+    container.querySelector('#sort-dropdown')?.style.setProperty('display', 'none');
   });
 
   container.querySelector('#mob-strain-switch-btn').addEventListener('click', () => {
@@ -301,15 +264,23 @@ async function _mobFetchGenes(container) {
     list.innerHTML = '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;">Loading…</div>';
   }
 
+  const structFilterActive = _filters.hasAf3 || _filters.hasCrystal;
+  const proteinsJoin = structFilterActive
+    ? 'proteins!inner(has_af3_structure,has_crystal_structure,' +
+      'subcellular_location_sl,subcellular_location_go,alphafold_results(thumbnail_path))'
+    : 'proteins(has_af3_structure,has_crystal_structure,' +
+      'subcellular_location_sl,subcellular_location_go,alphafold_results(thumbnail_path))';
+
   let query = sb
     .from('genes')
     .select(
       'id,locus_tag,gene_name,gene_symbol,product,functional_category,' +
       'is_characterized,is_hypothetical,is_t3_secreted,is_membrane_protein,' +
+      'is_dna_binding,eb_enriched,rb_enriched,expression_pattern,' +
       'sort_index,strand,start_bp,end_bp,strain_id,updated_at,updated_by,' +
       'dna_sequence,' +
       'strains!inner(common_name),' +
-      'proteins(alphafold_results(thumbnail_path))',
+      proteinsJoin,
       { count: 'exact' }
     )
     .eq('strains.common_name', _strain)
@@ -322,11 +293,25 @@ async function _mobFetchGenes(container) {
       `gene_symbol.ilike.%${_search}%,product.ilike.%${_search}%`
     );
   }
-  if (_filters.characterized) query = query.eq('is_characterized', true);
-  if (_filters.hypothetical)  query = query.eq('is_hypothetical',  true);
-  if (_filters.inc)           query = query.eq('functional_category', 'Inclusion membrane protein');
-  if (_filters.secreted)      query = query.eq('is_t3_secreted', true);
-  if (_categoryFilter)        query = query.eq('functional_category', _categoryFilter);
+  if (_filters.characterized)  query = query.eq('is_characterized', true);
+  if (_filters.hypothetical)   query = query.eq('is_hypothetical',  true);
+  if (_filters.inc)            query = query.eq('functional_category', 'Inclusion membrane protein');
+  if (_filters.membrane)       query = query.eq('is_membrane_protein', true);
+  if (_filters.secreted)       query = query.eq('is_t3_secreted', true);
+  if (_filters.dnaBinding)     query = query.eq('is_dna_binding', true);
+  if (_filters.hasAf3)         query = query.eq('proteins.has_af3_structure', true);
+  if (_filters.hasCrystal)     query = query.eq('proteins.has_crystal_structure', true);
+  if (_categoryFilter)         query = query.eq('functional_category', _categoryFilter);
+  if (_expressionFilter)       query = query.eq('expression_pattern', _expressionFilter);
+  if (_ebRbFilter === 'eb')    query = query.eq('eb_enriched', true);
+  if (_ebRbFilter === 'rb')    query = query.eq('rb_enriched', true);
+  if (_locationFilter) {
+    if (_locationFilter.startsWith('GO:')) {
+      query = query.filter('proteins.subcellular_location_go', 'cs', `{${_locationFilter}}`);
+    } else {
+      query = query.filter('proteins.subcellular_location_sl', 'cs', `{${_locationFilter}}`);
+    }
+  }
 
   let data, count;
   try {
@@ -348,11 +333,16 @@ async function _mobFetchGenes(container) {
   _hasMore = _offset + data.length < _total;
   _offset += data.length;
 
+  // Apply favorites filter client-side
+  const rows = _filters.favorites
+    ? data.filter(g => state.favorites.genes.has(String(g.id)))
+    : data;
+
   const countEl = container.querySelector('#mob-gene-count');
   if (countEl) countEl.textContent = `${_total.toLocaleString()} genes`;
 
   const isFirstPage = (_offset - data.length) === 0;
-  const html = _mobGroupAndRenderGenes(data);
+  const html = _mobGroupAndRenderGenes(rows);
   if (isFirstPage) {
     list.innerHTML = html || '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;text-align:center;">No genes found.</div>';
   } else {
@@ -673,7 +663,8 @@ const SORT_OPTIONS = [
   { field: 'sort_index', asc: true,  label: 'Genomic order' },
 ];
 
-function renderFilterBar(container, expandMore = false) {
+function renderFilterBar(container, expandMore = false, fetchFn = null) {
+  const doFetch = fetchFn ?? ((c) => fetchGenes(c, true));
   const bar = container.querySelector('#filter-bar');
   if (!bar) return;
 
@@ -827,8 +818,8 @@ function renderFilterBar(container, expandMore = false) {
       _sortField = btn.dataset.sortField;
       _sortAsc   = btn.dataset.sortAsc === 'true';
       _offset = 0;
-      renderFilterBar(container);
-      fetchGenes(container, true);
+      renderFilterBar(container, false, doFetch);
+      doFetch(container);
     });
   });
 
@@ -837,7 +828,7 @@ function renderFilterBar(container, expandMore = false) {
     btn.addEventListener('click', () => {
       const id = btn.dataset.section;
       _expandedSections[id] = !secOpen[id];
-      renderFilterBar(container, true);
+      renderFilterBar(container, true, doFetch);
     });
   });
 
@@ -847,8 +838,8 @@ function renderFilterBar(container, expandMore = false) {
       const key = btn.dataset.filter;
       _filters[key] = !_filters[key];
       _offset = 0;
-      renderFilterBar(container, startOpen);
-      fetchGenes(container, true);
+      renderFilterBar(container, startOpen, doFetch);
+      doFetch(container);
     });
   });
 
@@ -858,8 +849,8 @@ function renderFilterBar(container, expandMore = false) {
       const val = btn.dataset.catFilter;
       _categoryFilter = _categoryFilter === val ? null : val;
       _offset = 0;
-      renderFilterBar(container, true);
-      fetchGenes(container, true);
+      renderFilterBar(container, true, doFetch);
+      doFetch(container);
     });
   });
 
@@ -867,8 +858,8 @@ function renderFilterBar(container, expandMore = false) {
   bar.querySelector('[data-clear-category]')?.addEventListener('click', () => {
     _categoryFilter = null;
     _offset = 0;
-    renderFilterBar(container);
-    fetchGenes(container, true);
+    renderFilterBar(container, false, doFetch);
+    doFetch(container);
   });
 
   // Clear location filter (appears in both main bar and More panel)
@@ -876,8 +867,8 @@ function renderFilterBar(container, expandMore = false) {
     btn.addEventListener('click', () => {
       _locationFilter = null;
       _offset = 0;
-      renderFilterBar(container);
-      fetchGenes(container, true);
+      renderFilterBar(container, false, doFetch);
+      doFetch(container);
     });
   });
 
@@ -887,8 +878,8 @@ function renderFilterBar(container, expandMore = false) {
       const val = btn.dataset.exprFilter;
       _expressionFilter = _expressionFilter === val ? null : val;
       _offset = 0;
-      renderFilterBar(container, true);
-      fetchGenes(container, true);
+      renderFilterBar(container, true, doFetch);
+      doFetch(container);
     });
   });
 
@@ -896,8 +887,8 @@ function renderFilterBar(container, expandMore = false) {
   bar.querySelector('[data-clear-expression]')?.addEventListener('click', () => {
     _expressionFilter = null;
     _offset = 0;
-    renderFilterBar(container);
-    fetchGenes(container, true);
+    renderFilterBar(container, false, doFetch);
+    doFetch(container);
   });
 
   // EB/RB proteomics filter chips
@@ -906,8 +897,8 @@ function renderFilterBar(container, expandMore = false) {
       const val = btn.dataset.ebrbFilter;
       _ebRbFilter = _ebRbFilter === val ? null : val;
       _offset = 0;
-      renderFilterBar(container, true);
-      fetchGenes(container, true);
+      renderFilterBar(container, true, doFetch);
+      doFetch(container);
     });
   });
 
@@ -915,8 +906,8 @@ function renderFilterBar(container, expandMore = false) {
   bar.querySelector('[data-clear-ebrb]')?.addEventListener('click', () => {
     _ebRbFilter = null;
     _offset = 0;
-    renderFilterBar(container);
-    fetchGenes(container, true);
+    renderFilterBar(container, false, doFetch);
+    doFetch(container);
   });
 
   // More panel toggle
