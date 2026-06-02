@@ -307,6 +307,7 @@ async function _mobFetchGenes(container) {
       'id,locus_tag,gene_name,gene_symbol,product,functional_category,' +
       'is_characterized,is_hypothetical,is_t3_secreted,is_membrane_protein,' +
       'sort_index,strand,start_bp,end_bp,strain_id,updated_at,updated_by,' +
+      'dna_sequence,' +
       'strains!inner(common_name),' +
       'proteins(alphafold_results(thumbnail_path))',
       { count: 'exact' }
@@ -3085,9 +3086,12 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           if (!g) return '';
           const strainName  = g.strains?.common_name ?? '?';
           const strainIcon  = STRAIN_ICONS[strainName];
-          // Bold = locus_tag + gene_name (if any) in one line — no redundant secondary tag
-          const displayText = g.gene_name
-            ? `${esc(g.locus_tag)} <span style="color:var(--mob-ink-3);font-weight:400;">${esc(g.gene_name)}</span>`
+          // Some genes store gene_name as "symbol locus_tag" — strip the trailing locus_tag
+          let geneSym = (g.gene_name || '').trim();
+          if (geneSym.endsWith(g.locus_tag)) geneSym = geneSym.slice(0, -g.locus_tag.length).trim();
+          // Single bold black line: "CT633 hemB" or just "CT633"
+          const displayText = geneSym
+            ? `${esc(g.locus_tag)} ${esc(geneSym)}`
             : esc(g.locus_tag);
           const iconEl = strainIcon
             ? `<img src="${strainIcon}" alt="${strainName}" style="width:32px;height:32px;object-fit:contain;flex-shrink:0;">`
@@ -3137,11 +3141,13 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
             ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mob-ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : '';
           const divider   = i < mutants.length - 1 ? 'border-bottom:1px solid var(--mob-line);' : '';
           return `<div data-mut-id="${m.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;${divider}">
-            <div style="width:4px;min-height:38px;border-radius:3px;background:${col};flex-shrink:0;align-self:stretch;"></div>
+            <div style="width:4px;min-height:34px;border-radius:3px;background:${col};flex-shrink:0;align-self:stretch;"></div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:14.5px;font-weight:700;color:var(--mob-ink);">${esc(primary)}</div>
-              ${secondary ? `<div style="font-size:12px;color:var(--mob-ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(secondary)}</div>` : ''}
-              <div style="margin-top:5px;">${typePill}</div>
+              <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                <span style="font-size:14.5px;font-weight:700;color:var(--mob-ink);">${esc(primary)}</span>
+                ${typePill}
+              </div>
+              ${secondary ? `<div style="font-size:12px;color:var(--mob-ink-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(secondary)}</div>` : ''}
             </div>
             ${lockIcon}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8cec9" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
