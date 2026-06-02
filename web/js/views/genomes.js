@@ -89,6 +89,23 @@ const POPULAR_FILTERS = [
   { type: 'char',  value: 'secreted',                   label: 'T3 Secreted' },
 ];
 
+// Mutant-type filter chips shown per strain in the mobile filter bar More panel.
+// field: column on the mutants table; value: the DB value to match.
+const MUTANT_FILTERS_BY_STRAIN = {
+  'CT-L2': [
+    { label: 'Tn',       field: 'mutation_type', value: 'transposon'  },
+    { label: 'Deletion', field: 'mutation_type', value: 'recombination' },
+    { label: 'Lucky 17', field: 'collection',    value: 'Lucky17'     },
+    { label: 'Chimera',  field: 'collection',    value: 'Chimeras'    },
+  ],
+  'CT-D': [],
+  'CM': [
+    { label: 'Tn',       field: 'mutation_type', value: 'transposon'  },
+    { label: 'Deletion', field: 'mutation_type', value: 'recombination' },
+    { label: 'Chimera',  field: 'collection',    value: 'Chimeras'    },
+  ],
+};
+
 const PAGE_SIZE = 50;
 
 // ── Module-level state (reset on each renderGenomes call) ──
@@ -104,6 +121,7 @@ let _categoryFilter    = null;
 let _locationFilter    = null;  // SL or GO term id set by clicking a localization pill
 let _expressionFilter  = null;  // 'Early' | 'Mid' | 'Late' | 'Constitutive'
 let _ebRbFilter        = null;  // 'eb' | 'rb'
+let _mutantFilter      = null;  // { field, value, label } — set by mobile Mutants section
 let _offset         = 0;
 let _total       = 0;
 let _hasMore     = false;
@@ -124,7 +142,7 @@ let _sectionOpen = {
 };
 
 // Which More-panel sections are expanded (persists across filter bar re-renders)
-let _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false };
+let _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false, mutants: false };
 
 // HTML-escape helper for DB strings interpolated into innerHTML.
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -142,11 +160,11 @@ export function renderGenomes(container) {
 
   _loading = false; // reset in case a previous in-flight fetch was abandoned
   _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
-  _expressionFilter = null; _ebRbFilter = null;
+  _expressionFilter = null; _ebRbFilter = null; _mutantFilter = null;
   _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
                membrane: false, secreted: false, dnaBinding: false,
                hasAf3: false, hasCrystal: false };
-  _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false };
+  _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false, mutants: false };
   showGeneList(container);
 
   // If a gene was requested, open its detail panel immediately without waiting for list
@@ -239,7 +257,11 @@ function _renderMobileGeneList(container) {
   });
 
   const mobFetchFn = c => _mobFetchGenes(c);
-  renderFilterBar(container, false, mobFetchFn);
+  const mobFilterOpts = {
+    hideSections: ['location'],
+    mutantFilters: MUTANT_FILTERS_BY_STRAIN[_strain] ?? [],
+  };
+  renderFilterBar(container, false, mobFetchFn, mobFilterOpts);
 
   // Dismiss sort dropdown on outside click (same as desktop)
   document.addEventListener('click', () => {
@@ -313,6 +335,25 @@ async function _mobFetchGenes(container) {
     }
   }
 
+  // Mutant filter: two-step — find gene IDs with matching mutants, then filter genes
+  if (_mutantFilter) {
+    const { data: mutantRows } = await sb.from('mutants')
+      .select('target_gene_ids,strains!inner(common_name)')
+      .eq(_mutantFilter.field, _mutantFilter.value)
+      .eq('strains.common_name', _strain);
+    const geneIds = [...new Set((mutantRows ?? []).flatMap(m => m.target_gene_ids ?? []))];
+    if (!geneIds.length) {
+      _loading = false;
+      _total = 0; _hasMore = false; _offset = 0;
+      const countEl = container.querySelector('#mob-gene-count');
+      if (countEl) countEl.textContent = '0 genes';
+      const liveList = container.querySelector('#mob-gene-list');
+      if (liveList) liveList.innerHTML = '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;text-align:center;">No genes found.</div>';
+      return;
+    }
+    query = query.in('id', geneIds);
+  }
+
   let data, count;
   try {
     ({ data, count } = await query);
@@ -381,8 +422,8 @@ async function _mobFetchGenes(container) {
 function _mobGroupAndRenderGenes(genes) {
   if (!genes.length) return '';
 
-  // Locus-tag sort: no section headers (they'd just be uninformative "CTL0___" labels)
-  if (_sortField === 'locus_tag') {
+  // No section headers for locus-tag or genomic-order sorts — grouping adds no info
+  if (_sortField === 'locus_tag' || _sortField === 'sort_index') {
     return `<div style="background:var(--mob-paper);">
       ${genes.map((g, i) => _mobGeneRow(g, i < genes.length - 1)).join('')}
     </div>`;
@@ -663,8 +704,10 @@ const SORT_OPTIONS = [
   { field: 'sort_index', asc: true,  label: 'Genomic order' },
 ];
 
-function renderFilterBar(container, expandMore = false, fetchFn = null) {
+function renderFilterBar(container, expandMore = false, fetchFn = null, opts = {}) {
   const doFetch = fetchFn ?? ((c) => fetchGenes(c, true));
+  const { hideSections = [], mutantFilters = [] } = opts;
+  const rerender = (open = false) => renderFilterBar(container, open, doFetch, opts);
   const bar = container.querySelector('#filter-bar');
   if (!bar) return;
 
@@ -727,7 +770,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
 
   const activeChar   = CHAR_FILTERS.filter(f => _filters[f.id]);
   const activeStruct = STRUCT_FILTERS.filter(f => _filters[f.id]);
-  const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter || _expressionFilter || _ebRbFilter;
+  const anyActive    = activeChar.length || activeStruct.length || _locationFilter || _categoryFilter || _expressionFilter || _ebRbFilter || _mutantFilter;
 
   // Section open state is purely user-controlled — no forced-open based on active filters
   const secOpen = {
@@ -736,18 +779,28 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
     location:         _expandedSections.location,
     structure:        _expandedSections.structure,
     expression:       _expandedSections.expression,
+    mutants:          _expandedSections.mutants,
   };
 
   const groupHead = (id, icon, label, isOpen, hint = '') => `
     <button data-section="${id}"
-      style="display:flex;align-items:center;gap:4px;font-size:8.5px;font-weight:700;text-transform:uppercase;
-             letter-spacing:0.07em;color:#888;width:100%;margin-top:6px;border-top:1px solid #efefef;
-             padding-top:7px;padding-bottom:${isOpen ? '4px' : '2px'};background:none;border-left:none;
+      style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:uppercase;
+             letter-spacing:0.05em;color:#777;width:100%;margin-top:6px;border-top:1px solid #efefef;
+             padding-top:8px;padding-bottom:${isOpen ? '5px' : '3px'};background:none;border-left:none;
              border-right:none;border-bottom:none;cursor:pointer;text-align:left;font-family:inherit;">
       <span>${icon}</span><span>${label}</span>
-      <span style="margin-left:auto;font-size:9px;color:#ccc;">${isOpen ? '▾' : '▸'}</span>
-      ${!isOpen && hint ? `<span style="font-size:8px;color:#bbb;font-weight:400;margin-left:2px;">${hint}</span>` : ''}
+      <span style="margin-left:auto;font-size:10px;color:#ccc;">${isOpen ? '▾' : '▸'}</span>
+      ${!isOpen && hint ? `<span style="font-size:9px;color:#bbb;font-weight:400;margin-left:2px;">${hint}</span>` : ''}
     </button>`;
+
+  const mutantChip = (f) => {
+    const active = _mutantFilter?.field === f.field && _mutantFilter?.value === f.value;
+    return `<button data-mutant-filter='${JSON.stringify({field:f.field,value:f.value,label:f.label})}'
+      style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid ${active ? '#fde68a' : '#e5e7eb'};
+             background:${active ? '#fefce8' : 'white'};color:${active ? '#92400e' : '#9ca3af'};cursor:pointer;white-space:nowrap;font-family:inherit;">
+      ${active ? '🔬 ' : ''}${esc(f.label)}${active ? ' ×' : ''}
+    </button>`;
+  };
 
   const startOpen = expandMore || anyActive || false;
 
@@ -770,10 +823,11 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       ${chip('favorites', '★ Favorites', _filters.favorites)}
       ${activeChar.map(f => chip(f.id, f.label, true)).join('')}
       ${activeStruct.map(f => chip(f.id, f.label, true, f.title)).join('')}
-      ${_categoryFilter   ? `<button data-clear-category   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${esc(funcLabel(_categoryFilter))} ×</button>` : ''}
-      ${_locationFilter   ? `<button data-clear-location   style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>` : ''}
+      ${_categoryFilter ? `<button data-clear-category style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${esc(funcLabel(_categoryFilter))} ×</button>` : ''}
+      ${_locationFilter ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>` : ''}
       ${_expressionFilter ? `<button data-clear-expression style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #a5f3fc;background:#ecfeff;color:#164e63;cursor:pointer;white-space:nowrap;font-family:inherit;">📈 ${esc(_expressionFilter)} ×</button>` : ''}
       ${_ebRbFilter ? `<button data-clear-ebrb style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #a5f3fc;background:#ecfeff;color:#164e63;cursor:pointer;white-space:nowrap;font-family:inherit;">📈 ${_ebRbFilter === 'eb' ? 'EB enriched' : 'RB enriched'} ×</button>` : ''}
+      ${_mutantFilter ? `<button data-clear-mutant style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">🔬 ${esc(_mutantFilter.label)} ×</button>` : ''}
       <button id="more-filters-btn"
         style="font-size:10.5px;font-weight:600;color:${startOpen ? '#16a34a' : '#9ca3af'};background:white;border:1px solid ${startOpen ? '#bbf7d0' : '#e5e7eb'};border-radius:6px;padding:3px 9px;cursor:pointer;margin-left:auto;font-family:inherit;">
         ${startOpen ? '− Less' : '+ More'}
@@ -788,12 +842,13 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${FUNC_FILTERS.map(f => catChip(f.value, f.label)).join('')}
       </div>
+      ${!hideSections.includes('location') ? `
       ${groupHead('location', '📍', 'Location', secOpen.location, '— click a pill on any gene')}
       <div style="display:${secOpen.location ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${_locationFilter
           ? `<button data-clear-location style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">📍 ${esc(locTermLabel(_locationFilter))} ×</button>`
           : `<span style="font-size:9px;color:#bbb;padding:2px 0;">Click a location pill on any gene to filter</span>`}
-      </div>
+      </div>` : ''}
       ${groupHead('structure', '🧊', 'Structure', secOpen.structure)}
       <div style="display:${secOpen.structure ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${STRUCT_FILTERS.map(f => chip(f.id, f.label, _filters[f.id], f.title)).join('')}
@@ -803,6 +858,11 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
         ${EXPR_FILTERS.map(f => exprChip(f.value, f.label)).join('')}
         ${_strain === 'CT-L2' ? ebRbChip('eb', 'EB enriched') + ebRbChip('rb', 'RB enriched') : ''}
       </div>
+      ${mutantFilters.length ? `
+      ${groupHead('mutants', '🔬', 'Mutants', secOpen.mutants, '— genes with this mutant type')}
+      <div style="display:${secOpen.mutants ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+        ${mutantFilters.map(f => mutantChip(f)).join('')}
+      </div>` : ''}
     </div>
   `;
 
@@ -818,7 +878,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       _sortField = btn.dataset.sortField;
       _sortAsc   = btn.dataset.sortAsc === 'true';
       _offset = 0;
-      renderFilterBar(container, false, doFetch);
+      rerender();
       doFetch(container);
     });
   });
@@ -828,7 +888,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
     btn.addEventListener('click', () => {
       const id = btn.dataset.section;
       _expandedSections[id] = !secOpen[id];
-      renderFilterBar(container, true, doFetch);
+      rerender(true);
     });
   });
 
@@ -838,7 +898,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       const key = btn.dataset.filter;
       _filters[key] = !_filters[key];
       _offset = 0;
-      renderFilterBar(container, startOpen, doFetch);
+      rerender(startOpen);
       doFetch(container);
     });
   });
@@ -849,7 +909,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       const val = btn.dataset.catFilter;
       _categoryFilter = _categoryFilter === val ? null : val;
       _offset = 0;
-      renderFilterBar(container, true, doFetch);
+      rerender(true);
       doFetch(container);
     });
   });
@@ -858,7 +918,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
   bar.querySelector('[data-clear-category]')?.addEventListener('click', () => {
     _categoryFilter = null;
     _offset = 0;
-    renderFilterBar(container, false, doFetch);
+    rerender();
     doFetch(container);
   });
 
@@ -867,7 +927,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
     btn.addEventListener('click', () => {
       _locationFilter = null;
       _offset = 0;
-      renderFilterBar(container, false, doFetch);
+      rerender();
       doFetch(container);
     });
   });
@@ -878,7 +938,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       const val = btn.dataset.exprFilter;
       _expressionFilter = _expressionFilter === val ? null : val;
       _offset = 0;
-      renderFilterBar(container, true, doFetch);
+      rerender(true);
       doFetch(container);
     });
   });
@@ -887,7 +947,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
   bar.querySelector('[data-clear-expression]')?.addEventListener('click', () => {
     _expressionFilter = null;
     _offset = 0;
-    renderFilterBar(container, false, doFetch);
+    rerender();
     doFetch(container);
   });
 
@@ -897,7 +957,7 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
       const val = btn.dataset.ebrbFilter;
       _ebRbFilter = _ebRbFilter === val ? null : val;
       _offset = 0;
-      renderFilterBar(container, true, doFetch);
+      rerender(true);
       doFetch(container);
     });
   });
@@ -906,7 +966,27 @@ function renderFilterBar(container, expandMore = false, fetchFn = null) {
   bar.querySelector('[data-clear-ebrb]')?.addEventListener('click', () => {
     _ebRbFilter = null;
     _offset = 0;
-    renderFilterBar(container, false, doFetch);
+    rerender();
+    doFetch(container);
+  });
+
+  // Mutant type filter chips
+  bar.querySelectorAll('[data-mutant-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = JSON.parse(btn.dataset.mutantFilter);
+      const alreadyActive = _mutantFilter?.field === f.field && _mutantFilter?.value === f.value;
+      _mutantFilter = alreadyActive ? null : f;
+      _offset = 0;
+      rerender(true);
+      doFetch(container);
+    });
+  });
+
+  // Clear mutant filter
+  bar.querySelector('[data-clear-mutant]')?.addEventListener('click', () => {
+    _mutantFilter = null;
+    _offset = 0;
+    rerender();
     doFetch(container);
   });
 
