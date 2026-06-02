@@ -813,7 +813,7 @@
   max-width: 120px;
 }
 .mob-ctx-lab .sym { font-weight: 800; color: var(--mob-ink); }
-.mob-ctx-lab.mono { font-family: var(--mob-mono); font-size: 10px; color: var(--mob-ink-3); }
+.mob-ctx-lab.mono { font-size: 10px; color: var(--mob-ink-3); }
 
 .mob-ctx-arrow-slot { display: flex; align-items: center; }
 .mob-ctx-arrow-slot.plus  { align-items: flex-end; }
@@ -838,7 +838,9 @@
 .mob-ctx-arrow.plus  .body { clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); }
 .mob-ctx-arrow.minus .body { clip-path: polygon(11px 0, 100% 0, 100% 100%, 11px 100%, 0 50%); }
 .mob-ctx-col.focal .mob-ctx-arrow .body {
-  box-shadow: inset 0 0 0 2px var(--mob-ink), inset 0 -2px 0 rgba(0,0,0,.12);
+  /* drop-shadow applies after clip-path, so it follows the arrow outline perfectly */
+  filter: drop-shadow(0 0 1px var(--mob-ink)) drop-shadow(0 0 1px var(--mob-ink));
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.12);
 }
 
 .mob-ctx-strand {
