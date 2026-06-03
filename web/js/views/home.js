@@ -1,6 +1,6 @@
 // ChlamAtlas — Home tab
-import { sb, state } from '../client.js?v=82';
-import { isMobileViewport } from '../app.js?v=82';
+import { sb, state } from '../client.js?v=83';
+import { isMobileViewport } from '../app.js?v=83';
 
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 

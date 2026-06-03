@@ -108,6 +108,45 @@
   text-align: center; border-top: 1px solid #f3f4f6;
 }
 
+/* ── Mobile overrides ─────────────────────────────────── */
+@media (max-width: 639px) {
+  /* Green title */
+  .pl-pipeline-title { color: #163b2b; }
+
+  /* Remove card chrome from group row containers */
+  .pl-group-card {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-top: 1px solid #e9ece9 !important;
+  }
+
+  /* Remove card chrome from stage key */
+  .pl-stage-key-card {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 0 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Hide the verbose stage sequence text on mobile */
+  .pl-stage-key-seq { display: none; }
+
+  /* Larger tap targets for flame + star */
+  .pl-icon-btn { width: 32px; height: 32px; }
+
+  /* Picker popup: keep within viewport by anchoring right on mobile */
+  .pl-picker-popup {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+}
+
 /* Stage key legend pills */
 .skp-done    { background: #bbf7d0; }
 .skp-uw      { background: #ede9fe; border: 1px solid #c4b5fd; }

@@ -1,5 +1,5 @@
 // ChlamAtlas — Pipeline tab (v82 rewrite)
-import { sb, state } from '../client.js?v=82';
+import { sb, state } from '../client.js?v=83';
 
 // ─────────────────────────────────────────────────────────────
 // SECTION 1: Constants, helpers, data layer (Task 4)
@@ -162,8 +162,8 @@ async function fetchData() {
 // SECTION 2: Stage strip + mutant row (Task 5)
 // ─────────────────────────────────────────────────────────────
 
-const FLAME_ON  = `<img src="/design/icons/flame-orange.png" width="15" height="15" style="display:block;object-fit:contain;" alt="Priority">`;
-const FLAME_OFF = `<img src="/design/icons/flame-off.png"    width="15" height="15" style="display:block;object-fit:contain;opacity:0.3;" alt="Not priority">`;
+const FLAME_ON  = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>`;
+const FLAME_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>`;
 const STAR_ON   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 const STAR_OFF  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 14.6,8.6 22,9.3 16.5,14.3 18.2,21.2 12,17.5 5.8,21.2 7.5,14.3 2,9.3 9.4,8.6"/></svg>`;
 
@@ -270,13 +270,15 @@ function mutantRow(m, { showStrain = false } = {}) {
 
   return `
 <div class="${rowCls}" id="row-${esc(mutantId)}" data-mutant-id="${esc(mutantId)}" onclick="window.__plRowClick(event,'${esc(mutantId)}')">
-  <!-- Left: name + ID + type pill + strain -->
-  <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden;">
-    ${plannedChip}
-    <span style="font-size:13px;font-weight:700;color:#111;flex-shrink:0;white-space:nowrap;">${esc(displayName)}</span>
-    ${showId ? `<span style="font-size:10px;color:#9ca3af;flex-shrink:0;">${esc(showId)}</span>` : ''}
-    ${isTypedGroup ? `<span style="font-size:9px;font-weight:700;${typePillStyle}border-radius:3px;padding:1.5px 5px;flex-shrink:0;">${typeText}</span>` : ''}
-    ${showStrain ? `<span class="${strainChipCls}" style="flex-shrink:0;">${esc(sl)}</span>` : ''}
+  <!-- Left: name + type/strain on first line (name flex-shrink:0, pills may clip); ID on second line -->
+  <div style="display:flex;flex-direction:column;flex:1;min-width:0;overflow:hidden;justify-content:center;">
+    <div style="display:flex;align-items:center;gap:5px;overflow:hidden;">
+      ${plannedChip}
+      <span style="font-size:13px;font-weight:700;color:#111;flex-shrink:0;white-space:nowrap;">${esc(displayName)}</span>
+      ${isTypedGroup ? `<span style="font-size:9px;font-weight:700;${typePillStyle}border-radius:3px;padding:1.5px 5px;flex-shrink:0;">${typeText}</span>` : ''}
+      ${showStrain ? `<span class="${strainChipCls}" style="flex-shrink:0;">${esc(sl)}</span>` : ''}
+    </div>
+    ${showId ? `<span style="font-size:10px;color:#9ca3af;line-height:1.2;">${esc(showId)}</span>` : ''}
   </div>
   <!-- Middle: flame + star — instant toggles, no confirm -->
   <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;margin:0 4px;" onclick="event.stopPropagation()">
@@ -832,7 +834,7 @@ function renderGroup(def) {
   return `
 <div class="mb-5" id="group-${esc(key)}">
   ${header}
-  <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+  <div class="pl-group-card" style="background:white;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);">
     <div id="group-rows-${esc(key)}">
       ${rowsHtml || '<div style="padding:16px;text-align:center;font-size:12px;color:#9ca3af;">No mutants in this group.</div>'}
     </div>
@@ -913,9 +915,9 @@ function stageKeyCard() {
   ).join('');
 
   return `
-<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:white;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#6b7280;">
+<div class="pl-stage-key-card" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:white;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#6b7280;">
   <span style="font-weight:600;color:#374151;">Stage strip key:</span>
-  <span style="font-size:9px;font-weight:600;color:#374151;">Plasmid → Transform → Clone → PCR → WGS → Vitro → Vivo</span>
+  <span class="pl-stage-key-seq" style="font-size:9px;font-weight:600;color:#374151;">Plasmid → Transform → Clone → PCR → WGS → Vitro → Vivo</span>
   <span style="margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap;">${pills}</span>
 </div>`;
 }
@@ -931,8 +933,7 @@ export async function renderPipeline(container) {
 
   container.innerHTML = `
     <div style="padding:18px 0 10px;">
-      <h2 style="font-size:20px;font-weight:800;color:#111827;margin:0 0 2px;">Pipeline</h2>
-      <p style="font-size:12px;color:#9ca3af;margin:0;">Multi-lab mutant development tracker</p>
+      <h2 class="pl-pipeline-title" style="font-size:20px;font-weight:800;color:#111827;margin:0;">Pipeline</h2>
     </div>
 
     ${stageKeyCard()}

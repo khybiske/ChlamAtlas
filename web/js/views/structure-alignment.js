@@ -1,5 +1,5 @@
 // ChlamAtlas — Structure Alignment tool
-import { sb, state } from '../client.js?v=82';
+import { sb, state } from '../client.js?v=83';
 
 // ── Constants ─────────────────────────────────────────────────
 const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#4b2e83', 'CM': '#2563eb' };
