@@ -174,6 +174,10 @@ function _renderMobileMutantList(container) {
   const coll = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
   const collColor = MOB_GRP_COLOR[_collection] ?? '#2f9e6e';
 
+  // Desktop sets height:100%;overflow:hidden on this container for the two-panel layout.
+  // On mobile we need it to grow freely so the parent tab-panel can scroll.
+  container.style.height = 'auto';
+  container.style.overflow = 'visible';
   container.style.padding = '0';
   container.innerHTML = `
     <div class="mob-strain-ctx">
