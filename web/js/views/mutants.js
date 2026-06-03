@@ -163,14 +163,34 @@ const MOB_GRP_COLOR = {
   Chimeras: '#8466C4',
 };
 
+function _collLabelHTML(collId) {
+  if (collId === 'CT_L2') return '<i>C. trachomatis</i> L2/434';
+  if (collId === 'CM')    return '<i>C. muridarum</i> Nigg';
+  if (collId === 'Lucky17') return 'Lucky 17';
+  return 'Chimeras';
+}
+
 function _renderMobileMutantList(container) {
+  const coll = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
+  const collColor = MOB_GRP_COLOR[_collection] ?? '#2f9e6e';
+
+  // Desktop sets height:100%;overflow:hidden on this container for the two-panel layout.
+  // On mobile we need it to grow freely so the parent tab-panel can scroll.
+  container.style.height = 'auto';
+  container.style.overflow = 'visible';
   container.style.padding = '0';
   container.innerHTML = `
-    <div class="mob-lt-wrap" style="padding-top:8px;">
-      <div class="mob-lt-eyebrow">Mutants</div>
-      <h1 class="mob-lt-title">Mutants</h1>
+    <div class="mob-strain-ctx">
+      <img src="${esc(coll.icon)}" alt="${esc(coll.id)}" style="width:38px;height:38px;object-fit:contain;" onerror="this.style.display='none'">
+      <div style="flex:1;min-width:0;">
+        <div class="spc" style="color:${collColor};">${_collLabelHTML(_collection)}</div>
+        <div class="cnt" id="mob-mut-count">Loading…</div>
+      </div>
+      <button class="mob-switch-btn" id="mob-mut-switch-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+        Switch
+      </button>
     </div>
-    <div class="mob-lt-sub" style="padding:0 20px 4px;" id="mob-mut-sub">Loading…</div>
 
     <div class="mob-sticky-bar" id="mob-mut-toolbar">
       <div class="mob-search-field">
@@ -178,193 +198,127 @@ function _renderMobileMutantList(container) {
         <input id="mob-mut-search" type="search" autocomplete="off" placeholder="Search mutants, alleles, genes…" />
         <button id="mob-mut-search-clear" style="display:none;background:none;border:none;color:var(--mob-ink-3);cursor:pointer;padding:0;font-size:14px;">✕</button>
       </div>
-      <div class="mob-chip-row" style="padding:0;">
-        <div class="mob-seg" id="mob-mut-sort">
-          <button class="mob-seg-btn active" data-sort="collection">Collection</button>
-          <button class="mob-seg-btn" data-sort="az">A–Z</button>
-          <button class="mob-seg-btn" data-sort="type">Type</button>
-        </div>
-        <div style="width:.5px;background:var(--mob-line);margin:6px 0;flex-shrink:0;"></div>
-        <button class="mob-chip active" data-mf="all">All</button>
-        <button class="mob-chip" data-mf="published">Published</button>
-        <button class="mob-chip" data-mf="deletion">
-          <span class="mob-dot" style="background:#C0392B;"></span>Deletion
-        </button>
-        <button class="mob-chip" data-mf="transposon">
-          <span class="mob-dot" style="background:#059669;"></span>Transposon
-        </button>
-        <button class="mob-chip" data-mf="chimera">
-          <span class="mob-dot" style="background:#8466C4;"></span>Chimera
-        </button>
-      </div>
+      <div id="mut-filter-bar" style="flex-shrink:0;"></div>
     </div>
 
     <div id="mob-mut-list" style="background:var(--mob-bg);"></div>
     <div class="mob-pad-bottom"></div>`;
 
-  let mobMutSort   = 'collection';
-  let mobMutFilter = 'all';
-  let mobMutSearch = '';
-  let allMutants   = [];
-
   onMobScroll(container, 60, 'Mutants');
-
-  _mobLoadMutantListData().then(data => {
-    allMutants = data;
-    const subEl = container.querySelector('#mob-mut-sub');
-    if (subEl) subEl.textContent = `${data.length.toLocaleString()} engineered strains across four collections`;
-    _mobRenderMutantRows(container, allMutants, mobMutSort, mobMutFilter, mobMutSearch);
-  });
 
   const searchInput = container.querySelector('#mob-mut-search');
   const searchClear = container.querySelector('#mob-mut-search-clear');
   let searchTimer;
   searchInput.addEventListener('input', () => {
-    mobMutSearch = searchInput.value.trim().toLowerCase();
-    searchClear.style.display = mobMutSearch ? '' : 'none';
+    _searchTerm = searchInput.value.trim();
+    searchClear.style.display = _searchTerm ? '' : 'none';
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => _mobRenderMutantRows(container, allMutants, mobMutSort, mobMutFilter, mobMutSearch), 250);
+    searchTimer = setTimeout(() => _mobFetchMutants(container), 250);
   });
   searchClear.addEventListener('click', () => {
-    searchInput.value = ''; mobMutSearch = '';
+    searchInput.value = ''; _searchTerm = '';
     searchClear.style.display = 'none';
-    _mobRenderMutantRows(container, allMutants, mobMutSort, mobMutFilter, mobMutSearch);
+    _mobFetchMutants(container);
   });
 
-  container.querySelectorAll('#mob-mut-sort .mob-seg-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('#mob-mut-sort .mob-seg-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      mobMutSort = btn.dataset.sort;
-      _mobRenderMutantRows(container, allMutants, mobMutSort, mobMutFilter, mobMutSearch);
-    });
+  // Dismiss sort dropdown on outside click
+  document.addEventListener('click', () => {
+    container.querySelector('#mob-mut-sort-drop')?.style.setProperty('display', 'none');
   });
 
-  container.querySelectorAll('.mob-chip[data-mf]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      container.querySelectorAll('.mob-chip[data-mf]').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      mobMutFilter = chip.dataset.mf;
-      _mobRenderMutantRows(container, allMutants, mobMutSort, mobMutFilter, mobMutSearch);
-    });
+  container.querySelector('#mob-mut-switch-btn').addEventListener('click', () => {
+    _mobMutantCollectionSheet(container);
   });
+
+  _mobMutantFilterBar(container, c => _mobFetchMutants(c));
+  _mobFetchMutants(container);
 }
 
-async function _mobLoadMutantListData() {
-  try {
-    const { data } = await sb
-      .from('mutants')
-      .select('id,mutant_id,name,mutation_type,collection,is_published,target_gene_ids')
-      .order('mutant_id');
-    return data ?? [];
-  } catch (err) {
-    console.error('[ChlamAtlas] _mobLoadMutantListData:', err);
-    return [];
-  }
-}
-
-function _mobRenderMutantRows(container, all, sort, filter, search) {
+async function _mobFetchMutants(container) {
   const list = container.querySelector('#mob-mut-list');
   if (!list) return;
-  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  list.innerHTML = '<div style="padding:24px 20px;color:var(--mob-ink-3);font-size:14px;">Loading…</div>';
 
-  let rows = all;
-  if (filter === 'published') rows = rows.filter(m => m.is_published);
-  if (['deletion','transposon','chimera','chemical','intron'].includes(filter)) {
-    rows = rows.filter(m => m.mutation_type === filter);
-  }
-  if (search) {
-    rows = rows.filter(m =>
-      (m.name ?? '').toLowerCase().includes(search) ||
-      (m.mutant_id ?? '').toLowerCase().includes(search) ||
-      (m.mutation_type ?? '').toLowerCase().includes(search)
-    );
-  }
+  let query = sb
+    .from('mutants')
+    .select('id,mutant_id,name,mutation_type,collection,is_published,show_in_pipeline,creator_name,target_gene_ids,marker,recombination_start,recombination_end,strains!background_strain_id(common_name)')
+    .eq('collection', _collection)
+    .limit(1000);
 
-  if (!rows.length) {
+  if (_searchTerm) query = query.or(`mutant_id.ilike.%${_searchTerm}%,name.ilike.%${_searchTerm}%`);
+
+  const { data: rows, error } = await query;
+
+  if (error) {
+    list.innerHTML = `<div style="padding:24px 20px;color:#ef4444;font-size:14px;">${esc(error.message)}</div>`;
+    return;
+  }
+  if (!rows?.length) {
+    const countEl = container.querySelector('#mob-mut-count');
+    if (countEl) countEl.textContent = '0 mutants';
     list.innerHTML = '<div style="padding:28px 20px;text-align:center;color:var(--mob-ink-3);font-size:14px;">No mutants found.</div>';
     return;
   }
 
-  const COLL_ORDER  = ['CT_L2', 'CM', 'Lucky17', 'Chimeras'];
-  const COLL_LABELS = { CT_L2: 'CT-L2', CM: 'CM', Lucky17: 'Lucky 17', Chimeras: 'Chimeras' };
-  const COLL_ICONS  = {
-    CT_L2:    '/design/icons_transparent/L2icon_transparent.png',
-    CM:       '/design/icons_transparent/CMicon_transparent.png',
-    Lucky17:  '/design/icons_transparent/L17icon_transparent.png',
-    Chimeras: '/design/icons_transparent/Chimeraicon_transparent.png',
-  };
-  const TYPE_ORDER = ['deletion','transposon','chemical','chimera','intron','recombination'];
-
-  let groups;
-  if (sort === 'az') {
-    groups = [{ key: 'All mutants', icon: null, color: null, rows: [...rows].sort((a,b) => (a.name||a.mutant_id||'').localeCompare(b.name||b.mutant_id||'')) }];
-  } else if (sort === 'type') {
-    const g = new Map();
-    TYPE_ORDER.forEach(t => g.set(t, []));
-    rows.forEach(m => { const t = m.mutation_type ?? 'other'; if (!g.has(t)) g.set(t, []); g.get(t).push(m); });
-    groups = [...g.entries()].filter(([,v]) => v.length).map(([k,v]) => ({
-      key: k.charAt(0).toUpperCase() + k.slice(1),
-      icon: null,
-      color: (MOB_TYPE[k] ?? MOB_TYPE_DEFAULT).color,
-      rows: v,
-    }));
-  } else {
-    const g = new Map(COLL_ORDER.map(c => [c, []]));
-    rows.forEach(m => { const c = m.collection ?? 'CT_L2'; if (!g.has(c)) g.set(c, []); g.get(c).push(m); });
-    groups = COLL_ORDER.filter(c => g.get(c)?.length).map(c => ({
-      key: COLL_LABELS[c] ?? c,
-      icon: COLL_ICONS[c] ?? null,
-      color: MOB_GRP_COLOR[c] ?? null,
-      rows: g.get(c),
-    }));
+  // Bulk-fetch gene data for all target_gene_ids
+  const allGeneIds = [...new Set(rows.flatMap(m => m.target_gene_ids ?? []))];
+  _geneDataMap = new Map();
+  if (allGeneIds.length) {
+    const { data: geneData } = await sb
+      .from('genes')
+      .select('id,locus_tag,gene_name,functional_category')
+      .in('id', allGeneIds);
+    (geneData ?? []).forEach(g => _geneDataMap.set(g.id, g));
   }
 
-  const toolbarEl = container.querySelector('#mob-mut-toolbar');
-  const navH      = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--mob-nav-h')) || 52;
-  const stickyTop = toolbarEl ? toolbarEl.getBoundingClientRect().height + navH : navH + 116;
-  const chevron   = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+  // Client-side filters (mirrors desktop fetchList)
+  let displayRows = rows;
+  if (_filters.favorites)        displayRows = displayRows.filter(m => state.favorites.mutants.has(String(m.id)));
+  if (_filters.type)             displayRows = displayRows.filter(m => m.mutation_type === _filters.type);
+  if (_filters.strain)           displayRows = displayRows.filter(m => m.strains?.common_name === _filters.strain);
+  if (_filters.category)         displayRows = displayRows.filter(m => (m.target_gene_ids ?? []).some(id => _geneDataMap.get(id)?.functional_category === _filters.category));
+  if (_filters.published !== null) displayRows = displayRows.filter(m => m.is_published === _filters.published);
+  if (_filters.creator)          displayRows = displayRows.filter(m => m.creator_name === _filters.creator);
+  if (_filters.marker)           displayRows = displayRows.filter(m => m.marker?.includes(_filters.marker));
 
-  list.innerHTML = groups.map(grp => {
-    const iconEl = grp.icon
-      ? `<img src="${esc(grp.icon)}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">`
-      : grp.color ? `<span style="width:10px;height:10px;border-radius:3px;background:${grp.color};flex-shrink:0;display:inline-block;"></span>` : '';
+  // Client-side sort
+  const getFirstLocusTag = m => {
+    const ids  = m.target_gene_ids ?? [];
+    const tags = ids.map(id => _geneDataMap.get(id)?.locus_tag).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return tags[0] ?? '￿';
+  };
+  const getFirstGeneName = m => {
+    const ids   = m.target_gene_ids ?? [];
+    const names = ids.map(id => _geneDataMap.get(id)?.gene_name).filter(Boolean).sort();
+    return names[0] ?? '￿';
+  };
+  displayRows = [...displayRows].sort((a, b) => {
+    let va, vb;
+    if (_sortField === 'locus_tag')  { va = getFirstLocusTag(a);  vb = getFirstLocusTag(b); }
+    else if (_sortField === 'gene_name') { va = getFirstGeneName(a); vb = getFirstGeneName(b); }
+    else                             { va = a.mutant_id ?? '';     vb = b.mutant_id ?? ''; }
+    const cmp = va.localeCompare(vb, undefined, { numeric: true });
+    return _sortAsc ? cmp : -cmp;
+  });
 
-    const rowsHTML = grp.rows.map((m, i) => {
-      const mt      = MOB_TYPE[m.mutation_type] ?? MOB_TYPE_DEFAULT;
-      const isFav   = state.favorites.mutants.has(String(m.id));
-      const display = m.name || m.mutant_id;
-      const typeLbl = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
-      const hasSep  = i < grp.rows.length - 1;
+  _total = displayRows.length;
+  const countEl = container.querySelector('#mob-mut-count');
+  if (countEl) countEl.textContent = `${_total.toLocaleString()} mutant${_total !== 1 ? 's' : ''}`;
 
-      return `
-        <div class="mob-grow" data-mut-id="${m.id}">
-          <div class="mob-bar" style="background:${mt.color};"></div>
-          <div class="mob-mut-tile" style="background:${mt.color}16;box-shadow:inset 0 0 0 1px ${mt.color}33;font-size:${mt.glyphSize}px;color:${mt.color};">${mt.glyph}</div>
-          <div class="mob-meta">
-            <div class="mob-gname" style="font-family:var(--mob-mono);font-weight:600;">${esc(display)}<span class="mob-loc" style="color:${mt.color};font-family:var(--mob-sans);font-size:12px;margin-left:6px;">${esc(typeLbl)}</span></div>
-            <div class="mob-gfunc">${m.mutant_id !== display ? esc(m.mutant_id) + ' · ' : ''}${esc(m.collection ?? '')}</div>
-          </div>
-          ${state.user ? `<button class="mob-star${isFav?' on':''}" data-fav-mid="${m.id}" aria-label="Save">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${isFav?'#e8b400':'none'}" stroke="${isFav?'#e8b400':'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </button>` : ''}
-          <span class="mob-chev">${chevron}</span>
-          ${hasSep ? '<div class="mob-sep"></div>' : ''}
-        </div>`;
-    }).join('');
+  if (!displayRows.length) {
+    list.innerHTML = '<div style="padding:28px 20px;text-align:center;color:var(--mob-ink-3);font-size:14px;">No mutants found.</div>';
+    return;
+  }
 
-    return `
-      <div class="mob-section-h" style="top:${stickyTop}px;">
-        ${iconEl}<span>${esc(grp.key)}</span>
-        <span class="mob-sh-count">· ${grp.rows.length}</span>
-      </div>
-      <div style="background:var(--mob-paper);">${rowsHTML}</div>`;
-  }).join('');
+  const chevron = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+  list.innerHTML = `<div style="background:var(--mob-paper);">${displayRows.map((m, i) => _mobMutantRowHTML(m, i, displayRows.length, chevron)).join('')}</div>`;
 
+  // Wire row clicks
   list.querySelectorAll('.mob-grow[data-mut-id]').forEach(row => {
     row.addEventListener('click', () => _mobLoadMutantDetail(row.dataset.mutId));
   });
 
+  // Wire star toggles
   list.querySelectorAll('.mob-star[data-fav-mid]').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
@@ -375,6 +329,387 @@ function _mobRenderMutantRows(container, all, sort, filter, search) {
       if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
     });
   });
+}
+
+function _mobMutantRowHTML(m, idx, total, chevron) {
+  const isChimeraOrLucky = m.collection === 'Chimeras' || m.collection === 'Lucky17';
+  const mt      = MOB_TYPE[m.mutation_type] ?? MOB_TYPE_DEFAULT;
+  const isFav   = state.favorites.mutants.has(String(m.id));
+  const hasSep  = idx < total - 1;
+  const isLab   = state.userRole === 'lab_member' || state.userRole === 'admin';
+
+  // Primary display name
+  const primaryText = isChimeraOrLucky
+    ? `<span style="font-family:var(--mob-mono);font-weight:600;font-size:15px;">${esc(m.mutant_id)}</span>`
+    : `<span style="font-weight:600;font-size:15px;">${esc(m.name || m.mutant_id)}</span>`;
+
+  // Secondary line
+  let secondary = '';
+  if (isChimeraOrLucky && m.recombination_start && m.recombination_end) {
+    secondary = `<span style="font-family:var(--mob-mono);font-size:12px;">${esc(m.recombination_start)}–${esc(m.recombination_end)}</span>`;
+  } else {
+    const ids  = m.target_gene_ids ?? [];
+    const tags = ids.map(id => _geneDataMap.get(id)?.locus_tag).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (tags.length) secondary = `<span style="font-size:12px;font-family:var(--mob-mono);color:var(--mob-ink-3);">${esc(tags.slice(0,2).join(', '))}${tags.length > 2 ? ' +' + (tags.length - 2) : ''}</span>`;
+  }
+
+  // Type pill — only for CT_L2 and CM
+  const typePill = (!isChimeraOrLucky && m.mutation_type)
+    ? `<span style="display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:1px 5px;border-radius:4px;background:${mt.color}18;color:${mt.color};border:1px solid ${mt.color}40;white-space:nowrap;margin-left:5px;">${esc(TYPE_LABELS[m.mutation_type] ?? m.mutation_type)}</span>`
+    : '';
+
+  // Pipeline dot (lab+ only, when show_in_pipeline)
+  const pipeDot = (isLab && m.show_in_pipeline)
+    ? `<span style="width:7px;height:7px;border-radius:50%;background:#059669;flex-shrink:0;display:inline-block;" title="In pipeline"></span>`
+    : '';
+
+  // Star
+  const star = state.user
+    ? `<button class="mob-star${isFav ? ' on' : ''}" data-fav-mid="${m.id}" aria-label="Save">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+       </button>`
+    : '';
+
+  return `
+    <div class="mob-grow" data-mut-id="${m.id}">
+      <div class="mob-bar" style="background:${mt.color};"></div>
+      <div class="mob-meta">
+        <div class="mob-gname" style="display:flex;align-items:center;flex-wrap:wrap;gap:3px;">
+          ${primaryText}${typePill}
+        </div>
+        <div class="mob-gfunc" style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+          ${secondary}${pipeDot}
+        </div>
+      </div>
+      ${star}
+      <span class="mob-chev">${chevron ?? ''}</span>
+      ${hasSep ? '<div class="mob-sep"></div>' : ''}
+    </div>`;
+}
+
+function _mobMutantFilterBar(container, fetchFn) {
+  const bar = container.querySelector('#mut-filter-bar');
+  if (!bar) return;
+
+  const isLab       = state.userRole === 'lab_member' || state.userRole === 'admin';
+  const sortLabel   = SORT_OPTIONS.find(o => o.field === _sortField)?.label ?? 'Mutant ID';
+  const typeOptions = COLLECTION_TYPES[_collection]   ?? [];
+  const strainOpts  = COLLECTION_STRAINS[_collection] ?? [];
+  const funcOptions = Object.entries(FUNC_LABELS).map(([cat, label]) => ({ value: cat, label }));
+  const hasMore     = typeOptions.length > 0 || strainOpts.length > 0 || funcOptions.length > 0 || isLab;
+  const secOpen     = { ..._expandedSections };
+
+  const strainObj  = strainOpts.find(s => s.value === _filters.strain);
+  const catLabel   = _filters.category ? (FUNC_LABELS[_filters.category] ?? _filters.category) : null;
+  const typelabel  = _filters.type ? (TYPE_LABELS[_filters.type] ?? _filters.type) : null;
+  const markerLabel = _filters.marker ?? null;
+
+  // Chip builder
+  const chip = (id, label, active) => `
+    <button data-mob-filter="${id}"
+      style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${active ? '#bbf7d0' : '#e5e7eb'};
+             background:${active ? '#f0fdf4' : 'white'};color:${active ? '#16a34a' : '#9ca3af'};">
+      ${label}${active ? ' ×' : ''}
+    </button>`;
+
+  const typeChip = v => {
+    const a = _filters.type === v;
+    return `<button data-mob-type-filter="${v}"
+      style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+      ${esc(TYPE_LABELS[v] ?? v)}${a ? ' ×' : ''}
+    </button>`;
+  };
+
+  const strainChip = s => {
+    const a = _filters.strain === s.value;
+    return `<button data-mob-strain-filter="${s.value}"
+      style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+      ${esc(s.label)}${a ? ' ×' : ''}
+    </button>`;
+  };
+
+  const catChip = (value, label) => {
+    const a = _filters.category === value;
+    return `<button data-mob-cat-filter="${value}"
+      style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+             border:1px solid ${a ? '#fde68a' : '#e5e7eb'};background:${a ? '#fefce8' : 'white'};color:${a ? '#92400e' : '#9ca3af'};">
+      ${esc(label)}${a ? ' ×' : ''}
+    </button>`;
+  };
+
+  const groupHead = (id, icon, label, isOpen) => `
+    <button data-mob-section="${id}"
+      style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;
+             color:#888;width:100%;margin-top:6px;border-top:1px solid #efefef;padding-top:7px;
+             padding-bottom:${isOpen ? '4px' : '2px'};background:none;border-left:none;border-right:none;border-bottom:none;
+             cursor:pointer;text-align:left;font-family:inherit;">
+      ${icon ? `<span>${icon}</span>` : ''}<span>${label}</span>
+      <span style="margin-left:auto;font-size:10px;color:#ccc;">${isOpen ? '▾' : '▸'}</span>
+    </button>`;
+
+  bar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
+      <div style="position:relative;">
+        <button id="mob-mut-sort-btn"
+          style="font-size:12px;font-weight:500;color:#555;background:white;border:1px solid #e0e0e0;border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;">
+          ⇅ ${esc(sortLabel)}
+        </button>
+        <div id="mob-mut-sort-drop" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:130px;overflow:hidden;">
+          ${SORT_OPTIONS.map(o => `
+            <button data-mob-sort-field="${o.field}"
+              style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;
+                     font-weight:${o.field === _sortField ? '600' : '400'};
+                     color:${o.field === _sortField ? '#16a34a' : '#333'};
+                     background:${o.field === _sortField ? '#f0fdf4' : 'none'};">
+              ${esc(o.label)}
+            </button>`).join('')}
+        </div>
+      </div>
+      ${chip('favorites', '★ Favorites', _filters.favorites)}
+      ${typelabel   ? `<button data-mob-clear-type     style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${esc(typelabel)} ×</button>`  : ''}
+      ${strainObj   ? `<button data-mob-clear-strain   style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;white-space:nowrap;font-family:inherit;">${esc(strainObj.label)} ×</button>` : ''}
+      ${catLabel    ? `<button data-mob-clear-category style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #fde68a;background:#fefce8;color:#92400e;cursor:pointer;white-space:nowrap;font-family:inherit;">⚙️ ${esc(catLabel)} ×</button>` : ''}
+      ${_filters.published !== null ? `<button data-mob-clear-published style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;white-space:nowrap;font-family:inherit;">${_filters.published ? 'Published' : 'Unpublished'} ×</button>` : ''}
+      ${_filters.creator ? `<button data-mob-clear-creator style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #e9d5ff;background:#faf5ff;color:#6b21a8;cursor:pointer;white-space:nowrap;font-family:inherit;">👤 ${esc(_filters.creator)} ×</button>` : ''}
+      ${markerLabel  ? `<button data-mob-clear-marker  style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid #99f6e4;background:#f0fdfa;color:#0f766e;cursor:pointer;white-space:nowrap;font-family:inherit;">🏷 ${esc(markerLabel)} ×</button>` : ''}
+      ${hasMore ? `<button id="mob-mut-more-btn"
+        style="font-size:11px;font-weight:600;cursor:pointer;margin-left:auto;font-family:inherit;
+               color:${_moreOpen ? '#16a34a' : '#9ca3af'};background:white;
+               border:1px solid ${_moreOpen ? '#bbf7d0' : '#e5e7eb'};border-radius:6px;padding:3px 9px;">
+        ${_moreOpen ? '− Less' : '+ More'}
+      </button>` : ''}
+    </div>
+    <div id="mob-mut-more-panel" style="display:${_moreOpen ? 'block' : 'none'};padding:4px 12px 8px;background:#fafafa;border-bottom:1px solid #f0f0f0;overflow-y:auto;max-height:40vh;">
+      ${typeOptions.length ? `
+        ${groupHead('type', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>', 'Type', secOpen.type)}
+        <div style="display:${secOpen.type ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+          ${typeOptions.map(t => typeChip(t)).join('')}
+        </div>` : ''}
+      ${strainOpts.length ? `
+        ${groupHead('strain', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/></svg>', 'Strain', secOpen.strain)}
+        <div style="display:${secOpen.strain ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+          ${strainOpts.map(s => strainChip(s)).join('')}
+        </div>` : ''}
+      ${groupHead('function', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10.27 7 3.34"/><path d="m11 13.73-4 6.93"/><path d="M12 22v-2"/><path d="M12 2v2"/><path d="M14 12h8"/><path d="m17 20.66-1-1.73"/><path d="m17 3.34-1 1.73"/><path d="M2 12h2"/><path d="m20.66 17-1.73-1"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m3.34 7 1.73 1"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="8"/></svg>', 'Function', secOpen.function)}
+      <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+        ${funcOptions.map(f => catChip(f.value, f.label)).join('')}
+      </div>
+      ${isLab ? `
+        ${groupHead('published', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>', 'Status', secOpen.published)}
+        <div style="display:${secOpen.published ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
+          ${['Published', 'Unpublished'].map(label => {
+            const val = label === 'Published';
+            const a   = _filters.published === val;
+            return `<button data-mob-pub-filter="${val}"
+              style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;font-family:inherit;
+                     border:1px solid ${a ? '#bbf7d0' : '#e5e7eb'};background:${a ? '#f0fdf4' : 'white'};color:${a ? '#16a34a' : '#9ca3af'};">
+              ${label}${a ? ' ×' : ''}
+            </button>`;
+          }).join('')}
+        </div>
+        ${groupHead('creator', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"/><path d="M6 17h12"/></svg>', 'Creator', secOpen.creator)}
+        <div style="display:${secOpen.creator ? 'block' : 'none'};padding-bottom:4px;">
+          <div style="position:relative;display:inline-block;">
+            <button id="mob-mut-creator-btn"
+              style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap;cursor:pointer;font-family:inherit;
+                     border:1px solid ${_filters.creator ? '#e9d5ff' : '#e5e7eb'};
+                     background:${_filters.creator ? '#faf5ff' : 'white'};
+                     color:${_filters.creator ? '#6b21a8' : '#9ca3af'};">
+              ${_filters.creator ? `👤 ${esc(_filters.creator)}` : 'Select creator ▾'}
+            </button>
+            <div id="mob-mut-creator-drop" style="display:none;position:absolute;top:100%;left:0;margin-top:2px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50;min-width:160px;overflow:hidden;">
+              <div id="mob-mut-creator-list" style="padding:4px 0;"><div style="padding:8px 14px;font-size:12px;color:#9ca3af;">Loading…</div></div>
+            </div>
+          </div>
+        </div>` : ''}
+    </div>
+  `;
+
+  // Sort dropdown
+  const sortBtn  = bar.querySelector('#mob-mut-sort-btn');
+  const sortDrop = bar.querySelector('#mob-mut-sort-drop');
+  if (sortBtn && sortDrop) {
+    sortBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = sortDrop.style.display === 'none';
+      sortDrop.style.display = open ? 'block' : 'none';
+    });
+    bar.querySelectorAll('[data-mob-sort-field]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _sortField = btn.dataset.mobSortField;
+        sortDrop.style.display = 'none';
+        _mobMutantFilterBar(container, fetchFn);
+        fetchFn(container);
+      });
+    });
+  }
+
+  // Favorites chip
+  bar.querySelector('[data-mob-filter="favorites"]')?.addEventListener('click', () => {
+    _filters.favorites = !_filters.favorites;
+    _mobMutantFilterBar(container, fetchFn);
+    fetchFn(container);
+  });
+
+  // Clear chips
+  bar.querySelector('[data-mob-clear-type]')?.addEventListener('click', ()      => { _filters.type = null;      _mobMutantFilterBar(container, fetchFn); fetchFn(container); });
+  bar.querySelector('[data-mob-clear-strain]')?.addEventListener('click', ()    => { _filters.strain = null;    _mobMutantFilterBar(container, fetchFn); fetchFn(container); });
+  bar.querySelector('[data-mob-clear-category]')?.addEventListener('click', ()  => { _filters.category = null;  _mobMutantFilterBar(container, fetchFn); fetchFn(container); });
+  bar.querySelector('[data-mob-clear-published]')?.addEventListener('click', () => { _filters.published = null; _mobMutantFilterBar(container, fetchFn); fetchFn(container); });
+  bar.querySelector('[data-mob-clear-creator]')?.addEventListener('click', ()   => { _filters.creator = null;   _mobMutantFilterBar(container, fetchFn); fetchFn(container); });
+  bar.querySelector('[data-mob-clear-marker]')?.addEventListener('click', ()    => { _filters.marker = null;    _mobMutantFilterBar(container, fetchFn); fetchFn(container); });
+
+  // More/Less toggle
+  bar.querySelector('#mob-mut-more-btn')?.addEventListener('click', () => {
+    _moreOpen = !_moreOpen;
+    _mobMutantFilterBar(container, fetchFn);
+  });
+
+  // Section expand/collapse
+  bar.querySelectorAll('[data-mob-section]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.mobSection;
+      if (id in _expandedSections) _expandedSections[id] = !_expandedSections[id];
+      if (id === 'marker' && _expandedSections.marker && !_markerOptions.length) {
+        const { data } = await sb
+          .from('mutants')
+          .select('marker')
+          .eq('collection', _collection)
+          .not('marker', 'is', null);
+        _markerOptions = [...new Set((data ?? []).flatMap(r => r.marker ?? []))].sort();
+      }
+      _mobMutantFilterBar(container, fetchFn);
+    });
+  });
+
+  // Type filter chips
+  bar.querySelectorAll('[data-mob-type-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.mobTypeFilter;
+      _filters.type = _filters.type === val ? null : val;
+      _mobMutantFilterBar(container, fetchFn);
+      fetchFn(container);
+    });
+  });
+
+  // Strain filter chips
+  bar.querySelectorAll('[data-mob-strain-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.mobStrainFilter;
+      _filters.strain = _filters.strain === val ? null : val;
+      _mobMutantFilterBar(container, fetchFn);
+      fetchFn(container);
+    });
+  });
+
+  // Category filter chips
+  bar.querySelectorAll('[data-mob-cat-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.mobCatFilter;
+      _filters.category = _filters.category === val ? null : val;
+      _mobMutantFilterBar(container, fetchFn);
+      fetchFn(container);
+    });
+  });
+
+  // Published status chips
+  bar.querySelectorAll('[data-mob-pub-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.mobPubFilter === 'true';
+      _filters.published = _filters.published === val ? null : val;
+      _mobMutantFilterBar(container, fetchFn);
+      fetchFn(container);
+    });
+  });
+
+  // Creator dropdown
+  const creatorBtn  = bar.querySelector('#mob-mut-creator-btn');
+  const creatorDrop = bar.querySelector('#mob-mut-creator-drop');
+  const creatorList = bar.querySelector('#mob-mut-creator-list');
+  if (creatorBtn && creatorDrop && creatorList) {
+    creatorBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const open = creatorDrop.style.display === 'none';
+      creatorDrop.style.display = open ? 'block' : 'none';
+      if (!open) return;
+      if (!_creatorOptions.length) {
+        const { data } = await sb
+          .from('mutants')
+          .select('creator_name')
+          .eq('collection', _collection)
+          .not('creator_name', 'is', null);
+        _creatorOptions = [...new Set((data ?? []).map(r => r.creator_name))].sort();
+      }
+      creatorList.innerHTML = _creatorOptions.length
+        ? [
+            ...(_filters.creator ? [`<button data-mob-creator-pick="" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;color:#9ca3af;background:none;">Clear filter</button>`] : []),
+            ..._creatorOptions.map(name => `
+              <button data-mob-creator-pick="${esc(name)}"
+                style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:12px;border:none;cursor:pointer;font-family:inherit;
+                       font-weight:${_filters.creator === name ? '600' : '400'};
+                       color:${_filters.creator === name ? '#6b21a8' : '#333'};
+                       background:${_filters.creator === name ? '#faf5ff' : 'none'};">
+                ${esc(name)}
+              </button>`)
+          ].join('')
+        : `<div style="padding:8px 14px;font-size:12px;color:#9ca3af;">No creators found</div>`;
+
+      creatorList.querySelectorAll('[data-mob-creator-pick]').forEach(row => {
+        row.addEventListener('click', () => {
+          _filters.creator = row.dataset.mobCreatorPick || null;
+          creatorDrop.style.display = 'none';
+          _mobMutantFilterBar(container, fetchFn);
+          fetchFn(container);
+        });
+      });
+      setTimeout(() => document.addEventListener('click', () => { creatorDrop.style.display = 'none'; }, { once: true }), 0);
+    });
+  }
+}
+
+function _mobMutantCollectionSheet(container) {
+  document.getElementById('mob-mut-coll-sheet')?.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mob-mut-coll-sheet';
+  backdrop.className = 'mob-sheet-backdrop';
+  backdrop.innerHTML = `
+    <div class="mob-sheet" onclick="event.stopPropagation()">
+      <div class="mob-sheet-handle"></div>
+      <div class="mob-sheet-caption">Switch collection</div>
+      ${COLLECTIONS.map(c => `
+        <div class="mob-strain-sheet-row" data-coll-id="${c.id}"
+          style="display:flex;align-items:center;gap:13px;padding:12px 8px;border-radius:14px;cursor:pointer;
+                 background:${c.id === _collection ? '#f1f6f3' : 'transparent'};">
+          <img src="${esc(c.icon)}" alt="${esc(c.id)}" style="width:38px;height:38px;object-fit:contain;">
+          <div style="flex:1;font-size:16px;font-weight:700;color:${MOB_GRP_COLOR[c.id] ?? '#333'};">${_collLabelHTML(c.id)}</div>
+          ${c.id === _collection ? '<span style="color:#2f9e6e;font-weight:800;font-size:18px;">✓</span>' : ''}
+        </div>`).join('')}
+    </div>`;
+
+  backdrop.addEventListener('click', () => backdrop.remove());
+  backdrop.querySelectorAll('.mob-strain-sheet-row').forEach(row => {
+    row.addEventListener('click', () => {
+      _collection = row.dataset.collId;
+      window.__mutantCollection = _collection;
+      backdrop.remove();
+      // Reset filters and search when switching collection
+      _filters = { favorites: false, type: null, strain: null, category: null, published: null, creator: null, marker: null };
+      _searchTerm = '';
+      _creatorOptions = [];
+      _markerOptions = [];
+      _moreOpen = false;
+      _expandedSections = { type: false, strain: false, function: false, published: false, creator: false, marker: false };
+      const searchInput = container.querySelector('#mob-mut-search');
+      if (searchInput) searchInput.value = '';
+      renderMutants(container);
+    });
+  });
+
+  document.body.appendChild(backdrop);
 }
 
 export async function _mobLoadMutantDetail(mutantUUID) {
@@ -388,8 +723,8 @@ export async function _mobLoadMutantDetail(mutantUUID) {
   const [mutantRes, pipeRes, phenoRes] = await Promise.all([
     sb.from('mutants')
       .select(`id,mutant_id,name,mutation_type,mutation_method,plasmid_used,marker,
-               creator,creator_name,contributed_by,background_strain_id,
-               is_published,notes,target_gene_ids,availability,
+               creator,creator_name,background_strain_id,
+               is_published,notes,target_gene_ids,
                recombination_start,recombination_end,ortholog_span_cm,collection,
                strains!background_strain_id(common_name,species)`)
       .eq('id', mutantUUID)
@@ -436,111 +771,174 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
     Lucky17:  '/design/icons_transparent/L17icon_transparent.png',
     Chimeras: '/design/icons_transparent/Chimeraicon_transparent.png',
   }[m.collection] ?? '';
-  const isFav       = state.favorites.mutants.has(String(m.id));
-  const displayName = m.name || m.mutant_id;
-  const locSub      = `${m.collection ?? ''} · ${m.mutant_id}`;
-  const typeLabel   = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
-  const pubColor    = m.is_published ? '#1c8c7e' : '#d98a2b';
-  const pubLabel    = m.is_published ? 'Published' : 'Unpublished';
-  const availMap    = {
-    'Available':   { color: '#1c8c7e', bg: '#e6f3ef' },
-    'On request':  { color: '#c2912b', bg: '#f6efdd' },
-    'Restricted':  { color: '#c0392b', bg: '#f6e6e4' },
-  };
-  const avail  = availMap[m.availability] ?? { color: '#8b958f', bg: '#f4f4f4' };
-  const pheno  = phenos[0];
-  const esc    = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const isFav      = state.favorites.mutants.has(String(m.id));
+  const typeLabel  = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
+  const pubColor   = m.is_published ? '#1c8c7e' : '#d98a2b';
+  const pubLabel   = m.is_published ? 'Published' : 'Unpublished';
+  // KV row helper — no mono font anywhere in mutant detail
+  const kv = (key, val) => val
+    ? `<div class="mob-kv"><div class="mob-k">${key}</div><div class="mob-v sm">${val}</div></div>`
+    : '';
+
+  // Pipeline stage strip
+  const pipelineHTML = (() => {
+    if (!isLabMember) return '';
+    if (!pipe) return `<div class="mob-det-sec"><div class="mob-det-h">Pipeline</div><div style="font-size:13px;color:var(--mob-ink-3);font-style:italic;">No pipeline record.</div></div>`;
+    const stages = [
+      { label: 'Transform',  done: !!pipe.transformed_date,    date: pipe.transformed_date },
+      { label: 'Cloning',    done: !!pipe.plaque_cloned_date,  date: pipe.plaque_cloned_date },
+      { label: 'Genotype',   done: !!pipe.genotyped_date,      date: pipe.genotyped_date },
+      { label: 'In vitro',   done: !!pipe.in_vitro_date,       date: pipe.in_vitro_date },
+      { label: 'In vivo',    done: !!pipe.in_vivo_date,        date: pipe.in_vivo_date },
+    ];
+    const stageEls = stages.map((s, i) => `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;">
+        <div style="width:14px;height:14px;border-radius:50%;flex-shrink:0;
+             background:${s.done ? '#059669' : 'none'};
+             border:2px solid ${s.done ? '#059669' : '#d1d5db'};
+             position:relative;z-index:1;">
+        </div>
+        <div style="font-size:10px;font-weight:600;color:${s.done ? '#059669' : '#9ca3af'};text-align:center;line-height:1.2;">${s.label}</div>
+        ${s.date ? `<div style="font-size:9px;color:var(--mob-ink-3);text-align:center;">${s.date.slice(0,10)}</div>` : ''}
+      </div>
+      ${i < stages.length - 1 ? `<div style="flex:1;height:2px;background:#e5e7eb;margin-top:6px;"></div>` : ''}`).join('');
+    return `
+      <div class="mob-det-sec">
+        <div class="mob-det-h">Pipeline</div>
+        <div style="display:flex;align-items:flex-start;gap:0;">${stageEls}</div>
+      </div>`;
+  })();
+
+  // Phenotype section
+  const phenoHTML = (() => {
+    if (!phenos.length) {
+      return `<div class="mob-det-sec"><div class="mob-det-h">Phenotype</div><div style="font-size:13px;color:var(--mob-ink-3);font-style:italic;">No phenotype data recorded.</div></div>`;
+    }
+    const phenoSections = phenos.map(ph => {
+      const hasPhenoColor = ph.has_phenotype ? '#059669' : '#9ca3af';
+      const hasPhenoBg    = ph.has_phenotype ? '#e6f4f0' : '#f3f4f6';
+      const hasPhenoLabel = ph.has_phenotype ? 'Has phenotype' : 'No phenotype';
+      const imgStrip = ph.image_paths?.length
+        ? `<div style="display:flex;gap:8px;overflow-x:auto;padding:10px 16px 4px;-webkit-overflow-scrolling:touch;">
+            ${ph.image_paths.map(src => `<img src="${esc(src)}" alt="" style="height:110px;width:auto;border-radius:8px;flex-shrink:0;object-fit:cover;">`).join('')}
+           </div>`
+        : `<div style="padding:8px 16px;"><span style="font-size:12px;color:var(--mob-ink-3);background:#f3f4f6;border-radius:8px;padding:5px 10px;display:inline-block;">📷 No image on file</span></div>`;
+      return `
+        ${imgStrip}
+        ${ph.description ? `<div style="padding:8px 16px 4px;font-size:14px;line-height:1.6;color:var(--mob-ink);">${esc(ph.description)}</div>` : ''}
+        <div style="padding:6px 16px 10px;">
+          <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;background:${hasPhenoBg};color:${hasPhenoColor};">${hasPhenoLabel}</span>
+        </div>`;
+    }).join('<hr style="border:none;border-top:1px solid #f0f0f0;margin:0;">');
+    return `<div class="mob-det-sec"><div class="mob-det-h">Phenotype</div>${phenoSections}</div>`;
+  })();
+
+  const isPriority = isLabMember && !!pipe?.is_priority;
+  const flameSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="${collColor}" stroke="${collColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>`;
+
+  // Chimeras/Lucky17: mutant_id (RC###) is primary, name is secondary.
+  // Tn/deletion (CT_L2, CM): name (Tn::gyrA) is primary, mutant_id is secondary.
+  const isChimeraOrLucky = m.collection === 'Chimeras' || m.collection === 'Lucky17';
+  const heroTitle    = isChimeraOrLucky ? m.mutant_id : (m.name || m.mutant_id);
+  const heroSubtitle = isChimeraOrLucky ? m.name : (m.name ? m.mutant_id : null);
 
   scroll.innerHTML = `
-    <div style="background:${collColor}12;border-bottom:3px solid ${collColor};padding-bottom:12px;">
-      <div class="mob-d-head">
+    <!-- Header — bleeds to screen top matching gene detail pattern -->
+    <div style="margin-top:calc(-1 * var(--mob-nav-h));padding-top:calc(var(--mob-nav-h) + 10px);
+                background:linear-gradient(180deg,${collColor}28 0%,${collColor}08 100%);
+                border-bottom:1px solid ${collColor}40;padding-bottom:14px;">
+      <div class="mob-d-head" style="padding:0 12px 0 16px;align-items:center;">
         <img src="${esc(collIcon)}" alt="" style="width:52px;height:52px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
         <div class="mob-d-title-block">
-          <div class="mob-d-title" style="font-family:var(--mob-mono);font-size:25px;">${esc(displayName)}</div>
-          <span class="mob-d-loc">${esc(locSub)}</span>
+          <div class="mob-d-title" style="display:flex;align-items:center;gap:6px;">
+            ${esc(heroTitle)}
+            ${isPriority ? `<span title="Priority">${flameSVG}</span>` : ''}
+          </div>
+          ${heroSubtitle ? `<span class="mob-d-loc" style="font-family:var(--mob-sans);">${esc(heroSubtitle)}</span>` : ''}
         </div>
-        <div class="mob-d-actions">
-          <button class="mob-gbtn mob-fav-btn${isFav?' saved-on':''}" data-id="${m.id}" aria-label="Save mutant">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="${isFav?'#e8b400':'none'}" stroke="${isFav?'#e8b400':'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </button>
+        <div class="mob-d-actions" style="flex-shrink:0;display:flex;align-items:center;gap:2px;">
+          ${isLabMember ? `<button class="mob-edit-btn" aria-label="Edit mutant"
+              style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+            </button>` : ''}
+          ${state.user ? `<button class="mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${m.id}" aria-label="Save mutant"
+              style="background:none;border:none;padding:8px 4px;cursor:pointer;color:${isFav ? '#e8b400' : 'var(--mob-ink-3)'};">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+            </button>` : ''}
         </div>
       </div>
-      <div class="mob-tags-row" style="padding:0 20px;">
+      <div class="mob-tags-row" style="padding:8px 16px 0;flex-wrap:wrap;">
         <span class="mob-tag" style="color:${mt.color};border-color:${mt.color};background:${mt.color}14;">${esc(typeLabel)}</span>
         <span class="mob-tag" style="color:${pubColor};border-color:${pubColor};background:${pubColor}14;">${esc(pubLabel)}</span>
         <span class="mob-tag" style="color:${collColor};border-color:${collColor};background:${collColor}14;">${esc(m.collection ?? '')}</span>
       </div>
-      <div class="mob-meta-row" style="padding:8px 20px 0;">
-        <span style="font-size:12px;font-style:italic;color:var(--mob-ink-3);">${m.is_published ? 'Published' : 'Unpublished'}</span>
-      </div>
     </div>
 
-    <div class="mob-card" id="mob-mut-targets-card">
-      <div class="mob-card-h">${isChimera ? 'Recombined Region' : 'Targeted Genes'}</div>
+    <!-- Section: Targeted Genes / Recombined Region -->
+    <div class="mob-det-sec" id="mob-mut-targets-card">
+      <div class="mob-det-h">${isChimera ? 'Recombined Region' : 'Targeted Genes'}</div>
       ${isChimera
-        ? `<div id="mob-chimera-placeholder" style="padding:10px 0;color:var(--mob-ink-3);font-size:13px;text-align:center;">Loading recombination data…</div>`
+        ? `<div id="mob-chimera-placeholder" style="color:var(--mob-ink-3);font-size:13px;text-align:center;padding:6px 0;">Loading recombination data…</div>`
         : _mobTargetedGenesHTML(genes, m.mutation_type)}
     </div>
 
-    ${isChimera ? `<div class="mob-card" id="mob-gene-exchange-card">
-      <div class="mob-card-h">Gene Exchange</div>
-      <div id="mob-exchange-placeholder" style="padding:10px 0;color:var(--mob-ink-3);font-size:13px;text-align:center;">Loading…</div>
+    <!-- Section: Gene Exchange (chimeras only) -->
+    ${isChimera ? `
+    <div class="mob-det-sec mob-det-sec--map" id="mob-gene-exchange-card">
+      <div class="mob-det-h" style="padding:0 16px;">Gene Exchange</div>
+      <div id="mob-exchange-placeholder" style="padding:6px 16px;color:var(--mob-ink-3);font-size:13px;text-align:center;">Loading…</div>
     </div>` : ''}
 
-    <div class="mob-card">
-      <div class="mob-card-h">Mutation</div>
+    <!-- Section: Mutation -->
+    <div class="mob-det-sec">
+      <div class="mob-det-h">Mutation</div>
       <div class="mob-kv-grid">
-        <div class="mob-kv"><div class="mob-k">Type</div><div class="mob-v sm">${esc(typeLabel)}</div></div>
-        <div class="mob-kv"><div class="mob-k">Allele</div><div class="mob-v sm" style="font-family:var(--mob-mono);">${esc(m.mutant_id ?? '—')}</div></div>
+        ${kv('Type', esc(typeLabel))}
+        ${kv('Allele', esc(m.mutant_id ?? '—'))}
+        ${kv('Method', esc(m.mutation_method ?? ''))}
+        ${kv('Marker', esc(m.marker ?? ''))}
+        ${kv('Plasmid', esc(m.plasmid_used ?? ''))}
       </div>
-      ${m.name ? `<div class="mob-genotype">${esc(m.name)}</div>` : ''}
     </div>
 
-    <div class="mob-card">
-      <div class="mob-card-h">Construction</div>
+    <!-- Section: Background -->
+    <div class="mob-det-sec">
+      <div class="mob-det-h">Background</div>
       <div class="mob-kv-grid">
-        <div class="mob-kv"><div class="mob-k">Method</div><div class="mob-v sm">${esc(m.mutation_method ?? '—')}</div></div>
-        <div class="mob-kv"><div class="mob-k">Background</div><div class="mob-v sm">${esc(m.strains?.common_name ?? '—')}</div></div>
-        <div class="mob-kv"><div class="mob-k">Marker</div><div class="mob-v sm" style="font-family:var(--mob-mono);">${esc(m.marker ?? '—')}</div></div>
-        <div class="mob-kv"><div class="mob-k">Collection</div><div class="mob-v sm">${esc(m.collection ?? '—')}</div></div>
+        ${kv('Strain', esc(m.strains?.common_name ?? '—'))}
+        ${kv('Collection', esc(m.collection ?? '—'))}
+        ${kv('Creator', esc(m.creator_name ?? ''))}
       </div>
     </div>
 
-    <div class="mob-card">
-      <div class="mob-card-h">Phenotype</div>
-      <div style="margin-top:10px;font-size:14.5px;line-height:1.55;color:var(--mob-ink);">
-        ${pheno?.description
-          ? `<p style="margin:0;">${esc(pheno.description)}</p>`
-          : `<p style="margin:0;font-style:italic;color:var(--mob-ink-3);">No phenotype data yet.</p>`}
-      </div>
+    <!-- Section: Phenotype -->
+    ${phenoHTML}
+
+    <!-- Section: Pipeline (lab+ only) -->
+    ${pipelineHTML}
+
+    <!-- Section: Source -->
+    <div class="mob-det-sec">
+      <div class="mob-det-h">Source</div>
+      <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;
+           background:${pubColor}14;color:${pubColor};border:1px solid ${pubColor}40;">${esc(pubLabel)}</span>
     </div>
 
-    <div class="mob-card">
-      <div class="mob-card-h">Source</div>
-      <div class="mob-kv-grid">
-        <div class="mob-kv"><div class="mob-k">Lab</div><div class="mob-v sm">${esc(m.creator_name ?? '—')}</div></div>
-        <div class="mob-kv"><div class="mob-k">Status</div><div class="mob-v sm" style="color:${pubColor};">${esc(pubLabel)}</div></div>
-      </div>
-    </div>
-
-    <div class="mob-card">
-      <div class="mob-card-h">Availability</div>
-      <div style="margin-top:10px;">
-        <span class="mob-avail-pill" style="color:${avail.color};background:${avail.bg};">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
-          ${esc(m.availability ?? 'Unknown')}
-        </span>
-      </div>
-    </div>
-
+    <!-- Section: Notes (lab+ only) -->
     ${isLabMember && m.notes ? `
-    <div class="mob-card">
-      <div class="mob-card-h">Notes</div>
-      <div style="margin-top:10px;font-size:14px;line-height:1.55;color:var(--mob-ink);">${esc(m.notes)}</div>
+    <div class="mob-det-sec">
+      <div class="mob-det-h">Notes</div>
+      <div style="font-size:14px;line-height:1.6;color:var(--mob-ink);">${esc(m.notes)}</div>
     </div>` : ''}
 
     <div class="mob-pad-bottom"></div>`;
 
+  // Edit button — opens pull-up sheet, reloads detail on save
+  scroll.querySelector('.mob-edit-btn')?.addEventListener('click', () => {
+    openMutantEditModal(m, genes, null, () => _mobLoadMutantDetail(m.id));
+  });
+
+  // Favorite button
   scroll.querySelector('.mob-fav-btn')?.addEventListener('click', async e => {
     e.stopPropagation();
     const btn = e.currentTarget;
@@ -550,6 +948,7 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
     if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
   });
 
+  // Targeted gene row navigation
   scroll.querySelectorAll('[data-tg-gene]').forEach(row => {
     row.addEventListener('click', () => {
       window.__openGeneId = row.dataset.tgGene;
@@ -557,6 +956,7 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
     });
   });
 
+  // Targeted gene scroll fade
   const tgScroll = scroll.querySelector('#mob-tg-scroll');
   const tgFade   = scroll.querySelector('#mob-tg-fade');
   if (tgScroll && tgFade) {
@@ -567,6 +967,7 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
     updateFade();
   }
 
+  // Inject chimera sections
   if (isChimera && m.recombination_start && m.recombination_end) {
     _mobInjectChimeraSections(m, scroll);
   }
@@ -2447,15 +2848,21 @@ function skeletonRows(n) {
 
 // ─── Mutant edit modal ────────────────────────────────────
 
-async function openMutantEditModal(m, genes, rightEl) {
+async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null) {
   document.getElementById('mut-edit-overlay')?.remove();
 
   const overlay = document.createElement('div');
   overlay.id = 'mut-edit-overlay';
-  overlay.style.cssText = [
-    'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;',
-    'display:flex;align-items:center;justify-content:center;padding:16px;',
-  ].join('');
+
+  if (isMobileViewport()) {
+    overlay.className = 'mob-sheet-backdrop';
+    overlay.style.cssText = 'z-index:2000;';
+  } else {
+    overlay.style.cssText = [
+      'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;',
+      'display:flex;align-items:center;justify-content:center;padding:16px;',
+    ].join('');
+  }
 
   function closeModal() {
     overlay.remove();
@@ -2468,7 +2875,8 @@ async function openMutantEditModal(m, genes, rightEl) {
   overlay.innerHTML = buildMutantEditHtml(m, genes);
   document.body.appendChild(overlay);
 
-  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl);
+  const onSave = afterSaveFn ?? (() => loadDetail(m.id));
+  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl, onSave);
 }
 
 function buildMutantEditHtml(m, genes) {
@@ -2632,7 +3040,7 @@ function buildMutantEditHtml(m, genes) {
     </div>`;
 }
 
-function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
+function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, afterSaveFn = null) {
   overlay.querySelector('#mem-close')?.addEventListener('click', closeModal);
   overlay.querySelector('#mem-cancel')?.addEventListener('click', closeModal);
 
@@ -2851,7 +3259,8 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
 
     closeModal();
     // Re-render the detail panel with fresh data
-    loadDetail(m.id);
+    if (afterSaveFn) afterSaveFn();
+    else loadDetail(m.id);
   });
 }
 
