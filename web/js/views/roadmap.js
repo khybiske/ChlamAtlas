@@ -1,6 +1,7 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
+  { version: 'v0.11.0', date: 'Jun 3, 2026',  type: 'feat', description: 'Full mobile optimization: home, genomes, mutants, pipeline, and tools redesigned for phone-first use — native push/pop navigation, full-width layouts, touch-friendly controls, and collapsible panels throughout.' },
   { version: 'v0.10.0', date: 'May 30, 2026', type: 'feat', description: 'New internal workspace for authenticated lab members, accessible from the main navigation after login.' },
   { version: 'v0.9.9', date: 'May 29, 2026', type: 'feat', description: 'Bug Reports page: authenticated users can submit bug reports; all users can view the open list; admins can resolve and dismiss entries. Accessible from the user menu.' },
   { version: 'v0.9.8', date: 'May 29, 2026', type: 'data', description: 'CT-L2 gene database completed: CTL0414, CTL0420, and CTL0856 added with protein data, AlphaFold structures, and cross-strain orthologs.' },
