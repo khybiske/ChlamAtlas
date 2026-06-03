@@ -163,16 +163,23 @@ const MOB_GRP_COLOR = {
   Chimeras: '#8466C4',
 };
 
+function _collLabelHTML(collId) {
+  if (collId === 'CT_L2') return '<i>C. trachomatis</i> L2/434';
+  if (collId === 'CM')    return '<i>C. muridarum</i> Nigg';
+  if (collId === 'Lucky17') return 'Lucky 17';
+  return 'Chimeras';
+}
+
 function _renderMobileMutantList(container) {
   const coll = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
   const collColor = MOB_GRP_COLOR[_collection] ?? '#2f9e6e';
 
   container.style.padding = '0';
   container.innerHTML = `
-    <div class="mob-strain-ctx" style="border-left:3px solid ${collColor};">
+    <div class="mob-strain-ctx">
       <img src="${esc(coll.icon)}" alt="${esc(coll.id)}" style="width:38px;height:38px;object-fit:contain;" onerror="this.style.display='none'">
       <div style="flex:1;min-width:0;">
-        <div class="spc" style="color:${collColor};">${esc(coll.label)}</div>
+        <div class="spc" style="color:${collColor};">${_collLabelHTML(_collection)}</div>
         <div class="cnt" id="mob-mut-count">Loading…</div>
       </div>
       <button class="mob-switch-btn" id="mob-mut-switch-btn">
@@ -674,10 +681,7 @@ function _mobMutantCollectionSheet(container) {
           style="display:flex;align-items:center;gap:13px;padding:12px 8px;border-radius:14px;cursor:pointer;
                  background:${c.id === _collection ? '#f1f6f3' : 'transparent'};">
           <img src="${esc(c.icon)}" alt="${esc(c.id)}" style="width:38px;height:38px;object-fit:contain;">
-          <div style="flex:1;">
-            <div style="font-weight:800;font-size:16px;color:${MOB_GRP_COLOR[c.id] ?? '#555'};">${esc(c.id === 'CT_L2' ? 'CT L2/434' : c.id)}</div>
-            <div style="font-size:13px;color:var(--mob-ink-2);">${esc(c.label)}</div>
-          </div>
+          <div style="flex:1;font-size:16px;font-weight:700;color:${MOB_GRP_COLOR[c.id] ?? '#333'};">${_collLabelHTML(c.id)}</div>
           ${c.id === _collection ? '<span style="color:#2f9e6e;font-weight:800;font-size:18px;">✓</span>' : ''}
         </div>`).join('')}
     </div>`;
@@ -715,8 +719,8 @@ export async function _mobLoadMutantDetail(mutantUUID) {
   const [mutantRes, pipeRes, phenoRes] = await Promise.all([
     sb.from('mutants')
       .select(`id,mutant_id,name,mutation_type,mutation_method,plasmid_used,marker,
-               creator,creator_name,contributed_by,background_strain_id,
-               is_published,notes,target_gene_ids,availability,
+               creator,creator_name,background_strain_id,
+               is_published,notes,target_gene_ids,
                recombination_start,recombination_end,ortholog_span_cm,collection,
                strains!background_strain_id(common_name,species)`)
       .eq('id', mutantUUID)
@@ -767,12 +771,7 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
   const typeLabel  = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
   const pubColor   = m.is_published ? '#1c8c7e' : '#d98a2b';
   const pubLabel   = m.is_published ? 'Published' : 'Unpublished';
-  const availMap   = {
-    'Available':  { color: '#1c8c7e', bg: '#e6f3ef' },
-    'On request': { color: '#c2912b', bg: '#f6efdd' },
-    'Restricted': { color: '#c0392b', bg: '#f6e6e4' },
-  };
-  const avail = availMap[m.availability] ?? { color: '#8b958f', bg: '#f4f4f4' };
+  const avail = { color: '#8b958f', bg: '#f4f4f4' }; // availability not in DB yet
 
   // Section header helper (matches gene detail style)
   const secHead = (label) =>
@@ -853,7 +852,6 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
         <span class="mob-tag" style="color:${mt.color};border-color:${mt.color};background:${mt.color}14;">${esc(typeLabel)}</span>
         <span class="mob-tag" style="color:${pubColor};border-color:${pubColor};background:${pubColor}14;">${esc(pubLabel)}</span>
         <span class="mob-tag" style="color:${collColor};border-color:${collColor};background:${collColor}14;">${esc(m.collection ?? '')}</span>
-        ${m.availability ? `<span class="mob-tag" style="color:${avail.color};border-color:${avail.color};background:${avail.bg};">${esc(m.availability)}</span>` : ''}
       </div>
     </div>
 
@@ -895,7 +893,6 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
         ${kv('Strain', esc(m.strains?.common_name ?? '—'))}
         ${kv('Collection', esc(m.collection ?? '—'))}
         ${kv('Creator', esc(m.creator_name ?? ''))}
-        ${m.contributed_by ? kv('Contributed by', esc(m.contributed_by)) : ''}
       </div>
     </div>
 
@@ -911,10 +908,6 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
       <div style="padding:10px 16px;display:flex;flex-wrap:wrap;gap:7px;">
         <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;
              background:${pubColor}14;color:${pubColor};border:1px solid ${pubColor}40;">${esc(pubLabel)}</span>
-        <span class="mob-avail-pill" style="color:${avail.color};background:${avail.bg};">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
-          ${esc(m.availability ?? 'Unknown')}
-        </span>
       </div>
     </div>
 

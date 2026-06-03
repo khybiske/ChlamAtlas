@@ -2,7 +2,7 @@
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=82';
 import { renderHome } from './views/home.js?v=82';
 import { renderGenomes } from './views/genomes.js?v=101';
-import { renderMutants } from './views/mutants.js?v=96';
+import { renderMutants } from './views/mutants.js?v=97';
 import { renderPipeline } from './views/pipeline.js?v=82';
 import { renderRoadmap }  from './views/roadmap.js?v=91';
 import { renderAlignment } from './views/alignment.js?v=97';
