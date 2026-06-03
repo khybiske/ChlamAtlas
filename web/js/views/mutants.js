@@ -484,21 +484,21 @@ function _mobMutantFilterBar(container, fetchFn) {
     </div>
     <div id="mob-mut-more-panel" style="display:${_moreOpen ? 'block' : 'none'};padding:4px 12px 8px;background:#fafafa;border-bottom:1px solid #f0f0f0;overflow-y:auto;max-height:40vh;">
       ${typeOptions.length ? `
-        ${groupHead('type', '', 'Type', secOpen.type)}
+        ${groupHead('type', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>', 'Type', secOpen.type)}
         <div style="display:${secOpen.type ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
           ${typeOptions.map(t => typeChip(t)).join('')}
         </div>` : ''}
       ${strainOpts.length ? `
-        ${groupHead('strain', '', 'Strain', secOpen.strain)}
+        ${groupHead('strain', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/></svg>', 'Strain', secOpen.strain)}
         <div style="display:${secOpen.strain ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
           ${strainOpts.map(s => strainChip(s)).join('')}
         </div>` : ''}
-      ${groupHead('function', '⚙️', 'Function', secOpen.function)}
+      ${groupHead('function', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 10.27 7 3.34"/><path d="m11 13.73-4 6.93"/><path d="M12 22v-2"/><path d="M12 2v2"/><path d="M14 12h8"/><path d="m17 20.66-1-1.73"/><path d="m17 3.34-1 1.73"/><path d="M2 12h2"/><path d="m20.66 17-1.73-1"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m3.34 7 1.73 1"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="8"/></svg>', 'Function', secOpen.function)}
       <div style="display:${secOpen.function ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
         ${funcOptions.map(f => catChip(f.value, f.label)).join('')}
       </div>
       ${isLab ? `
-        ${groupHead('published', '🔒', 'Status', secOpen.published)}
+        ${groupHead('published', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>', 'Status', secOpen.published)}
         <div style="display:${secOpen.published ? 'flex' : 'none'};flex-wrap:wrap;gap:5px;padding-bottom:4px;">
           ${['Published', 'Unpublished'].map(label => {
             const val = label === 'Published';
@@ -510,7 +510,7 @@ function _mobMutantFilterBar(container, fetchFn) {
             </button>`;
           }).join('')}
         </div>
-        ${groupHead('creator', '👤', 'Creator', secOpen.creator)}
+        ${groupHead('creator', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"/><path d="M6 17h12"/></svg>', 'Creator', secOpen.creator)}
         <div style="display:${secOpen.creator ? 'block' : 'none'};padding-bottom:4px;">
           <div style="position:relative;display:inline-block;">
             <button id="mob-mut-creator-btn"
@@ -775,21 +775,15 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
   const typeLabel  = TYPE_LABELS[m.mutation_type] ?? m.mutation_type ?? '';
   const pubColor   = m.is_published ? '#1c8c7e' : '#d98a2b';
   const pubLabel   = m.is_published ? 'Published' : 'Unpublished';
-  const avail = { color: '#8b958f', bg: '#f4f4f4' }; // availability not in DB yet
-
-  // Section header helper (matches gene detail style)
-  const secHead = (label) =>
-    `<div class="mob-det-h" style="font-size:15px;font-family:var(--mob-sans);font-weight:700;color:var(--mob-ink);padding:14px 16px 8px;border-bottom:1px solid #f5f5f5;">${label}</div>`;
-
-  // KV row helper
-  const kv = (key, val, mono = false) => val
-    ? `<div class="mob-kv"><div class="mob-k">${key}</div><div class="mob-v sm"${mono ? ' style="font-family:var(--mob-mono);"' : ''}>${val}</div></div>`
+  // KV row helper — no mono font anywhere in mutant detail
+  const kv = (key, val) => val
+    ? `<div class="mob-kv"><div class="mob-k">${key}</div><div class="mob-v sm">${val}</div></div>`
     : '';
 
   // Pipeline stage strip
   const pipelineHTML = (() => {
     if (!isLabMember) return '';
-    if (!pipe) return `<div class="mob-det-sec">${secHead('Pipeline')}<div style="padding:12px 16px;font-size:13px;color:var(--mob-ink-3);font-style:italic;">No pipeline record.</div></div>`;
+    if (!pipe) return `<div class="mob-det-sec"><div class="mob-det-h">Pipeline</div><div style="font-size:13px;color:var(--mob-ink-3);font-style:italic;">No pipeline record.</div></div>`;
     const stages = [
       { label: 'Transform',  done: !!pipe.transformed_date,    date: pipe.transformed_date },
       { label: 'Cloning',    done: !!pipe.plaque_cloned_date,  date: pipe.plaque_cloned_date },
@@ -810,15 +804,15 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
       ${i < stages.length - 1 ? `<div style="flex:1;height:2px;background:#e5e7eb;margin-top:6px;"></div>` : ''}`).join('');
     return `
       <div class="mob-det-sec">
-        ${secHead('Pipeline')}
-        <div style="display:flex;align-items:flex-start;padding:12px 16px 14px;gap:0;">${stageEls}</div>
+        <div class="mob-det-h">Pipeline</div>
+        <div style="display:flex;align-items:flex-start;gap:0;">${stageEls}</div>
       </div>`;
   })();
 
   // Phenotype section
   const phenoHTML = (() => {
     if (!phenos.length) {
-      return `<div class="mob-det-sec">${secHead('Phenotype')}<div style="padding:12px 16px;font-size:13px;color:var(--mob-ink-3);font-style:italic;">No phenotype data recorded.</div></div>`;
+      return `<div class="mob-det-sec"><div class="mob-det-h">Phenotype</div><div style="font-size:13px;color:var(--mob-ink-3);font-style:italic;">No phenotype data recorded.</div></div>`;
     }
     const phenoSections = phenos.map(ph => {
       const hasPhenoColor = ph.has_phenotype ? '#059669' : '#9ca3af';
@@ -836,23 +830,38 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
           <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;background:${hasPhenoBg};color:${hasPhenoColor};">${hasPhenoLabel}</span>
         </div>`;
     }).join('<hr style="border:none;border-top:1px solid #f0f0f0;margin:0;">');
-    return `<div class="mob-det-sec">${secHead('Phenotype')}${phenoSections}</div>`;
+    return `<div class="mob-det-sec"><div class="mob-det-h">Phenotype</div>${phenoSections}</div>`;
   })();
 
+  const isPriority = isLabMember && !!pipe?.is_priority;
+  const flameSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="${collColor}" stroke="${collColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>`;
+
   scroll.innerHTML = `
-    <!-- Header (full-bleed tinted) -->
-    <div style="background:linear-gradient(180deg,${collColor}28 0%,${collColor}10 60%,transparent 100%);padding:16px 16px 0;padding-top:calc(env(safe-area-inset-top) + 12px);">
-      <div style="display:flex;align-items:flex-start;gap:12px;padding-bottom:12px;">
-        <img src="${esc(collIcon)}" alt="" style="width:56px;height:56px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
-        <div style="flex:1;min-width:0;">
-          <div style="font-family:var(--mob-mono);font-size:22px;font-weight:700;color:var(--mob-ink);line-height:1.2;">${esc(m.mutant_id)}</div>
-          ${m.name ? `<div style="font-size:14px;color:var(--mob-ink-2);margin-top:3px;">${esc(m.name)}</div>` : ''}
+    <!-- Header — bleeds to screen top matching gene detail pattern -->
+    <div style="margin-top:calc(-1 * var(--mob-nav-h));padding-top:calc(var(--mob-nav-h) + 10px);
+                background:linear-gradient(180deg,${collColor}28 0%,${collColor}08 100%);
+                border-bottom:1px solid ${collColor}40;padding-bottom:14px;">
+      <div class="mob-d-head" style="padding:0 12px 0 16px;">
+        <img src="${esc(collIcon)}" alt="" style="width:52px;height:52px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+        <div class="mob-d-title-block">
+          <div class="mob-d-title" style="display:flex;align-items:center;gap:6px;">
+            ${esc(m.mutant_id)}
+            ${isPriority ? `<span title="Priority">${flameSVG}</span>` : ''}
+          </div>
+          ${m.name ? `<span class="mob-d-loc">${esc(m.name)}</span>` : ''}
         </div>
-        ${state.user ? `<button class="mob-gbtn mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${m.id}" aria-label="Save mutant" style="flex-shrink:0;">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </button>` : ''}
+        <div class="mob-d-actions" style="flex-shrink:0;display:flex;align-items:center;gap:2px;">
+          ${isLabMember ? `<button class="mob-edit-btn" aria-label="Edit mutant"
+              style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+            </button>` : ''}
+          ${state.user ? `<button class="mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${m.id}" aria-label="Save mutant"
+              style="background:none;border:none;padding:8px 4px;cursor:pointer;color:${isFav ? '#e8b400' : 'var(--mob-ink-3)'};">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+            </button>` : ''}
+        </div>
       </div>
-      <div class="mob-tags-row" style="padding:0 0 14px;flex-wrap:wrap;gap:5px;">
+      <div class="mob-tags-row" style="padding:8px 16px 0;flex-wrap:wrap;">
         <span class="mob-tag" style="color:${mt.color};border-color:${mt.color};background:${mt.color}14;">${esc(typeLabel)}</span>
         <span class="mob-tag" style="color:${pubColor};border-color:${pubColor};background:${pubColor}14;">${esc(pubLabel)}</span>
         <span class="mob-tag" style="color:${collColor};border-color:${collColor};background:${collColor}14;">${esc(m.collection ?? '')}</span>
@@ -861,39 +870,35 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
 
     <!-- Section: Targeted Genes / Recombined Region -->
     <div class="mob-det-sec" id="mob-mut-targets-card">
-      ${secHead(isChimera ? 'Recombined Region' : 'Targeted Genes')}
-      <div style="padding:10px 16px;">
-        ${isChimera
-          ? `<div id="mob-chimera-placeholder" style="padding:6px 0;color:var(--mob-ink-3);font-size:13px;text-align:center;">Loading recombination data…</div>`
-          : _mobTargetedGenesHTML(genes, m.mutation_type)}
-      </div>
+      <div class="mob-det-h">${isChimera ? 'Recombined Region' : 'Targeted Genes'}</div>
+      ${isChimera
+        ? `<div id="mob-chimera-placeholder" style="color:var(--mob-ink-3);font-size:13px;text-align:center;padding:6px 0;">Loading recombination data…</div>`
+        : _mobTargetedGenesHTML(genes, m.mutation_type)}
     </div>
 
-    <!-- Section: Chimera Map (chimeras only) -->
+    <!-- Section: Gene Exchange (chimeras only) -->
     ${isChimera ? `
     <div class="mob-det-sec mob-det-sec--map" id="mob-gene-exchange-card">
-      ${secHead('Gene Exchange')}
-      <div style="padding:10px 16px;">
-        <div id="mob-exchange-placeholder" style="padding:6px 0;color:var(--mob-ink-3);font-size:13px;text-align:center;">Loading…</div>
-      </div>
+      <div class="mob-det-h" style="padding:0 16px;">Gene Exchange</div>
+      <div id="mob-exchange-placeholder" style="padding:6px 16px;color:var(--mob-ink-3);font-size:13px;text-align:center;">Loading…</div>
     </div>` : ''}
 
     <!-- Section: Mutation -->
     <div class="mob-det-sec">
-      ${secHead('Mutation')}
-      <div class="mob-kv-grid" style="padding:8px 16px;">
+      <div class="mob-det-h">Mutation</div>
+      <div class="mob-kv-grid">
         ${kv('Type', esc(typeLabel))}
-        ${kv('Allele', esc(m.mutant_id ?? '—'), true)}
+        ${kv('Allele', esc(m.mutant_id ?? '—'))}
         ${kv('Method', esc(m.mutation_method ?? ''))}
-        ${kv('Marker', esc(m.marker ?? ''), true)}
-        ${kv('Plasmid', esc(m.plasmid_used ?? ''), true)}
+        ${kv('Marker', esc(m.marker ?? ''))}
+        ${kv('Plasmid', esc(m.plasmid_used ?? ''))}
       </div>
     </div>
 
     <!-- Section: Background -->
     <div class="mob-det-sec">
-      ${secHead('Background')}
-      <div class="mob-kv-grid" style="padding:8px 16px;">
+      <div class="mob-det-h">Background</div>
+      <div class="mob-kv-grid">
         ${kv('Strain', esc(m.strains?.common_name ?? '—'))}
         ${kv('Collection', esc(m.collection ?? '—'))}
         ${kv('Creator', esc(m.creator_name ?? ''))}
@@ -908,18 +913,16 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
 
     <!-- Section: Source -->
     <div class="mob-det-sec">
-      ${secHead('Source')}
-      <div style="padding:10px 16px;display:flex;flex-wrap:wrap;gap:7px;">
-        <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;
-             background:${pubColor}14;color:${pubColor};border:1px solid ${pubColor}40;">${esc(pubLabel)}</span>
-      </div>
+      <div class="mob-det-h">Source</div>
+      <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;
+           background:${pubColor}14;color:${pubColor};border:1px solid ${pubColor}40;">${esc(pubLabel)}</span>
     </div>
 
     <!-- Section: Notes (lab+ only) -->
     ${isLabMember && m.notes ? `
     <div class="mob-det-sec">
-      ${secHead('Notes')}
-      <div style="padding:10px 16px;font-size:14px;line-height:1.6;color:var(--mob-ink);">${esc(m.notes)}</div>
+      <div class="mob-det-h">Notes</div>
+      <div style="font-size:14px;line-height:1.6;color:var(--mob-ink);">${esc(m.notes)}</div>
     </div>` : ''}
 
     <div class="mob-pad-bottom"></div>`;
