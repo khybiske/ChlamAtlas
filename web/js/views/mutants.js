@@ -836,19 +836,25 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
   const isPriority = isLabMember && !!pipe?.is_priority;
   const flameSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="${collColor}" stroke="${collColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>`;
 
+  // Chimeras/Lucky17: mutant_id (RC###) is primary, name is secondary.
+  // Tn/deletion (CT_L2, CM): name (Tn::gyrA) is primary, mutant_id is secondary.
+  const isChimeraOrLucky = m.collection === 'Chimeras' || m.collection === 'Lucky17';
+  const heroTitle    = isChimeraOrLucky ? m.mutant_id : (m.name || m.mutant_id);
+  const heroSubtitle = isChimeraOrLucky ? m.name : (m.name ? m.mutant_id : null);
+
   scroll.innerHTML = `
     <!-- Header — bleeds to screen top matching gene detail pattern -->
     <div style="margin-top:calc(-1 * var(--mob-nav-h));padding-top:calc(var(--mob-nav-h) + 10px);
                 background:linear-gradient(180deg,${collColor}28 0%,${collColor}08 100%);
                 border-bottom:1px solid ${collColor}40;padding-bottom:14px;">
-      <div class="mob-d-head" style="padding:0 12px 0 16px;">
+      <div class="mob-d-head" style="padding:0 12px 0 16px;align-items:center;">
         <img src="${esc(collIcon)}" alt="" style="width:52px;height:52px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
         <div class="mob-d-title-block">
           <div class="mob-d-title" style="display:flex;align-items:center;gap:6px;">
-            ${esc(m.mutant_id)}
+            ${esc(heroTitle)}
             ${isPriority ? `<span title="Priority">${flameSVG}</span>` : ''}
           </div>
-          ${m.name ? `<span class="mob-d-loc">${esc(m.name)}</span>` : ''}
+          ${heroSubtitle ? `<span class="mob-d-loc" style="font-family:var(--mob-sans);">${esc(heroSubtitle)}</span>` : ''}
         </div>
         <div class="mob-d-actions" style="flex-shrink:0;display:flex;align-items:center;gap:2px;">
           ${isLabMember ? `<button class="mob-edit-btn" aria-label="Edit mutant"
