@@ -1,5 +1,5 @@
 // ChlamAtlas — Sequence Alignment tool
-import { sb, state } from '../client.js?v=82';
+import { sb, state } from '../client.js?v=83';
 
 // ── Local state ──────────────────────────────────────────────
 let alignState = {
