@@ -7,7 +7,7 @@ import { renderPipeline } from './views/pipeline.js?v=83';
 import { renderRoadmap }  from './views/roadmap.js?v=91';
 import { renderAlignment } from './views/alignment.js?v=97';
 import { renderStructureAlignment } from './views/structure-alignment.js?v=7';
-import { renderGenomeAlignment } from './views/genome-alignment.js?v=1';
+import { renderGenomeAlignment } from './views/genome-alignment.js?v=3';
 import { renderBugs } from './views/bugs.js?v=1';
 
 export { sb, state };

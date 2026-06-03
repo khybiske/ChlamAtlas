@@ -106,9 +106,68 @@ export async function renderGenomeAlignment(container) {
   }
 
   container.innerHTML = `
+    <style>
+      /* Mobile panels: hidden by default, revealed only on mobile with .open */
+      #ga-mob-controls, #ga-mob-jump-panel, #ga-mob-key-panel { display: none; }
+
+      @media (max-width: 639px) {
+        #ga-sidebar-left, #ga-sidebar-right { display: none !important; }
+        #ga-mob-controls { display: flex !important; }
+        #ga-picker-row {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          padding: 8px 12px !important;
+          gap: 8px !important;
+        }
+        #ga-ref-picker-wrap, #ga-cmp-picker-wrap {
+          flex: 1 !important;
+          width: 100% !important;
+        }
+        #ga-picker-swap { align-self: center !important; }
+        #ga-search { width: 100% !important; box-sizing: border-box !important; }
+        #ga-mob-jump-panel, #ga-mob-key-panel {
+          border-top: 1px solid #f0f4f8;
+          padding: 8px 12px 10px;
+          background: #fafbfc;
+        }
+        #ga-mob-jump-panel.open { display: block !important; }
+        #ga-mob-key-panel.open  { display: block !important; }
+        #ga-mob-jump-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 6px;
+        }
+        #ga-mob-jump-chips button {
+          font-family: monospace;
+          font-size: 10px;
+          padding: 4px 8px;
+          border: 1px solid #e2e8f0;
+          border-radius: 5px;
+          background: #fff;
+          color: #475569;
+          cursor: pointer;
+        }
+        #ga-mob-key-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px 12px;
+          margin-top: 6px;
+        }
+        #ga-mob-key-grid > div {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 10px;
+          color: #64748b;
+          min-width: 110px;
+        }
+      }
+    </style>
+
     <div id="ga-wrap" style="display:flex;height:calc(100vh - 56px);font-family:system-ui,sans-serif;background:#fff;overflow:hidden;">
 
-      <!-- Left sidebar: Jump chips -->
+      <!-- Left sidebar: Jump chips (desktop only) -->
       <div id="ga-sidebar-left" style="width:88px;flex-shrink:0;position:sticky;top:0;height:calc(100vh - 56px);display:flex;flex-direction:column;align-items:center;padding:24px 8px 16px;overflow-y:auto;border-right:1px solid #f0f4f8;">
         <div style="font-size:8px;font-weight:700;letter-spacing:0.1em;color:#94a3b8;text-transform:uppercase;margin-bottom:10px;">Jump to</div>
         <div id="ga-jump-chips" style="display:flex;flex-direction:column;width:100%;gap:4px;"></div>
@@ -122,20 +181,45 @@ export async function renderGenomeAlignment(container) {
           <div id="ga-picker-row" style="padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
             <div id="ga-ref-picker-wrap" style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;flex-shrink:0;">
               <img id="ga-ref-icon" style="width:16px;height:16px;object-fit:contain;display:none;flex-shrink:0;">
-              <select id="ga-ref-picker" style="border:none;outline:none;font-size:12px;font-weight:600;color:#9ca3af;background:transparent;cursor:pointer;padding:0;">
+              <select id="ga-ref-picker" style="border:none;outline:none;font-size:12px;font-weight:600;color:#9ca3af;background:transparent;cursor:pointer;padding:0;min-width:0;flex:1;">
                 <option value="">Reference genome…</option>
               </select>
             </div>
-            <span style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
+            <span id="ga-picker-swap" style="color:#94a3b8;font-size:16px;flex-shrink:0;">⇄</span>
             <div id="ga-cmp-picker-wrap" style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;flex-shrink:0;">
               <img id="ga-cmp-icon" style="width:16px;height:16px;object-fit:contain;display:none;flex-shrink:0;">
-              <select id="ga-cmp-picker" style="border:none;outline:none;font-size:12px;font-weight:600;color:#9ca3af;background:transparent;cursor:pointer;padding:0;">
+              <select id="ga-cmp-picker" style="border:none;outline:none;font-size:12px;font-weight:600;color:#9ca3af;background:transparent;cursor:pointer;padding:0;min-width:0;flex:1;">
                 <option value="">Comparison genome…</option>
               </select>
             </div>
             <input id="ga-search" placeholder="🔍 Search gene…" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:12px;color:#374151;width:170px;outline:none;background:#f8fafc;">
           </div>
-          <!-- Column labels — shown after genes load, always above scroll content -->
+
+          <!-- Mobile-only Jump / Key toggle buttons -->
+          <div id="ga-mob-controls" style="display:none;align-items:center;justify-content:flex-end;gap:6px;padding:0 12px 8px;">
+            <button id="ga-mob-jump-btn" style="font-size:11px;font-weight:600;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Jump
+            </button>
+            <button id="ga-mob-key-btn" style="font-size:11px;font-weight:600;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="6" cy="10" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 7.5l4-4M10.5 3.5l2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              Key
+            </button>
+          </div>
+
+          <!-- Mobile jump panel (hidden until toggled) -->
+          <div id="ga-mob-jump-panel">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase;">Jump to</div>
+            <div id="ga-mob-jump-chips"></div>
+          </div>
+
+          <!-- Mobile key panel (hidden until toggled) -->
+          <div id="ga-mob-key-panel">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase;">Key</div>
+            <div id="ga-mob-key-grid"></div>
+          </div>
+
+          <!-- Column labels — shown after genes load -->
           <div id="ga-col-headers" style="display:none;max-width:680px;margin:0 auto;width:100%;border-top:1px solid #f0f4f8;">
             <div style="display:flex;">
               <div style="flex:1;padding:3px 9px 4px;font-size:8px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;">Reference</div>
@@ -179,7 +263,7 @@ export async function renderGenomeAlignment(container) {
 
       </div>
 
-      <!-- Right sidebar: Legend -->
+      <!-- Right sidebar: Legend (desktop only) -->
       <div id="ga-sidebar-right" style="width:110px;flex-shrink:0;position:sticky;top:0;height:calc(100vh - 56px);display:flex;flex-direction:column;padding:24px 10px 16px;overflow-y:auto;overflow-x:hidden;border-left:1px solid #f0f4f8;">
         <div style="font-size:8px;font-weight:700;letter-spacing:0.1em;color:#94a3b8;text-transform:uppercase;margin-bottom:10px;text-align:center;">Key</div>
         <div id="ga-legend-row"></div>
@@ -197,6 +281,42 @@ export async function renderGenomeAlignment(container) {
     }
   });
   _container.querySelector('#ga-search')?.addEventListener('input', onSearch);
+
+  _container.querySelector('#ga-mob-jump-btn')?.addEventListener('click', () => {
+    const panel = _container.querySelector('#ga-mob-jump-panel');
+    const keyPanel = _container.querySelector('#ga-mob-key-panel');
+    const btn = _container.querySelector('#ga-mob-jump-btn');
+    const isOpen = panel?.classList.contains('open');
+    keyPanel?.classList.remove('open');
+    _container.querySelector('#ga-mob-key-btn')?.style && (_container.querySelector('#ga-mob-key-btn').style.background = '#f1f5f9');
+    if (isOpen) {
+      panel.classList.remove('open');
+      btn.style.background = '#f1f5f9';
+    } else {
+      panel?.classList.add('open');
+      btn.style.background = '#dbeafe';
+      btn.style.borderColor = '#93c5fd';
+      btn.style.color = '#1d4ed8';
+    }
+  });
+
+  _container.querySelector('#ga-mob-key-btn')?.addEventListener('click', () => {
+    const panel = _container.querySelector('#ga-mob-key-panel');
+    const jumpPanel = _container.querySelector('#ga-mob-jump-panel');
+    const btn = _container.querySelector('#ga-mob-key-btn');
+    const isOpen = panel?.classList.contains('open');
+    jumpPanel?.classList.remove('open');
+    _container.querySelector('#ga-mob-jump-btn')?.style && (_container.querySelector('#ga-mob-jump-btn').style.background = '#f1f5f9');
+    if (isOpen) {
+      panel.classList.remove('open');
+      btn.style.background = '#f1f5f9';
+    } else {
+      panel?.classList.add('open');
+      btn.style.background = '#dbeafe';
+      btn.style.borderColor = '#93c5fd';
+      btn.style.color = '#1d4ed8';
+    }
+  });
 
   await loadStrains();
 }
@@ -380,9 +500,11 @@ async function loadGenes() {
 // ── Navigation ───────────────────────────────────────────────
 function buildJumpChips() {
   if (!_refGenes.length) return;
-  const chipsEl = _container.querySelector('#ga-jump-chips');
-  if (!chipsEl) return;
-  chipsEl.innerHTML = '';
+  const chipsEl    = _container.querySelector('#ga-jump-chips');
+  const mobChipsEl = _container.querySelector('#ga-mob-jump-chips');
+  if (!chipsEl && !mobChipsEl) return;
+  if (chipsEl)    chipsEl.innerHTML    = '';
+  if (mobChipsEl) mobChipsEl.innerHTML = '';
 
   const indices = [];
   for (let i = 0; i < _refGenes.length; i += 100) indices.push(i);
@@ -396,36 +518,52 @@ function buildJumpChips() {
       ? `${gene.locus_tag} (end)`
       : gene.locus_tag;
 
-    const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.style.cssText = [
-      'display:block',
-      'width:100%',
-      'background:#f8fafc',
-      'border:1px solid #e2e8f0',
-      'border-radius:5px',
-      'padding:4px 5px',
-      'font-size:8.5px',
-      'color:#475569',
-      'cursor:pointer',
-      'font-family:monospace',
-      'text-align:center',
-      'white-space:nowrap',
-      'overflow:hidden',
-      'text-overflow:ellipsis',
-    ].join(';');
-    btn.addEventListener('mouseenter', () => {
-      btn.style.background = '#eff6ff';
-      btn.style.borderColor = '#93c5fd';
-      btn.style.color = '#1d4ed8';
-    });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.background = '#f8fafc';
-      btn.style.borderColor = '#e2e8f0';
-      btn.style.color = '#475569';
-    });
-    btn.addEventListener('click', () => jumpToIndex(idx));
-    chipsEl.appendChild(btn);
+    // Desktop chip
+    if (chipsEl) {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = [
+        'display:block',
+        'width:100%',
+        'background:#f8fafc',
+        'border:1px solid #e2e8f0',
+        'border-radius:5px',
+        'padding:4px 5px',
+        'font-size:8.5px',
+        'color:#475569',
+        'cursor:pointer',
+        'font-family:monospace',
+        'text-align:center',
+        'white-space:nowrap',
+        'overflow:hidden',
+        'text-overflow:ellipsis',
+      ].join(';');
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = '#eff6ff';
+        btn.style.borderColor = '#93c5fd';
+        btn.style.color = '#1d4ed8';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = '#f8fafc';
+        btn.style.borderColor = '#e2e8f0';
+        btn.style.color = '#475569';
+      });
+      btn.addEventListener('click', () => jumpToIndex(idx));
+      chipsEl.appendChild(btn);
+    }
+
+    // Mobile chip
+    if (mobChipsEl) {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        jumpToIndex(idx);
+        _container.querySelector('#ga-mob-jump-panel')?.classList.remove('open');
+        const jumpBtn = _container.querySelector('#ga-mob-jump-btn');
+        if (jumpBtn) { jumpBtn.style.background = '#f1f5f9'; jumpBtn.style.borderColor = ''; jumpBtn.style.color = ''; }
+      });
+      mobChipsEl.appendChild(btn);
+    }
   });
 }
 
@@ -708,26 +846,13 @@ function setupObserver() {
 
 // ── Legend ───────────────────────────────────────────────────
 function buildLegend() {
-  const legendRow = _container.querySelector('#ga-legend-row');
-  if (!legendRow) return;
-  legendRow.innerHTML = '';
+  const legendRow  = _container.querySelector('#ga-legend-row');
+  const mobKeyGrid = _container.querySelector('#ga-mob-key-grid');
 
-  Object.entries(FUNC_LABELS).forEach(([cat, label]) => {
-    const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLOR_DEFAULT;
-    const item  = document.createElement('div');
-    item.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:10px;color:#64748b;padding:2.5px 0;';
-    item.innerHTML =
-      `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;` +
-      (color === '#FFF100' || color === '#EBEBEB' ? 'border:1px solid #ccc;' : '') +
-      `"></span>` +
-      `<span>${label}</span>`;
-    legendRow.appendChild(item);
-  });
+  if (legendRow) legendRow.innerHTML = '';
+  if (mobKeyGrid) mobKeyGrid.innerHTML = '';
 
-  // Connector legend
-  const connectorLegend = document.createElement('div');
-  connectorLegend.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #e8edf2;';
-  connectorLegend.innerHTML =
+  const connectorHTML =
     `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#64748b;padding:2.5px 0;">` +
       `<svg width="20" height="4" style="flex-shrink:0"><line x1="0" y1="2" x2="20" y2="2" stroke="#888" stroke-width="1.5" opacity="0.6"/></svg>` +
       `Ortholog` +
@@ -736,5 +861,37 @@ function buildLegend() {
       `<svg width="20" height="10" style="flex-shrink:0"><circle cx="10" cy="5" r="3.5" fill="#fca5a5" opacity="0.85"/></svg>` +
       `No ortholog` +
     `</div>`;
-  legendRow.appendChild(connectorLegend);
+
+  Object.entries(FUNC_LABELS).forEach(([cat, label]) => {
+    const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLOR_DEFAULT;
+    const dot = `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;` +
+      (color === '#FFF100' || color === '#EBEBEB' ? 'border:1px solid #ccc;' : '') + `"></span>`;
+
+    if (legendRow) {
+      const item = document.createElement('div');
+      item.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:10px;color:#64748b;padding:2.5px 0;';
+      item.innerHTML = `${dot}<span>${label}</span>`;
+      legendRow.appendChild(item);
+    }
+
+    if (mobKeyGrid) {
+      const item = document.createElement('div');
+      item.innerHTML = `${dot}<span>${label}</span>`;
+      mobKeyGrid.appendChild(item);
+    }
+  });
+
+  if (legendRow) {
+    const connectorLegend = document.createElement('div');
+    connectorLegend.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #e8edf2;';
+    connectorLegend.innerHTML = connectorHTML;
+    legendRow.appendChild(connectorLegend);
+  }
+
+  if (mobKeyGrid) {
+    const connectorLegend = document.createElement('div');
+    connectorLegend.style.cssText = 'width:100%;margin-top:6px;padding-top:6px;border-top:1px solid #e8edf2;display:flex;gap:12px;';
+    connectorLegend.innerHTML = connectorHTML;
+    mobKeyGrid.appendChild(connectorLegend);
+  }
 }
