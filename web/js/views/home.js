@@ -74,7 +74,7 @@ async function renderHomeMobile(container) {
         <chlam-globe-bg variant="globe" tint="#163b2b"></chlam-globe-bg>
         <div class="mob-hero-inner">
           <h1>ChlamAtlas</h1>
-          <p>The authoritative research database for <em>Chlamydia</em> — genomics, mutant phenotypes, and structural biology across three model strains.</p>
+          <p>The authoritative research database for <em>Chlamydia</em><br>Genomics, proteomics, structural biology, and mutants</p>
         </div>
       </div>
 
@@ -297,8 +297,8 @@ export async function renderHome(container) {
           <div>
             <h1 class="font-display font-bold text-white" style="font-size:clamp(2.75rem,7vw,4.25rem);line-height:1;margin-bottom:0.75rem;letter-spacing:-0.01em;">ChlamAtlas</h1>
             <p style="font-size:0.9375rem;color:rgba(255,255,255,0.6);line-height:1.65;max-width:30rem;">
-              The authoritative research database for <em style="color:rgba(255,255,255,0.85);font-style:italic;">Chlamydia</em> —
-              genomics, mutant phenotypes, and structural biology across three model strains.
+              The authoritative research database for <em style="color:rgba(255,255,255,0.85);font-style:italic;">Chlamydia</em><br>
+              Genomics, proteomics, structural biology, and mutants
             </p>
           </div>
           <div id="mast-stats" class="flex sm:flex-col gap-0 sm:gap-4 mt-5 sm:mt-0">
@@ -374,7 +374,7 @@ function renderGenomesColumn(container) {
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2C8 5 16 7 16 10C16 13 8 15 8 18C8 21 16 22 16 22"/><path d="M16 2C16 5 8 7 8 10C8 13 16 15 16 18C16 21 8 22 8 22"/><line x1="8" y1="2" x2="16" y2="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/></svg>
       Genomes
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;">
@@ -427,8 +427,8 @@ function renderMutantsColumn(container) {
   if (!el) return;
 
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:8px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13H11L10 22L19.5 11H13L13 2Z"/></svg>
+    <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
       Mutants
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;">
@@ -487,7 +487,7 @@ function renderCommunityColumn(container) {
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a6b4a;margin-bottom:18px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
       Community
     </div>
 
@@ -794,7 +794,7 @@ async function loadStats(container) {
     mobileEl.innerHTML = stats.map((s, i) => `
       <div class="flex-1 px-3 first:pl-0 last:pr-0 last:border-r-0"
            style="border-right:1px solid rgba(255,255,255,0.12);">
-        <span class="font-mono font-medium text-white block" style="font-size:1.2rem;line-height:1;">${s.value}</span>
+        <span class="font-sans font-medium text-white block" style="font-size:1.2rem;line-height:1;">${s.value}</span>
         <span class="block" style="font-size:0.5875rem;color:rgba(255,255,255,0.42);text-transform:uppercase;letter-spacing:0.08em;margin-top:0.2rem;">${s.label}</span>
       </div>`).join('');
   }
@@ -804,7 +804,7 @@ async function loadStats(container) {
   if (desktopEl) {
     desktopEl.innerHTML = stats.map(s => `
       <div class="text-right">
-        <span class="font-mono font-medium text-white block" style="font-size:1.875rem;line-height:1;">${s.value}</span>
+        <span class="font-sans font-medium text-white block" style="font-size:1.875rem;line-height:1;">${s.value}</span>
         <span class="block" style="font-size:0.625rem;color:rgba(255,255,255,0.42);text-transform:uppercase;letter-spacing:0.09em;margin-top:0.2rem;">${s.label}</span>
       </div>`).join('');
   }
