@@ -933,6 +933,11 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
 
     <div class="mob-pad-bottom"></div>`;
 
+  // Edit button — opens pull-up sheet, reloads detail on save
+  scroll.querySelector('.mob-edit-btn')?.addEventListener('click', () => {
+    openMutantEditModal(m, genes, null, () => _mobLoadMutantDetail(m.id));
+  });
+
   // Favorite button
   scroll.querySelector('.mob-fav-btn')?.addEventListener('click', async e => {
     e.stopPropagation();
@@ -2843,15 +2848,21 @@ function skeletonRows(n) {
 
 // ─── Mutant edit modal ────────────────────────────────────
 
-async function openMutantEditModal(m, genes, rightEl) {
+async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null) {
   document.getElementById('mut-edit-overlay')?.remove();
 
   const overlay = document.createElement('div');
   overlay.id = 'mut-edit-overlay';
-  overlay.style.cssText = [
-    'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;',
-    'display:flex;align-items:center;justify-content:center;padding:16px;',
-  ].join('');
+
+  if (isMobileViewport()) {
+    overlay.className = 'mob-sheet-backdrop';
+    overlay.style.cssText = 'z-index:2000;';
+  } else {
+    overlay.style.cssText = [
+      'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;',
+      'display:flex;align-items:center;justify-content:center;padding:16px;',
+    ].join('');
+  }
 
   function closeModal() {
     overlay.remove();
@@ -2864,7 +2875,8 @@ async function openMutantEditModal(m, genes, rightEl) {
   overlay.innerHTML = buildMutantEditHtml(m, genes);
   document.body.appendChild(overlay);
 
-  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl);
+  const onSave = afterSaveFn ?? (() => loadDetail(m.id));
+  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl, onSave);
 }
 
 function buildMutantEditHtml(m, genes) {
@@ -3028,7 +3040,7 @@ function buildMutantEditHtml(m, genes) {
     </div>`;
 }
 
-function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
+function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, afterSaveFn = null) {
   overlay.querySelector('#mem-close')?.addEventListener('click', closeModal);
   overlay.querySelector('#mem-cancel')?.addEventListener('click', closeModal);
 
@@ -3247,7 +3259,8 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl) {
 
     closeModal();
     // Re-render the detail panel with fresh data
-    loadDetail(m.id);
+    if (afterSaveFn) afterSaveFn();
+    else loadDetail(m.id);
   });
 }
 
