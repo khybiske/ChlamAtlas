@@ -12,13 +12,28 @@ Add a Protein Interactions section to the gene detail panel, replacing the exist
 | Source | Evidence tier | Method tag | Confidence score | CT strains covered | Volume |
 |--------|--------------|-----------|------------------|--------------------|--------|
 | Mirrashidi et al. 2015 (S1.xlsx, High.Confidence.PPIs sheet) | experimental | ap_ms | MIST score (0–1) | D and/or L2 per bait | 354 pairs, 46 CT genes |
+| Literature seed (manual SQL inserts, v1) | experimental | literature | — | Strain as documented | ~10 well-validated interactions |
 | Colleague Bac2H (flat file, TBD) | experimental | bac2h | — | TBD | TBD |
-| Literature curation (manual SQL inserts) | experimental | literature | — | Strain as documented | Growing |
 | STRING v12 physical network, experimental score ≥ 700 (272561.protein.physical.links.detailed) | inferred | string | STRING score (0–1000) | CT-D (propagates to orthologs) | ~1,767 pairs, 135 CT genes |
 
 **Mirrashidi strain note:** The paper used both CT-D and CT-L2 baits. Bait names use CT-D locus tag conventions even for L2 experiments — the import script must check the paper's supplemental for per-bait strain assignment. Baits identified only by Inc protein name (e.g. IncE) without a strain-specific locus tag are treated as `strain_specific = false` and will surface on all orthologs.
 
-**STRING note:** Data is downloaded as a one-time bulk import (file already retrieved locally). The STRING API is not queried at runtime. The experimental score ≥ 700 threshold captures 135 proteins; nearly all evidence is interolog-transferred from well-studied bacteria (E. coli etc.), not directly from Ct experiments — hence `inferred` tier.
+**IntAct investigated and ruled out as a separate source:** Of IntAct's 346 Ct interactions, 337 (97%) are the Mirrashidi AP-MS dataset re-curated under PMID 26118995. The remaining 15 are from independent studies (TarP-TarP self-interaction, TarP-ACTA1, HtrA-CSN2, FliA-RpoB, LpxD-LpxD, and a handful of Inc CT-CT pairs) — these are folded into the literature seed instead.
+
+**Literature seed (v1) — interactions to insert manually at implementation time:**
+
+| CT protein | Partner | Method | Reference |
+|-----------|---------|--------|-----------|
+| TarP | TarP | Self-interaction | Clifton et al. 2004 |
+| TarP | ACTA1 (actin) | Co-IP / pulldown | Clifton et al. 2004 |
+| HtrA | CSN2 | Bacterial two-hybrid | Hale et al. 2009 |
+| FliA (σ28) | RpoB | Bacterial two-hybrid | IntAct-curated |
+| LpxD | LpxD | Self-interaction | IntAct-curated |
+| IncA | IncE | Co-IP | Mirrashidi 2015 |
+
+(Additional entries to be added manually as literature is reviewed.)
+
+**STRING note:** Data is downloaded as a one-time bulk import (file already retrieved locally at `/tmp/ct_physical_links.txt.gz` and `/tmp/ct_protein_info.txt.gz`). The STRING API is not queried at runtime. The experimental score ≥ 700 threshold captures 135 proteins; nearly all evidence is interolog-transferred from well-studied bacteria (E. coli etc.), not directly from Ct experiments — hence `inferred` tier.
 
 ---
 
