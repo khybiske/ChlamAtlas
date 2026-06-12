@@ -1540,6 +1540,167 @@ function renderDetailMutants(detail, gene, mutants) {
   });
 }
 
+function renderDetailInteractions(detail, gene, ppiRows) {
+  const el = detail.querySelector('#d-interactions');
+  if (!el) return;
+
+  if (!ppiRows.length) {
+    el.innerHTML = `
+      <div style="padding:14px 16px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:6px;">Protein Interactions</div>
+        <div style="font-size:10px;color:#bbb;font-style:italic;">No interaction data available</div>
+      </div>`;
+    return;
+  }
+
+  const experimental = ppiRows.filter(r => r.evidence_tier === 'experimental');
+  const inferred     = ppiRows.filter(r => r.evidence_tier === 'inferred');
+
+  const maxExp = Math.max(...experimental.map(r => r.confidence_score ?? 0), 1);
+  const maxInf = Math.max(...inferred.map(r => r.confidence_score ?? 0), 1);
+
+  const METHOD_LABEL = { ap_ms: 'AP-MS', bac2h: 'Bac2H', literature: 'Lit', string: 'STRING' };
+
+  function orgTag(row) {
+    if (row.partner_organism === 'human') {
+      return `<span style="font-size:8px;font-weight:700;color:#d97706;margin-left:3px;">Human</span>`;
+    }
+    return `<span style="font-size:8px;font-weight:700;color:#60a5fa;margin-left:3px;">CT</span>`;
+  }
+
+  function scoreBar(row, maxScore, isInferred) {
+    if (row.confidence_score == null) return '';
+    const pct = Math.min(row.confidence_score / maxScore, 1);
+    const w   = Math.round(10 + pct * 32);
+    const col = isInferred ? '#d1d5db' : '#10b981';
+    const val = isInferred
+      ? Math.round(row.confidence_score)
+      : row.confidence_score.toFixed(2);
+    return `<div style="display:flex;align-items:center;gap:3px;margin-top:2px;">
+      <div style="width:${w}px;height:3px;border-radius:2px;background:${col};flex-shrink:0;"></div>
+      <span style="font-size:8px;color:#bbb;">${val}</span>
+    </div>`;
+  }
+
+  const methodTooltip = (row) => {
+    const label = METHOD_LABEL[row.method] ?? row.method;
+    const ref   = row.study_reference ?? '';
+    const pmid  = row.pubmed_id ? ` · PMID ${row.pubmed_id}` : '';
+    return `title="${label}${ref ? ' · ' + ref : ''}${pmid}"`;
+  };
+
+  function makeRow(row, isInferred) {
+    const opacity    = isInferred ? 'opacity:0.72;' : '';
+    const nameCol    = isInferred ? '#9ca3af' : '#1a1a1a';
+    const descCol    = isInferred ? '#bbb' : '#777';
+    const methCol    = isInferred ? '#d1d5db' : '#10b981';
+    const methLabel  = METHOD_LABEL[row.method] ?? row.method;
+    const desc = row.partner_description
+      ? `<div style="font-size:9.5px;color:${descCol};line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(row.partner_description)}</div>`
+      : '';
+    const dataAttrs = row.partner_organism === 'ct' && row.partner_ct_gene_id
+      ? `data-partner-gene-id="${esc(row.partner_ct_gene_id)}"`
+      : row.partner_external_id
+        ? `data-uniprot="${esc(row.partner_external_id)}"`
+        : '';
+    return `
+      <div class="ppi-row" ${dataAttrs} style="display:flex;align-items:flex-start;padding:6px 14px;
+           border-top:1px solid #f5f5f5;cursor:pointer;${opacity}transition:opacity 0.1s,background 0.1s;"
+           onmouseenter="this.style.opacity='1';this.style.background='#f9fffe'"
+           onmouseleave="this.style.opacity='${isInferred ? '0.72' : '1'}';this.style.background=''"
+           ${methodTooltip(row)}>
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <div style="font-size:11px;font-weight:700;color:${nameCol};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${esc(row.partner_name)}${orgTag(row)}
+          </div>
+          ${desc}
+        </div>
+        <div style="flex-shrink:0;margin-left:6px;text-align:right;">
+          <div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${methCol};">${methLabel}</div>
+          ${scoreBar(row, isInferred ? maxInf : maxExp, isInferred)}
+        </div>
+      </div>`;
+  }
+
+  function accordionGroup(rows, id, dotColor, titleText, titleClass, countClass, isInferred, footnote) {
+    if (rows.length === 0) return '';
+    const open        = !isInferred;
+    const chevRot     = open ? 'rotate(90deg)' : '';
+    const bodyDisplay = open ? 'block' : 'none';
+    const rowsHtml    = rows.map(r => makeRow(r, isInferred)).join('');
+    const foot        = footnote && isInferred
+      ? `<div style="font-size:8.5px;color:#bbb;font-style:italic;padding:4px 14px 8px;line-height:1.4;">${footnote}</div>`
+      : '';
+    return `
+      <div class="ppi-acc-header" data-target="ppi-body-${id}"
+           style="display:flex;align-items:center;justify-content:space-between;
+                  padding:6px 14px;cursor:pointer;border-top:1px solid #f0f0f0;
+                  user-select:none;"
+           onmouseenter="this.style.background='#f9f9f9'"
+           onmouseleave="this.style.background=''">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;"></div>
+          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;${titleClass}">${titleText}</span>
+          <span style="font-size:8.5px;font-weight:600;padding:1px 5px;border-radius:10px;${countClass}">${rows.length}</span>
+        </div>
+        <span class="ppi-chevron" style="font-size:8px;color:#bbb;transform:${chevRot};transition:transform 0.2s;">▶</span>
+      </div>
+      <div id="ppi-body-${id}" style="display:${bodyDisplay};">
+        ${rowsHtml}
+        ${foot}
+      </div>`;
+  }
+
+  const totalCount = experimental.length + inferred.length;
+  const expGroup = accordionGroup(
+    experimental, `exp-${gene.id}`,
+    '#10b981', 'Experimental', 'color:#065f46;',
+    'background:#d1fae5;color:#065f46;',
+    false, ''
+  );
+  const infGroup = accordionGroup(
+    inferred, `inf-${gene.id}`,
+    '#d1d5db', 'Inferred (STRING)', 'color:#9ca3af;',
+    'background:#f3f4f6;color:#9ca3af;',
+    true, 'Inferred from orthologous experiments in other bacteria'
+  );
+
+  el.innerHTML = `
+    <div>
+      <div style="display:flex;align-items:center;gap:7px;padding:10px 14px 6px;">
+        <div style="width:3px;height:13px;background:#1a6b4a;border-radius:2px;flex-shrink:0;"></div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;">
+          Protein Interactions (${totalCount})
+        </div>
+      </div>
+      ${expGroup}
+      ${infGroup}
+    </div>`;
+
+  el.querySelectorAll('.ppi-acc-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body    = el.querySelector(`#${header.dataset.target}`);
+      const chevron = header.querySelector('.ppi-chevron');
+      if (!body) return;
+      const isOpen = body.style.display !== 'none';
+      body.style.display      = isOpen ? 'none' : 'block';
+      chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+    });
+  });
+
+  el.querySelectorAll('.ppi-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const geneId    = row.dataset.partnerGeneId;
+      const uniprotId = row.dataset.uniprot;
+      if (geneId) {
+        openGeneById(geneId, _container);
+      } else if (uniprotId) {
+        window.open(`https://www.uniprot.org/uniprotkb/${uniprotId}`, '_blank');
+      }
+    });
+  });
+}
+
 
 function renderDetailOrthologs(detail, orthoRows, gene) {
   const el = detail.querySelector('#d-orthologs');
