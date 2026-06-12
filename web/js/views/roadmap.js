@@ -1,6 +1,7 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
+  { version: 'v0.12.0', date: 'Jun 12, 2026', type: 'feat', description: 'Protein–protein interaction (PPI) module: gene detail pages now show a collapsible interaction panel with experimentally-demonstrated AP-MS hits (Mirrashidi et al. 2015, 354 interactions across 46 CT proteins), literature-curated interactions (TarP, HtrA, FliA/RpoB, LpxD, IncA–IncE), and computationally-inferred STRING v12 interactions — all tiered by evidence quality with confidence score bars, organism tags, and click-through to UniProt or partner gene.' },
   { version: 'v0.11.0', date: 'Jun 3, 2026',  type: 'feat', description: 'Full mobile optimization: home, genomes, mutants, pipeline, and tools redesigned for phone-first use — native push/pop navigation, full-width layouts, touch-friendly controls, and collapsible panels throughout.' },
   { version: 'v0.10.0', date: 'May 30, 2026', type: 'feat', description: 'New internal workspace for authenticated lab members, accessible from the main navigation after login.' },
   { version: 'v0.9.9', date: 'May 29, 2026', type: 'feat', description: 'Bug Reports page: authenticated users can submit bug reports; all users can view the open list; admins can resolve and dismiss entries. Accessible from the user menu.' },
@@ -27,8 +28,7 @@ const PLANNED_FEATURES = [
   { id: 'af3-models',       label: 'AlphaFold 3 models for all proteins',        description: 'Upgrade the structure library from AF2 to AF3 predictions across the full proteome.' },
   { id: 'chemical-mutants', label: 'Chemical mutant collection',                 description: 'Add the chemical mutagenesis collection to the mutant browser with full phenotype data.' },
   { id: 'phenotype-images', label: 'Phenotype images on mutant detail pages',    description: 'Microscopy and assay images attached to in vitro and in vivo phenotype records.' },
-  { id: 'ppi-module',       label: 'Protein–protein interaction (PPI) module',   description: 'Interaction network panel on gene/protein detail pages, linking known and predicted PPIs.' },
-  { id: 'cpn-database',     label: 'C. pneumoniae genome & proteome',            description: 'Full gene, protein, and AlphaFold structure data for C. pneumoniae — the third major Chlamydia model organism.' },
+{ id: 'cpn-database',     label: 'C. pneumoniae genome & proteome',            description: 'Full gene, protein, and AlphaFold structure data for C. pneumoniae — the third major Chlamydia model organism.' },
   { id: 'more-strains',     label: 'Additional species & strains',               description: 'Ocular and rectal C. trachomatis serovars and other Chlamydia species as data becomes available.' },
   { id: 'mlst-variants',    label: 'MLST & natural variants panel',              description: 'Gene-level view of multi-locus sequence typing data and natural sequence variation across clinical isolates.' },
   { id: 'knockdown-mutants', label: 'Knockdown mutant collection',               description: 'CRISPRi, antisense, or other knockdown reagents generated across the Chlamydia field, with phenotype data.' },

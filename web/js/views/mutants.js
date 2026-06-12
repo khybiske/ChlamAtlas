@@ -1207,7 +1207,7 @@ export function renderMutants(container) {
             <div class="mut-strip-name">${col.label}</div>
             <div class="mut-strip-count" id="strip-count">Loading…</div>
           </div>
-          <button class="mut-switch-btn" id="mut-switch-btn">Switch ▾</button>
+          <button class="mut-switch-btn" id="mut-switch-btn" title="Switch collection" aria-label="Switch collection"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3-3 3 3M4 9l3 3 3-3"/></svg></button>
         </div>
 
         <!-- Search -->

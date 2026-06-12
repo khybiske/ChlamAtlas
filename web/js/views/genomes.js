@@ -569,7 +569,7 @@ function showGeneList(container) {
             <div class="mut-strip-name" id="strain-strip-name">${STRAINS.find(s => s.id === _strain)?.label ?? _strain}</div>
             <div class="mut-strip-count" id="strain-strip-count">Loading…</div>
           </div>
-          <button class="mut-switch-btn" id="strain-switch-btn">Switch ▾</button>
+          <button class="mut-switch-btn" id="strain-switch-btn" title="Switch strain" aria-label="Switch strain"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3-3 3 3M4 9l3 3 3-3"/></svg></button>
         </div>
 
         <!-- Search -->
@@ -683,7 +683,7 @@ function showStrainDropdown(anchor, container) {
       _strain = btn.dataset.strain;
       const s = STRAINS.find(x => x.id === _strain);
       container.querySelector('#strain-strip-icon').src = s?.icon ?? '';
-      container.querySelector('#strain-strip-name').textContent = s?.label ?? _strain;
+      container.querySelector('#strain-strip-name').innerHTML = s?.label ?? _strain;
       container.querySelector('#strain-strip-count').textContent = 'Loading…';
       _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
       _expressionFilter = null;
@@ -1366,7 +1366,7 @@ function renderDetailGeneInfo(detail, gene) {
 }
 
 async function loadDetailAsync(detail, gene) {
-  const [protResult, orthoFwdResult, orthoRevResult, neighborResult, mutantsResult] = await Promise.all([
+  const [protResult, orthoFwdResult, orthoRevResult, neighborResult, mutantsResult, ppiDirectResult] = await Promise.all([
     sb.from('proteins')
       .select('*,alphafold_results(*)')
       .eq('gene_id', gene.id)
@@ -1405,6 +1405,11 @@ async function loadDetailAsync(detail, gene) {
       .select('id, mutant_id, name, mutation_type, is_published, collection')
       .contains('target_gene_ids', [gene.id])
       .order('mutant_id'),
+
+    sb.from('protein_interactions')
+      .select('*')
+      .eq('gene_id', gene.id)
+      .order('confidence_score', { ascending: false, nullsFirst: false }),
   ]);
 
   const { data: exprRows } = await sb.from('expression_data')
@@ -1416,6 +1421,41 @@ async function loadDetailAsync(detail, gene) {
   const revRows = (orthoRevResult.data ?? []).map(o => ({ id: o.id, gene_b: o.gene_a }));
   const seenIds = new Set(fwdRows.map(o => o.id));
   const orthoRows = [...fwdRows, ...revRows.filter(o => !seenIds.has(o.id))];
+
+  // Fetch strain-agnostic interactions from orthologous genes
+  const orthoGeneIds = orthoRows.map(o => o.gene_b?.id).filter(Boolean);
+  let ppiOrthoRows = [];
+  if (orthoGeneIds.length > 0) {
+    const { data: ppiOrthoData } = await sb.from('protein_interactions')
+      .select('*')
+      .in('gene_id', orthoGeneIds)
+      .eq('strain_specific', false)
+      .order('confidence_score', { ascending: false, nullsFirst: false });
+    ppiOrthoRows = ppiOrthoData ?? [];
+  }
+
+  // Deduplicate direct rows by partner identity (same protein hit by multiple bait constructs)
+  const dedupMap = new Map();
+  for (const r of (ppiDirectResult.data ?? [])) {
+    const key = r.partner_ct_gene_id ?? r.partner_external_id ?? r.partner_name;
+    const existing = dedupMap.get(key);
+    if (!existing || (r.confidence_score ?? 0) > (existing.confidence_score ?? 0)) {
+      dedupMap.set(key, r);
+    }
+  }
+  const ppiDirect = Array.from(dedupMap.values());
+
+  // Merge direct + ortholog-propagated, deduplicate by partner identity
+  const seenPartners = new Set(ppiDirect.map(r => r.partner_ct_gene_id ?? r.partner_external_id));
+  const ppiMerged = [
+    ...ppiDirect,
+    ...ppiOrthoRows.filter(r => !seenPartners.has(r.partner_ct_gene_id ?? r.partner_external_id)),
+  ];
+  ppiMerged.sort((a, b) => {
+    if (a.evidence_tier !== b.evidence_tier)
+      return a.evidence_tier === 'experimental' ? -1 : 1;
+    return (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
+  });
 
   // For non-CT-L2 genes, fetch CT-L2 ortholog proteomics for the proteomics panel
   let orthoProtRow = null;
@@ -1438,6 +1478,7 @@ async function loadDetailAsync(detail, gene) {
   renderDetailStructure(detail, gene, protResult.data, protResult.data?.alphafold_results ?? []);
   renderDetailLocalization(detail, gene, protResult.data);
   renderDetailMutants(detail, gene, mutantsResult.data ?? []);
+  renderDetailInteractions(detail, gene, ppiMerged);
 }
 
 function renderDetailMutants(detail, gene, mutants) {
@@ -1536,6 +1577,167 @@ function renderDetailMutants(detail, gene, mutants) {
       window.__mutantCollection = btn.dataset.collection;
       window.__openMutantId     = btn.dataset.mutantId;
       window.dispatchEvent(new CustomEvent('chlamatlas:navigate', { detail: { tab: 'mutants' } }));
+    });
+  });
+}
+
+function renderDetailInteractions(detail, gene, ppiRows) {
+  const el = detail.querySelector('#d-interactions');
+  if (!el) return;
+
+  if (!ppiRows.length) {
+    el.innerHTML = `
+      <div style="padding:14px 16px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;margin-bottom:6px;">Protein Interactions</div>
+        <div style="font-size:10px;color:#bbb;font-style:italic;">No interaction data available</div>
+      </div>`;
+    return;
+  }
+
+  const experimental = ppiRows.filter(r => r.evidence_tier === 'experimental');
+  const inferred     = ppiRows.filter(r => r.evidence_tier === 'inferred');
+
+  const maxExp = Math.max(...experimental.map(r => r.confidence_score ?? 0), 1);
+  const maxInf = Math.max(...inferred.map(r => r.confidence_score ?? 0), 1);
+
+  const METHOD_LABEL = { ap_ms: 'AP-MS', bac2h: 'Bac2H', literature: 'Lit', string: 'STRING' };
+
+  function orgTag(row) {
+    if (row.partner_organism === 'human') {
+      return `<span style="font-size:8px;font-weight:700;color:#d97706;margin-left:3px;">Human</span>`;
+    }
+    return `<span style="font-size:8px;font-weight:700;color:#60a5fa;margin-left:3px;">CT</span>`;
+  }
+
+  function scoreBar(row, maxScore, isInferred) {
+    if (row.confidence_score == null) return '';
+    const pct = Math.min(row.confidence_score / maxScore, 1);
+    const w   = Math.round(10 + pct * 32);
+    const col = isInferred ? '#d1d5db' : '#10b981';
+    const val = isInferred
+      ? Math.round(row.confidence_score)
+      : row.confidence_score.toFixed(2);
+    return `<div style="display:flex;align-items:center;gap:3px;margin-top:2px;">
+      <div style="width:${w}px;height:3px;border-radius:2px;background:${col};flex-shrink:0;"></div>
+      <span style="font-size:9px;color:#bbb;">${val}</span>
+    </div>`;
+  }
+
+  const methodTooltip = (row) => {
+    const label = METHOD_LABEL[row.method] ?? row.method;
+    const ref   = row.study_reference ?? '';
+    const pmid  = row.pubmed_id ? ` · PMID ${row.pubmed_id}` : '';
+    return `title="${label}${ref ? ' · ' + ref : ''}${pmid}"`;
+  };
+
+  function makeRow(row, isInferred) {
+    const opacity    = isInferred ? 'opacity:0.72;' : '';
+    const nameCol    = isInferred ? '#9ca3af' : '#1a1a1a';
+    const descCol    = isInferred ? '#bbb' : '#777';
+    const methCol    = isInferred ? '#d1d5db' : '#10b981';
+    const methLabel  = METHOD_LABEL[row.method] ?? row.method;
+    const desc = row.partner_description
+      ? `<div style="font-size:11px;color:${descCol};line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(row.partner_description)}</div>`
+      : '';
+    const dataAttrs = row.partner_organism === 'ct' && row.partner_ct_gene_id
+      ? `data-partner-gene-id="${esc(row.partner_ct_gene_id)}"`
+      : row.partner_external_id
+        ? `data-uniprot="${esc(row.partner_external_id)}"`
+        : '';
+    return `
+      <div class="ppi-row" ${dataAttrs} style="display:flex;align-items:flex-start;padding:6px 14px;
+           border-top:1px solid #f5f5f5;cursor:pointer;${opacity}transition:opacity 0.1s,background 0.1s;"
+           onmouseenter="this.style.opacity='1';this.style.background='#f9fffe'"
+           onmouseleave="this.style.opacity='${isInferred ? '0.72' : '1'}';this.style.background=''"
+           ${methodTooltip(row)}>
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <div style="font-size:11px;font-weight:700;color:${nameCol};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${esc(row.partner_name)}${orgTag(row)}
+          </div>
+          ${desc}
+        </div>
+        <div style="flex-shrink:0;margin-left:6px;text-align:right;">
+          <div style="font-size:9px;font-weight:600;text-transform:uppercase;color:${methCol};">${methLabel}</div>
+          ${scoreBar(row, isInferred ? maxInf : maxExp, isInferred)}
+        </div>
+      </div>`;
+  }
+
+  function accordionGroup(rows, id, dotColor, titleText, titleClass, countClass, isInferred, footnote) {
+    if (rows.length === 0) return '';
+    const open        = !isInferred;
+    const chevRot     = open ? 'rotate(90deg)' : '';
+    const bodyDisplay = open ? 'block' : 'none';
+    const rowsHtml    = rows.map(r => makeRow(r, isInferred)).join('');
+    const foot        = footnote && isInferred
+      ? `<div style="font-size:8.5px;color:#bbb;font-style:italic;padding:4px 14px 8px;line-height:1.4;">${footnote}</div>`
+      : '';
+    return `
+      <div class="ppi-acc-header" data-target="ppi-body-${id}"
+           style="display:flex;align-items:center;justify-content:space-between;
+                  padding:6px 14px;cursor:pointer;border-top:1px solid #f0f0f0;
+                  user-select:none;"
+           onmouseenter="this.style.background='#f9f9f9'"
+           onmouseleave="this.style.background=''">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;"></div>
+          <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;${titleClass}">${titleText}</span>
+          <span style="font-size:8.5px;font-weight:600;padding:1px 5px;border-radius:10px;${countClass}">${rows.length}</span>
+        </div>
+        <span class="ppi-chevron" style="font-size:8px;color:#bbb;transform:${chevRot};transition:transform 0.2s;">▶</span>
+      </div>
+      <div id="ppi-body-${id}" style="display:${bodyDisplay};max-height:300px;overflow-y:auto;">
+        ${rowsHtml}
+        ${foot}
+      </div>`;
+  }
+
+  const totalCount = experimental.length + inferred.length;
+  const expGroup = accordionGroup(
+    experimental, `exp-${gene.id}`,
+    '#10b981', 'Experimental', 'color:#065f46;',
+    'background:#d1fae5;color:#065f46;',
+    false, ''
+  );
+  const infGroup = accordionGroup(
+    inferred, `inf-${gene.id}`,
+    '#d1d5db', 'Inferred (STRING)', 'color:#9ca3af;',
+    'background:#f3f4f6;color:#9ca3af;',
+    true, 'Inferred from orthologous experiments in other bacteria'
+  );
+
+  el.innerHTML = `
+    <div>
+      <div style="display:flex;align-items:center;gap:7px;padding:10px 14px 6px;">
+        <div style="width:3px;height:13px;background:#1a6b4a;border-radius:2px;flex-shrink:0;"></div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a6b4a;">
+          Protein Interactions (${totalCount})
+        </div>
+      </div>
+      ${expGroup}
+      ${infGroup}
+    </div>`;
+
+  el.querySelectorAll('.ppi-acc-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body    = el.querySelector(`#${header.dataset.target}`);
+      const chevron = header.querySelector('.ppi-chevron');
+      if (!body) return;
+      const isOpen = body.style.display !== 'none';
+      body.style.display      = isOpen ? 'none' : 'block';
+      chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+    });
+  });
+
+  el.querySelectorAll('.ppi-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const geneId    = row.dataset.partnerGeneId;
+      const uniprotId = row.dataset.uniprot;
+      if (geneId) {
+        openGeneById(geneId, _container);
+      } else if (uniprotId) {
+        window.open(`https://www.uniprot.org/uniprotkb/${uniprotId}`, '_blank');
+      }
     });
   });
 }
