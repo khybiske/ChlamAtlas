@@ -1434,8 +1434,18 @@ async function loadDetailAsync(detail, gene) {
     ppiOrthoRows = ppiOrthoData ?? [];
   }
 
+  // Deduplicate direct rows by partner identity (same protein hit by multiple bait constructs)
+  const dedupMap = new Map();
+  for (const r of (ppiDirectResult.data ?? [])) {
+    const key = r.partner_ct_gene_id ?? r.partner_external_id ?? r.partner_name;
+    const existing = dedupMap.get(key);
+    if (!existing || (r.confidence_score ?? 0) > (existing.confidence_score ?? 0)) {
+      dedupMap.set(key, r);
+    }
+  }
+  const ppiDirect = Array.from(dedupMap.values());
+
   // Merge direct + ortholog-propagated, deduplicate by partner identity
-  const ppiDirect = ppiDirectResult.data ?? [];
   const seenPartners = new Set(ppiDirect.map(r => r.partner_ct_gene_id ?? r.partner_external_id));
   const ppiMerged = [
     ...ppiDirect,
@@ -1609,7 +1619,7 @@ function renderDetailInteractions(detail, gene, ppiRows) {
       : row.confidence_score.toFixed(2);
     return `<div style="display:flex;align-items:center;gap:3px;margin-top:2px;">
       <div style="width:${w}px;height:3px;border-radius:2px;background:${col};flex-shrink:0;"></div>
-      <span style="font-size:8px;color:#bbb;">${val}</span>
+      <span style="font-size:9px;color:#bbb;">${val}</span>
     </div>`;
   }
 
@@ -1627,7 +1637,7 @@ function renderDetailInteractions(detail, gene, ppiRows) {
     const methCol    = isInferred ? '#d1d5db' : '#10b981';
     const methLabel  = METHOD_LABEL[row.method] ?? row.method;
     const desc = row.partner_description
-      ? `<div style="font-size:9.5px;color:${descCol};line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(row.partner_description)}</div>`
+      ? `<div style="font-size:11px;color:${descCol};line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(row.partner_description)}</div>`
       : '';
     const dataAttrs = row.partner_organism === 'ct' && row.partner_ct_gene_id
       ? `data-partner-gene-id="${esc(row.partner_ct_gene_id)}"`
@@ -1647,7 +1657,7 @@ function renderDetailInteractions(detail, gene, ppiRows) {
           ${desc}
         </div>
         <div style="flex-shrink:0;margin-left:6px;text-align:right;">
-          <div style="font-size:8px;font-weight:600;text-transform:uppercase;color:${methCol};">${methLabel}</div>
+          <div style="font-size:9px;font-weight:600;text-transform:uppercase;color:${methCol};">${methLabel}</div>
           ${scoreBar(row, isInferred ? maxInf : maxExp, isInferred)}
         </div>
       </div>`;
@@ -1676,7 +1686,7 @@ function renderDetailInteractions(detail, gene, ppiRows) {
         </div>
         <span class="ppi-chevron" style="font-size:8px;color:#bbb;transform:${chevRot};transition:transform 0.2s;">▶</span>
       </div>
-      <div id="ppi-body-${id}" style="display:${bodyDisplay};">
+      <div id="ppi-body-${id}" style="display:${bodyDisplay};max-height:300px;overflow-y:auto;">
         ${rowsHtml}
         ${foot}
       </div>`;
