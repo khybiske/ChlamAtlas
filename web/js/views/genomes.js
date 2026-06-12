@@ -1366,7 +1366,7 @@ function renderDetailGeneInfo(detail, gene) {
 }
 
 async function loadDetailAsync(detail, gene) {
-  const [protResult, orthoFwdResult, orthoRevResult, neighborResult, mutantsResult] = await Promise.all([
+  const [protResult, orthoFwdResult, orthoRevResult, neighborResult, mutantsResult, ppiDirectResult] = await Promise.all([
     sb.from('proteins')
       .select('*,alphafold_results(*)')
       .eq('gene_id', gene.id)
@@ -1405,6 +1405,11 @@ async function loadDetailAsync(detail, gene) {
       .select('id, mutant_id, name, mutation_type, is_published, collection')
       .contains('target_gene_ids', [gene.id])
       .order('mutant_id'),
+
+    sb.from('protein_interactions')
+      .select('*')
+      .eq('gene_id', gene.id)
+      .order('confidence_score', { ascending: false, nullsFirst: false }),
   ]);
 
   const { data: exprRows } = await sb.from('expression_data')
@@ -1416,6 +1421,31 @@ async function loadDetailAsync(detail, gene) {
   const revRows = (orthoRevResult.data ?? []).map(o => ({ id: o.id, gene_b: o.gene_a }));
   const seenIds = new Set(fwdRows.map(o => o.id));
   const orthoRows = [...fwdRows, ...revRows.filter(o => !seenIds.has(o.id))];
+
+  // Fetch strain-agnostic interactions from orthologous genes
+  const orthoGeneIds = orthoRows.map(o => o.gene_b?.id).filter(Boolean);
+  let ppiOrthoRows = [];
+  if (orthoGeneIds.length > 0) {
+    const { data: ppiOrthoData } = await sb.from('protein_interactions')
+      .select('*')
+      .in('gene_id', orthoGeneIds)
+      .eq('strain_specific', false)
+      .order('confidence_score', { ascending: false, nullsFirst: false });
+    ppiOrthoRows = ppiOrthoData ?? [];
+  }
+
+  // Merge direct + ortholog-propagated, deduplicate by partner identity
+  const ppiDirect = ppiDirectResult.data ?? [];
+  const seenPartners = new Set(ppiDirect.map(r => r.partner_ct_gene_id ?? r.partner_external_id));
+  const ppiMerged = [
+    ...ppiDirect,
+    ...ppiOrthoRows.filter(r => !seenPartners.has(r.partner_ct_gene_id ?? r.partner_external_id)),
+  ];
+  ppiMerged.sort((a, b) => {
+    if (a.evidence_tier !== b.evidence_tier)
+      return a.evidence_tier === 'experimental' ? -1 : 1;
+    return (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
+  });
 
   // For non-CT-L2 genes, fetch CT-L2 ortholog proteomics for the proteomics panel
   let orthoProtRow = null;
@@ -1438,6 +1468,7 @@ async function loadDetailAsync(detail, gene) {
   renderDetailStructure(detail, gene, protResult.data, protResult.data?.alphafold_results ?? []);
   renderDetailLocalization(detail, gene, protResult.data);
   renderDetailMutants(detail, gene, mutantsResult.data ?? []);
+  renderDetailInteractions(detail, gene, ppiMerged);
 }
 
 function renderDetailMutants(detail, gene, mutants) {
