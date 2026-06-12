@@ -212,15 +212,15 @@
   width: 2rem; height: 2rem;
   object-fit: contain; flex-shrink: 0;
 }
-.mut-strip-name { font-weight: 600; font-size: 0.9375rem; color: #111; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mut-strip-count { font-size: 0.75rem; color: #9ca3af; }
+.mut-strip-name { font-weight: 600; font-size: 0.8125rem; color: #111; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mut-strip-count { font-size: 0.6875rem; color: #9ca3af; }
 .mut-switch-btn {
-  padding: 0.25rem 0.625rem; border-radius: 0.375rem;
-  border: 1px solid #e5e7eb; background: #fff;
-  font-size: 0.75rem; color: #374151; cursor: pointer;
-  transition: background 0.15s;
+  width: 1.75rem; height: 1.75rem; padding: 0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 0.375rem; border: 1px solid #e5e7eb; background: #fff;
+  color: #6b7280; cursor: pointer; transition: background 0.15s;
 }
-.mut-switch-btn:hover { background: #f9fafb; }
+.mut-switch-btn:hover { background: #f9fafb; color: #111; }
 
 /* List rows */
 .mut-row {

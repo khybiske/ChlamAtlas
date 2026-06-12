@@ -569,7 +569,7 @@ function showGeneList(container) {
             <div class="mut-strip-name" id="strain-strip-name">${STRAINS.find(s => s.id === _strain)?.label ?? _strain}</div>
             <div class="mut-strip-count" id="strain-strip-count">Loading…</div>
           </div>
-          <button class="mut-switch-btn" id="strain-switch-btn">Switch ▾</button>
+          <button class="mut-switch-btn" id="strain-switch-btn" title="Switch strain" aria-label="Switch strain"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3-3 3 3M4 9l3 3 3-3"/></svg></button>
         </div>
 
         <!-- Search -->
