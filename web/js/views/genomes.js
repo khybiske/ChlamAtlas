@@ -683,7 +683,7 @@ function showStrainDropdown(anchor, container) {
       _strain = btn.dataset.strain;
       const s = STRAINS.find(x => x.id === _strain);
       container.querySelector('#strain-strip-icon').src = s?.icon ?? '';
-      container.querySelector('#strain-strip-name').textContent = s?.label ?? _strain;
+      container.querySelector('#strain-strip-name').innerHTML = s?.label ?? _strain;
       container.querySelector('#strain-strip-count').textContent = 'Loading…';
       _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
       _expressionFilter = null;
