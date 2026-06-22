@@ -65,6 +65,7 @@
         <div class="relative" id="nav-mutants-wrap">
           <button id="nav-mutants-btn" data-tab="mutants" class="nav-tab">Mutants</button>
         </div>
+        <button data-tab="surveillance" class="nav-tab">Surveillance</button>
         <div class="relative" id="nav-tools-wrap">
           <button id="nav-tools-btn" class="nav-tab">
             Tools
@@ -174,6 +175,11 @@
       <div id="genome-alignment-content"></div>
     </section>
 
+    <!-- SURVEILLANCE TAB -->
+    <section id="tab-surveillance" class="tab-panel hidden">
+      <div id="surveillance-content" class="max-w-3xl mx-auto px-4 py-6"></div>
+    </section>
+
   </main>
 
   <!-- ─── MOBILE BOTTOM NAV ─────────────────────────────────── -->
@@ -189,6 +195,10 @@
     <button data-tab="mutants" class="mob-tab-btn">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
       <span class="mob-tab-label">Mutants</span>
+    </button>
+    <button data-tab="surveillance" class="mob-tab-btn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="mob-tab-label">Surveillance</span>
     </button>
     <button data-tab="pipeline" class="mob-tab-btn" id="mob-tab-pipeline" style="display:none">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17V9"/><path d="M18 17V5"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M8 17v-3"/></svg>
@@ -421,6 +431,6 @@
   <!-- Supabase JS client (ESM via CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
   <script src="/web/js/chlam-globe-bg.js"></script>
-  <script type="module" src="/web/js/app.js?v=92"></script>
+  <script type="module" src="/web/js/app.js?v=93"></script>
 </body>
 </html>
