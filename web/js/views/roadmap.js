@@ -1,6 +1,7 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
+  { version: 'v1.1.0',  date: 'Jun 22, 2026', type: 'feat', description: 'Surveillance tab: interactive Chlamydia trachomatis epidemiology charts showing annual case rates by region and sex (2000–2025). Region × sex grid picker lets users compare any combination of series — e.g. US women vs UK men — on a single Chart.js line chart. Data sourced from CDC AtlasPlus (US, 2000–2024) and UKHSA (England, 2007–2025). COVID-19 disruption annotated. Rate per 100k and raw case count views.' },
   { version: 'v1.0.0',  date: 'Jun 12, 2026', type: 'feat', description: 'Protein–protein interaction (PPI) module: gene detail pages now show a collapsible interaction panel with experimentally-demonstrated AP-MS hits (Mirrashidi et al. 2015, 354 interactions across 46 CT proteins), literature-curated interactions (TarP, HtrA, FliA/RpoB, LpxD, IncA–IncE), and computationally-inferred STRING v12 interactions — all tiered by evidence quality with confidence score bars, organism tags, and click-through to UniProt or partner gene.' },
   { version: 'v0.11.0', date: 'Jun 3, 2026',  type: 'feat', description: 'Full mobile optimization: home, genomes, mutants, pipeline, and tools redesigned for phone-first use — native push/pop navigation, full-width layouts, touch-friendly controls, and collapsible panels throughout.' },
   { version: 'v0.10.0', date: 'May 30, 2026', type: 'feat', description: 'New internal workspace for authenticated lab members, accessible from the main navigation after login.' },
