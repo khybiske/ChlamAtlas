@@ -30,7 +30,7 @@ const covidPlugin = {
     const yScale = chart.scales.y;
     if (!xScale || !yScale) return;
     const xPos = xScale.getPixelForValue('2020');
-    if (!xPos || isNaN(xPos)) return;
+    if (xPos == null || isNaN(xPos)) return;
     const ctx = chart.ctx;
     ctx.save();
     ctx.beginPath();
