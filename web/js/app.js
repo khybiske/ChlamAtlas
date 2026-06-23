@@ -357,6 +357,10 @@ function _showMobToolsSheet() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
+      <div id="mob-tools-surveillance" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Surveillance
+      </div>
       <div id="mob-tools-genome-align" style="${rowStyle}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/></svg>
         Genome Alignment
@@ -379,6 +383,7 @@ function _showMobToolsSheet() {
   });
 
   backdrop.querySelector('#mob-tools-close')?.addEventListener('click', (e) => { e.stopPropagation(); close(); });
+  wire('mob-tools-surveillance', 'surveillance');
   wire('mob-tools-genome-align', 'genome-alignment');
   wire('mob-tools-seq-align',    'alignment');
   wire('mob-tools-struct-align', 'structure-alignment');
@@ -634,7 +639,7 @@ function activateTab(name) {
   });
   // Tools button has no data-tab (it's a dropdown trigger); mark it active when on alignment
   const toolsBtn = document.getElementById('nav-tools-btn');
-  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment' || name === 'genome-alignment');
+  if (toolsBtn) toolsBtn.classList.toggle('active', name === 'alignment' || name === 'structure-alignment' || name === 'genome-alignment' || name === 'surveillance');
   document.querySelectorAll('.mobile-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === name);
   });
