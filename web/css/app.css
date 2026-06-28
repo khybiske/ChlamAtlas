@@ -782,9 +782,86 @@
 .surv-source-link:hover { color: #111827; }
 .surv-source-note { color: #9ca3af; }
 
+/* Controls row (metric toggle + export) */
+.surv-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Export button */
+.surv-export-wrap { position: relative; }
+.surv-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.surv-export-btn:hover { color: #111827; background: #f9fafb; }
+.surv-export-btn svg { flex-shrink: 0; }
+
+.surv-export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  min-width: 160px;
+  z-index: 50;
+  overflow: hidden;
+}
+.surv-export-menu[hidden] { display: none; }
+.surv-export-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  color: #374151;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.surv-export-item:hover { background: #f9fafb; }
+.surv-export-item + .surv-export-item { border-top: 1px solid #f3f4f6; }
+
+/* Toast */
+.surv-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: #111827;
+  color: #fff;
+  font-size: 0.8125rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  opacity: 1;
+  transition: opacity 0.4s, transform 0.4s;
+  z-index: 9999;
+  pointer-events: none;
+}
+.surv-toast.surv-toast--hide {
+  opacity: 0;
+  transform: translateX(-50%) translateY(0.5rem);
+}
+
 /* Mobile tweaks */
 @media (max-width: 639px) {
   .surv-header { flex-direction: column; gap: 0.75rem; }
-  .surv-metric-toggle { align-self: flex-start; }
+  .surv-controls { align-self: flex-start; }
   .surv-region-label { font-size: 0.8125rem; min-width: 110px; }
 }
