@@ -288,6 +288,30 @@
         }
       ]
     },
+    "eu": {
+      "label": "EU (without UK)",
+      "flag": "🇪🇺",
+      "source": "ECDC Surveillance Atlas of Infectious Diseases",
+      "source_url": "https://atlas.ecdc.europa.eu/public/index.aspx",
+      "geo_note": "EU27 member states excluding UK. Rates only; case counts not reported in aggregate. 2014–2015 rates reflect expanded country reporting.",
+      "data": [
+        { "year": 2010, "male": { "cases": null, "rate": 72.8 }, "female": { "cases": null, "rate": 91.6 } },
+        { "year": 2011, "male": { "cases": null, "rate": 76.5 }, "female": { "cases": null, "rate": 95.2 } },
+        { "year": 2012, "male": { "cases": null, "rate": 76.9 }, "female": { "cases": null, "rate": 94.6 } },
+        { "year": 2013, "male": { "cases": null, "rate": 71.8 }, "female": { "cases": null, "rate": 89.8 } },
+        { "year": 2014, "male": { "cases": null, "rate": 104.4 }, "female": { "cases": null, "rate": 131.2 } },
+        { "year": 2015, "male": { "cases": null, "rate": 101.2 }, "female": { "cases": null, "rate": 127.1 } },
+        { "year": 2016, "male": { "cases": null, "rate": 63.1 }, "female": { "cases": null, "rate": 84.2 } },
+        { "year": 2017, "male": { "cases": null, "rate": 64.7 }, "female": { "cases": null, "rate": 85.1 } },
+        { "year": 2018, "male": { "cases": null, "rate": 64.6 }, "female": { "cases": null, "rate": 80.0 } },
+        { "year": 2019, "male": { "cases": null, "rate": 71.7 }, "female": { "cases": null, "rate": 88.1 } },
+        { "year": 2020, "male": { "cases": null, "rate": 68.1 }, "female": { "cases": null, "rate": 83.1 } },
+        { "year": 2021, "male": { "cases": null, "rate": 74.5 }, "female": { "cases": null, "rate": 86.9 } },
+        { "year": 2022, "male": { "cases": null, "rate": 87.4 }, "female": { "cases": null, "rate": 98.6 } },
+        { "year": 2023, "male": { "cases": null, "rate": 68.0 }, "female": { "cases": null, "rate": 72.1 } },
+        { "year": 2024, "male": { "cases": null, "rate": 54.9 }, "female": { "cases": null, "rate": 54.6 } }
+      ]
+    },
     "uk": {
       "label": "United Kingdom (England)",
       "flag": "🇬🇧",
