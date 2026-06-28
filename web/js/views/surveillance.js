@@ -232,6 +232,92 @@ function renderSources(el, data) {
   el.innerHTML = lines.join('');
 }
 
+// ─── Export ────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'surv-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('surv-toast--hide');
+    setTimeout(() => t.remove(), 450);
+  }, 1800);
+}
+
+function chartToCanvas() {
+  const src = document.getElementById('surv-canvas');
+  if (!src) return null;
+  const out = document.createElement('canvas');
+  out.width = src.width;
+  out.height = src.height;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(src, 0, 0);
+  return out;
+}
+
+function exportChart(format) {
+  const out = chartToCanvas();
+  if (!out) return;
+  if (format === 'clipboard') {
+    out.toBlob(blob => {
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        .then(() => showToast('Chart copied to clipboard'))
+        .catch(() => showToast('Copy failed — try Download PNG instead'));
+    }, 'image/png');
+  } else {
+    const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    const ext  = format === 'jpg' ? 'jpg' : 'png';
+    const a = document.createElement('a');
+    a.href = out.toDataURL(mime, 0.95);
+    a.download = `chlamatlas-surveillance.${ext}`;
+    a.click();
+  }
+}
+
+function renderExportBtn(container) {
+  container.innerHTML = `
+    <div class="surv-export-wrap">
+      <button class="surv-export-btn" id="surv-export-btn" aria-haspopup="true" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 2v8M5 7l3 3 3-3"/><rect x="2" y="11" width="12" height="3" rx="1"/>
+        </svg>
+        Export
+      </button>
+      <div class="surv-export-menu" id="surv-export-menu" hidden>
+        <button class="surv-export-item" data-fmt="png">Download PNG</button>
+        <button class="surv-export-item" data-fmt="jpg">Download JPG</button>
+        <button class="surv-export-item" data-fmt="clipboard">Copy to clipboard</button>
+      </div>
+    </div>`;
+
+  const btn  = container.querySelector('#surv-export-btn');
+  const menu = container.querySelector('#surv-export-menu');
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = !menu.hidden;
+    menu.hidden = open;
+    btn.setAttribute('aria-expanded', String(!open));
+  });
+
+  menu.querySelectorAll('.surv-export-item').forEach(item => {
+    item.addEventListener('click', () => {
+      exportChart(item.dataset.fmt);
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  document.addEventListener('click', () => {
+    if (!menu.hidden) {
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  }, { capture: true });
+}
+
 // ─── Metric toggle ─────────────────────────────────────────
 function renderMetricToggle(container, data) {
   container.innerHTML = `
@@ -266,7 +352,10 @@ export async function renderSurveillance(container) {
           <h2 class="surv-title">Chlamydia Surveillance</h2>
           <p class="surv-subtitle">Reported <em>C. trachomatis</em> diagnoses by region and sex</p>
         </div>
-        <div id="surv-metric-wrap"></div>
+        <div class="surv-controls">
+          <div id="surv-metric-wrap"></div>
+          <div id="surv-export-wrap"></div>
+        </div>
       </div>
 
       <div class="surv-chart-wrap">
@@ -286,6 +375,7 @@ export async function renderSurveillance(container) {
   const canvas = container.querySelector('#surv-canvas');
   initChart(canvas, data);
   renderMetricToggle(container.querySelector('#surv-metric-wrap'), data);
+  renderExportBtn(container.querySelector('#surv-export-wrap'));
   renderGrid(container.querySelector('#surv-grid'), data);
   renderSources(container.querySelector('#surv-sources'), data);
 }
