@@ -52,7 +52,7 @@ async function main() {
   while (true) {
     const { data, error } = await supabase
       .from('proteins')
-      .select('id, uniprot_id, genes!inner(strain_id)')
+      .select('id, gene_id, uniprot_id, genes!inner(strain_id)')
       .eq('genes.strain_id', strainRow.id)
       .range(from, from + 999);
     if (error) { console.error('Failed to fetch proteins:', error.message); process.exit(1); }
@@ -72,7 +72,12 @@ async function main() {
   for (const p of all) {
     const seq = seqMap[p.uniprot_id];
     if (!seq) { skipped++; continue; }
-    updates.push({ id: p.id, aa_sequence: seq });
+    // gene_id is included (not just id/aa_sequence) because PostgREST's upsert
+    // builds an INSERT ... ON CONFLICT DO UPDATE statement, and Postgres
+    // validates NOT NULL constraints (gene_id is NOT NULL) on the constructed
+    // INSERT row before conflict resolution is evaluated — even though the
+    // row always exists and this is effectively an update-only operation.
+    updates.push({ id: p.id, gene_id: p.gene_id, aa_sequence: seq });
   }
   console.log(`${updates.length} proteins to update (${skipped} with no matching UniProt sequence)`);
 
@@ -86,14 +91,9 @@ async function main() {
   let succeeded = 0, failed = 0;
   for (let i = 0; i < updates.length; i += BATCH_SIZE) {
     const batch = updates.slice(i, i + BATCH_SIZE);
-    const promises = batch.map(update =>
-      supabase.from('proteins').update({ aa_sequence: update.aa_sequence }).eq('id', update.id)
-    );
-    const results = await Promise.all(promises);
-    for (const result of results) {
-      if (result.error) { console.error(`  ✗ protein update: ${result.error.message}`); failed++; }
-      else succeeded++;
-    }
+    const { error } = await supabase.from('proteins').upsert(batch, { onConflict: 'id' });
+    if (error) { console.error(`  ✗ batch ${i}: ${error.message}`); failed += batch.length; }
+    else succeeded += batch.length;
   }
   console.log(`Done: ${succeeded} updated, ${failed} failed`);
   if (failed > 0) process.exit(1);
