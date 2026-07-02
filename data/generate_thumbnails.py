@@ -415,7 +415,7 @@ def main():
     ap.add_argument("--source",  default=DEFAULT_SOURCE, choices=list(SOURCE_CONFIGS),
                     help=f"Structure source to render (default: {DEFAULT_SOURCE})")
     ap.add_argument("--strain",  default=None, choices=list(STRAIN_FOLDER.values()),
-                    help="Restrict to one strain: L2, DUW3, or CM")
+                    help="Restrict to one strain: L2, DUW3, CM, or Cpn")
     ap.add_argument("--limit",   type=int, default=None,
                     help="Cap number of proteins to render (default: 5 for --pilot, unlimited for --full)")
     ap.add_argument("--workers", type=int, default=4,
