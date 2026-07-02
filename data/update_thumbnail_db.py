@@ -34,6 +34,7 @@ STRAIN_FOLDER = {
     "CT-L2": "L2",
     "CT-D":  "DUW3",
     "CM":    "CM",
+    "Cpn":   "Cpn",
 }
 
 # Must match af_version values used in generate_thumbnails.py SOURCE_CONFIGS
