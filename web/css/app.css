@@ -886,7 +886,8 @@
 
 .phylo-frame-wrap {
   position: relative;
-  height: 480px;
+  height: calc(100vh - 200px);
+  min-height: 480px;
   border: 1px solid #e5e7eb;
   border-radius: 0.75rem;
   overflow: hidden;
