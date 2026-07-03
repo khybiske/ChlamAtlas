@@ -85,7 +85,7 @@ async function main() {
   for (const g of genes) {
     const coord = coordMap[g.locus_tag];
     if (!coord) { skipped++; continue; }
-    updates.push({ id: g.id, ...coord });
+    updates.push({ id: g.id, strain_id: strainRow.id, locus_tag: g.locus_tag, ...coord });
   }
   console.log(`${updates.length} genes to update (${skipped} with no matching GFF entry — expected, e.g. RNA genes or minor annotation differences)`);
 
@@ -96,19 +96,14 @@ async function main() {
     return;
   }
 
-  // Note: plain .update() per row, not .upsert() — these are all existing rows
-  // being patched with 3 columns, and upsert's INSERT-on-conflict path would
-  // require every NOT NULL column (e.g. strain_id) to be present in the payload.
+  // Use batched .upsert() with strain_id included to satisfy NOT NULL constraint
+  // during INSERT-on-conflict, matching the established pattern used elsewhere.
   let succeeded = 0, failed = 0;
   for (let i = 0; i < updates.length; i += BATCH_SIZE) {
     const batch = updates.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(batch.map(({ id, ...coord }) =>
-      supabase.from('genes').update(coord).eq('id', id)
-    ));
-    for (const { error } of results) {
-      if (error) { console.error(`  ✗ ${error.message}`); failed++; }
-      else succeeded++;
-    }
+    const { error } = await supabase.from('genes').upsert(batch, { onConflict: 'id' });
+    if (error) { console.error(`  ✗ batch ${i}: ${error.message}`); failed += batch.length; }
+    else succeeded += batch.length;
   }
   console.log(`Done: ${succeeded} updated, ${failed} failed`);
   if (failed > 0) process.exit(1);
