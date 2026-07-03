@@ -361,6 +361,10 @@ function _showMobToolsSheet() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Surveillance
       </div>
+      <div id="mob-tools-phylogeny" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        Phylogeny
+      </div>
       <div id="mob-tools-genome-align" style="${rowStyle}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/></svg>
         Genome Alignment
@@ -384,6 +388,7 @@ function _showMobToolsSheet() {
 
   backdrop.querySelector('#mob-tools-close')?.addEventListener('click', (e) => { e.stopPropagation(); close(); });
   wire('mob-tools-surveillance', 'surveillance');
+  wire('mob-tools-phylogeny', 'phylogeny');
   wire('mob-tools-genome-align', 'genome-alignment');
   wire('mob-tools-seq-align',    'alignment');
   wire('mob-tools-struct-align', 'structure-alignment');
