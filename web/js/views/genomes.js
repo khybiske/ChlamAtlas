@@ -2949,8 +2949,7 @@ function showGeneDetailDesktop(gene, container) {
         ${heroThumb}
         <div style="flex:1;min-width:0;">
           ${gene.gene_name
-            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)}</div>
-               <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${esc(gene.locus_tag)}</div>`
+            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)} <span style="font-size:14px;font-weight:600;color:#9ca3af;">${esc(gene.locus_tag)}</span></div>`
             : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
         </div>
