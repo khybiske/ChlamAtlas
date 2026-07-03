@@ -11,7 +11,7 @@ const ORGANISMS = [
     label:     'CT-L2',
     fullLabel: '<i>C. trachomatis</i> L2/434',
     desc:      'Primary experimental strain',
-    color:     '#16a34a',
+    color:     '#2f9e6e',
     icon:      '/design/icons_transparent/L2icon_transparent.png',
   },
   {
@@ -29,7 +29,7 @@ const ORGANISMS = [
     label:     'CM',
     fullLabel: '<i>C. muridarum</i> Nigg',
     desc:      'Mouse model strain',
-    color:     '#2563eb',
+    color:     '#3f7fc4',
     icon:      '/design/icons_transparent/CMicon_transparent.png',
   },
   {
