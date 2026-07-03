@@ -10,7 +10,7 @@ import { renderStructureAlignment } from './views/structure-alignment.js?v=7';
 import { renderGenomeAlignment } from './views/genome-alignment.js?v=3';
 import { renderBugs } from './views/bugs.js?v=1';
 import { renderSurveillance } from './views/surveillance.js?v=1';
-import { renderPhylogeny } from './views/phylogeny.js?v=1';
+import { renderPhylogeny } from './views/phylogeny.js?v=2';
 
 export { sb, state };
 
