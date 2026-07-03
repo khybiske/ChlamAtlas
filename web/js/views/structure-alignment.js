@@ -2,7 +2,7 @@
 import { sb, state } from '../client.js?v=83';
 
 // ── Constants ─────────────────────────────────────────────────
-const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#4b2e83', 'CM': '#2563eb' };
+const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#E75999', 'CM': '#2563eb', 'Cpn': '#AE5CE8' };
 
 // ── Kabsch superposition (self-contained, no Mol* internals) ──
 // 3×3 matrix helpers (row-major: M[row][col])

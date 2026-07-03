@@ -14,7 +14,7 @@ let _runGeneration = 0;
 
 // ── Strain lookup (UUID → {name, color}) ─────────────────────
 // Populated once on first renderAlignment call.
-const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#4b2e83', 'CM': '#2563eb' };
+const STRAIN_COLORS = { 'CT-L2': '#16a34a', 'CT-D': '#E75999', 'CM': '#2563eb', 'Cpn': '#AE5CE8' };
 let _strainMap = new Map(); // uuid → { common_name, color }
 
 async function loadStrains() {
