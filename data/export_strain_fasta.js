@@ -45,7 +45,10 @@ async function exportStrain(supabase, commonName) {
   let written = 0, skipped = 0;
   const lines = [];
   for (const g of rows) {
-    const seq = g.proteins?.aa_sequence;
+    // PostgREST collapses one-to-many embeds to a single object only when it detects
+    // a genuine one-to-one relationship; guard against it ever returning an array instead.
+    const proteinRow = Array.isArray(g.proteins) ? g.proteins[0] : g.proteins;
+    const seq = proteinRow?.aa_sequence;
     if (!seq) { skipped++; continue; }
     lines.push(`>${g.locus_tag}`);
     lines.push(seq);

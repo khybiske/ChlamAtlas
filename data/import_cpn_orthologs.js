@@ -108,8 +108,6 @@ async function main() {
     }
   }
 
-  const cpnOrthologCounts = {}; // cpnLocus -> count, for the duplication-capture QC check
-
   for (const strainName of OTHER_STRAINS) {
     const other = otherStrains[strainName];
 
@@ -118,7 +116,6 @@ async function main() {
     const best1 = bestHitsAboveThreshold(hits1);
     for (const [cpnLocus, hit] of best1) {
       addPair(cpnLocus, hit.sseqid, other, hit.pident);
-      cpnOrthologCounts[cpnLocus] = (cpnOrthologCounts[cpnLocus] || 0) + 1;
     }
 
     // Direction 2: strain -> Cpn
@@ -126,7 +123,6 @@ async function main() {
     const best2 = bestHitsAboveThreshold(hits2);
     for (const [otherLocus, hit] of best2) {
       addPair(hit.sseqid, otherLocus, other, hit.pident);
-      cpnOrthologCounts[hit.sseqid] = (cpnOrthologCounts[hit.sseqid] || 0) + 1;
     }
 
     console.log(`  ${strainName}: ${best1.size} Cpn->${strainName} best hits, ${best2.size} ${strainName}->Cpn best hits`);
@@ -135,10 +131,23 @@ async function main() {
   const rows = Array.from(pairs.values());
   console.log(`\n${rows.length} total ortholog pairs (union of best hits, confirmed threshold only)`);
 
-  const duplicated = Object.entries(cpnOrthologCounts).filter(([, count]) => count > 1);
-  console.log(`Duplication-capture check: ${duplicated.length} Cpn genes with >1 ortholog pair contributed`);
+  // Duplication-capture QC: for each trio-strain gene, count distinct Cpn genes paired to it.
+  // (Derived from the final deduplicated pairs, not raw hit-direction events, so an ordinary
+  // conserved gene appearing in both directions/multiple strains isn't miscounted as "duplicated."
+  // The real signature of a duplication event is one CT-D/CT-L2/CM gene mapping to >1 distinct
+  // Cpn co-ortholog.)
+  const partnersByTrioGene = new Map(); // trioGeneId -> Set<cpnGeneId>
+  for (const row of rows) {
+    const isACpn = row.strain_id_a === cpnStrain.id;
+    const cpnGeneId  = isACpn ? row.gene_id_a : row.gene_id_b;
+    const trioGeneId = isACpn ? row.gene_id_b : row.gene_id_a;
+    if (!partnersByTrioGene.has(trioGeneId)) partnersByTrioGene.set(trioGeneId, new Set());
+    partnersByTrioGene.get(trioGeneId).add(cpnGeneId);
+  }
+  const duplicated = Array.from(partnersByTrioGene.entries()).filter(([, cpnGenes]) => cpnGenes.size > 1);
+  console.log(`Duplication-capture check: ${duplicated.length} trio-strain genes with >1 distinct Cpn ortholog`);
   if (duplicated.length > 0) {
-    console.log('  Examples:', duplicated.slice(0, 5).map(([locus, count]) => `${locus} (${count})`).join(', '));
+    console.log('  Example trio-gene IDs (first 5):', duplicated.slice(0, 5).map(([geneId, set]) => `${geneId} (${set.size} Cpn orthologs)`).join(', '));
   }
 
   if (DRY_RUN) {
