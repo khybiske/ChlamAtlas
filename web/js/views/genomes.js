@@ -6,15 +6,22 @@ const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
   { id: 'CT-D',  label: '<i>C. trachomatis</i> D/UW-3', icon: '/design/icons_transparent/CTDicon_transparent.png' },
   { id: 'CM',    label: '<i>C. muridarum</i> Nigg',      icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'Cpn',   label: '<i>C. pneumoniae</i> TW-183',   icon: '/design/icons_transparent/Cpnicon_transparent.png' },
 ];
 
 const ORGANISM_FULL = {
   'CT-L2': '<em>Chlamydia trachomatis</em> L2/434',
   'CT-D':  '<em>Chlamydia trachomatis</em> D/UW-3',
   'CM':    '<em>Chlamydia muridarum</em> Nigg',
+  'Cpn':   '<em>Chlamydia pneumoniae</em> TW-183',
 };
 
-const STRAIN_TAXID = { 'CT-L2': 813, 'CT-D': 813, 'CM': 243161 };
+const STRAIN_TAXID = { 'CT-L2': 813, 'CT-D': 813, 'CM': 243161, 'Cpn': 182082 };
+
+// Accent color per strain — CT-D standardized to match its pink/magenta icon
+// (previously inconsistent across files: some purple, some pink); Cpn purple
+// sampled from its icon, same methodology used when the icon was generated.
+const STRAIN_ACCENT = { 'CT-L2': '#2f9e6e', 'CT-D': '#E75999', 'CM': '#3f7fc4', 'Cpn': '#AE5CE8' };
 
 const CATEGORY_COLORS = {
   'Amino acid metabolism':      '#E66729',
@@ -522,7 +529,7 @@ function _showMobStrainSheet(container) {
                  background:${s.id === _strain ? '#f1f6f3' : 'transparent'};">
           <img src="${s.icon}" alt="${s.id}" style="width:38px;height:38px;object-fit:contain;">
           <div style="flex:1;">
-            <div style="font-weight:800;font-size:16px;color:${s.id === 'CT-L2' ? '#2f9e6e' : s.id === 'CT-D' ? '#b14a93' : '#3f7fc4'};">${s.id}</div>
+            <div style="font-weight:800;font-size:16px;color:${STRAIN_ACCENT[s.id] ?? '#64748b'};">${s.id}</div>
             <div style="font-size:13px;color:var(--mob-ink-2);">${s.label}</div>
           </div>
           ${s.id === _strain ? '<span style="color:var(--mob-green);font-weight:800;">✓</span>' : ''}
@@ -1783,7 +1790,7 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
         ${rows}
       </div>
-      <div style="font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length}/3 strains</div>
+      <div style="font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length} ortholog${orthoRows.length === 1 ? '' : 's'}</div>
     </div>`;
 
   el.querySelectorAll('.orth-row-btn').forEach(btn =>
@@ -3353,6 +3360,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
           'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
           'CM':    '/design/icons_transparent/CMicon_transparent.png',
+          'Cpn':   '/design/icons_transparent/Cpnicon_transparent.png',
         };
         const rows = orthos.map(o => {
           const g = o.peer;
