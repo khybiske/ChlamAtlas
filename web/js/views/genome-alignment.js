@@ -67,6 +67,7 @@ const STRAIN_ICONS = {
   'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
   'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
   'CM':    '/design/icons_transparent/CMicon_transparent.png',
+  'Cpn':   '/design/icons_transparent/Cpnicon_transparent.png',
 };
 
 const ROW_HEIGHT = 22; // px — fixed row height for ribbon Y calculation
