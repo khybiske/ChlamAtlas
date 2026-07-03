@@ -18,7 +18,7 @@ const ORGANISMS = [
     species: 'C. trachomatis D/UW-3',
     label:   'CT-D',
     desc:    'Discovered at UW',
-    color:   '#4b2e83',
+    color:   '#E75999',
     icon:    '/design/icons_transparent/CTDicon_transparent.png',
   },
   {
@@ -28,6 +28,14 @@ const ORGANISMS = [
     desc:    'Mouse model strain',
     color:   '#2563eb',
     icon:    '/design/icons_transparent/CMicon_transparent.png',
+  },
+  {
+    id:      'Cpn',
+    species: 'C. pneumoniae TW-183',
+    label:   'Cpn',
+    desc:    'Respiratory pathogen',
+    color:   '#AE5CE8',
+    icon:    '/design/icons_transparent/Cpnicon_transparent.png',
   },
 ];
 
@@ -165,16 +173,18 @@ async function renderHomeMobile(container) {
   if (statGenesEl)   statGenesEl.textContent   = geneCount.toLocaleString();
   if (statMutantsEl) statMutantsEl.textContent  = totalMutants.toLocaleString();
 
-  const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#b14a93', 'CM': '#3f7fc4' };
+  const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#E75999', 'CM': '#3f7fc4', 'Cpn': '#AE5CE8' };
   const strainIcons   = {
     'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
     'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
     'CM':    '/design/icons_transparent/CMicon_transparent.png',
+    'Cpn':   '/design/icons_transparent/Cpnicon_transparent.png',
   };
   const strainSpecies = {
     'CT-L2': 'C. trachomatis L2/434',
     'CT-D':  'C. trachomatis D/UW-3',
     'CM':    'C. muridarum Nigg',
+    'Cpn':   'C. pneumoniae TW-183',
   };
   const chevron = `<svg style="margin-left:auto;flex-shrink:0;color:#c8cec9" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 

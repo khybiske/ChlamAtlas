@@ -1712,6 +1712,7 @@ const STRAINS = [
   { id: 'CT-L2', label: 'C. trachomatis L2', icon: '/design/icons_transparent/L2icon_transparent.png' },
   { id: 'CT-D',  label: 'C. trachomatis D',  icon: '/design/icons_transparent/CTDicon_transparent.png' },
   { id: 'CM',    label: 'C. muridarum',       icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'Cpn',   label: 'C. pneumoniae',      icon: '/design/icons_transparent/Cpnicon_transparent.png' },
 ];
 
 function showGenomesStrainPicker(anchor) {
