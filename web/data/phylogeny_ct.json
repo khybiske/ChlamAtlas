@@ -1,0 +1,280 @@
+{
+  "version": "v2",
+  "meta": {
+    "title": "Chlamydia trachomatis \u2014 Seattle strains (demo)",
+    "updated": "2026-07-03",
+    "colorings": [
+      {
+        "key": "tissue_source",
+        "title": "tissue_source",
+        "type": "categorical"
+      },
+      {
+        "key": "serovar",
+        "title": "serovar",
+        "type": "categorical"
+      },
+      {
+        "key": "year",
+        "title": "year",
+        "type": "categorical"
+      }
+    ],
+    "filters": [
+      "year",
+      "serovar",
+      "tissue_source"
+    ],
+    "panels": [
+      "tree"
+    ]
+  },
+  "tree": {
+    "name": "NODE_0000000",
+    "node_attrs": {
+      "div": 0
+    },
+    "branch_attrs": {},
+    "children": [
+      {
+        "name": "NODE_0000001",
+        "node_attrs": {
+          "div": 0.00267628
+        },
+        "branch_attrs": {},
+        "children": [
+          {
+            "name": "E/150/rec",
+            "node_attrs": {
+              "div": 0.00298145,
+              "accession": "CP001886",
+              "year": {
+                "value": "2007"
+              },
+              "serovar": {
+                "value": "E"
+              },
+              "tissue_source": {
+                "value": "Rectum"
+              }
+            },
+            "branch_attrs": {}
+          },
+          {
+            "name": "NODE_0000002",
+            "node_attrs": {
+              "div": 0.00345074
+            },
+            "branch_attrs": {},
+            "children": [
+              {
+                "name": "E/Bour/cx",
+                "node_attrs": {
+                  "div": 0.00361382,
+                  "accession": "HE601870",
+                  "year": {
+                    "value": "1959"
+                  },
+                  "serovar": {
+                    "value": "E"
+                  },
+                  "tissue_source": {
+                    "value": "Cervix"
+                  }
+                },
+                "branch_attrs": {}
+              },
+              {
+                "name": "E/11023/cx",
+                "node_attrs": {
+                  "div": 0.00347364,
+                  "accession": "CP001890",
+                  "year": {
+                    "value": "2003"
+                  },
+                  "serovar": {
+                    "value": "E"
+                  },
+                  "tissue_source": {
+                    "value": "Cervix"
+                  }
+                },
+                "branch_attrs": {}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "NODE_0000003",
+        "node_attrs": {
+          "div": 0.00225253
+        },
+        "branch_attrs": {},
+        "children": [
+          {
+            "name": "NODE_0000004",
+            "node_attrs": {
+              "div": 0.00245189
+            },
+            "branch_attrs": {},
+            "children": [
+              {
+                "name": "G/11222/cx",
+                "node_attrs": {
+                  "div": 0.00296247,
+                  "accession": "CP001888",
+                  "year": {
+                    "value": "2003"
+                  },
+                  "serovar": {
+                    "value": "G"
+                  },
+                  "tissue_source": {
+                    "value": "Cervix"
+                  }
+                },
+                "branch_attrs": {}
+              },
+              {
+                "name": "NODE_0000005",
+                "node_attrs": {
+                  "div": 0.00316662
+                },
+                "branch_attrs": {},
+                "children": [
+                  {
+                    "name": "G/9768/rec",
+                    "node_attrs": {
+                      "div": 0.00318959,
+                      "accession": "CP001887",
+                      "year": {
+                        "value": "2002"
+                      },
+                      "serovar": {
+                        "value": "G"
+                      },
+                      "tissue_source": {
+                        "value": "Rectum"
+                      }
+                    },
+                    "branch_attrs": {}
+                  },
+                  {
+                    "name": "G/11074/rec",
+                    "node_attrs": {
+                      "div": 0.00319468,
+                      "accession": "CP001889",
+                      "year": {
+                        "value": "2003"
+                      },
+                      "serovar": {
+                        "value": "G"
+                      },
+                      "tissue_source": {
+                        "value": "Rectum"
+                      }
+                    },
+                    "branch_attrs": {}
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "NODE_0000006",
+            "node_attrs": {
+              "div": 0.00262154
+            },
+            "branch_attrs": {},
+            "children": [
+              {
+                "name": "NODE_0000007",
+                "node_attrs": {
+                  "div": 0.00290249
+                },
+                "branch_attrs": {},
+                "children": [
+                  {
+                    "name": "D/UW-3/CX",
+                    "node_attrs": {
+                      "div": 0.00361383,
+                      "accession": "AE001273",
+                      "serovar": {
+                        "value": "D"
+                      },
+                      "tissue_source": {
+                        "value": "Cervix"
+                      }
+                    },
+                    "branch_attrs": {}
+                  },
+                  {
+                    "name": "H/SQ20/cx",
+                    "node_attrs": {
+                      "div": 0.00315661,
+                      "accession": "CP017732",
+                      "year": {
+                        "value": "1991"
+                      },
+                      "serovar": {
+                        "value": "H"
+                      },
+                      "tissue_source": {
+                        "value": "Cervix"
+                      }
+                    },
+                    "branch_attrs": {}
+                  }
+                ]
+              },
+              {
+                "name": "NODE_0000008",
+                "node_attrs": {
+                  "div": 0.00302608
+                },
+                "branch_attrs": {},
+                "children": [
+                  {
+                    "name": "K/SQ15/cx",
+                    "node_attrs": {
+                      "div": 0.00361198,
+                      "accession": "CP017745",
+                      "year": {
+                        "value": "1986"
+                      },
+                      "serovar": {
+                        "value": "K"
+                      },
+                      "tissue_source": {
+                        "value": "Cervix"
+                      }
+                    },
+                    "branch_attrs": {}
+                  },
+                  {
+                    "name": "J/6276/cx",
+                    "node_attrs": {
+                      "div": 0.00350817,
+                      "accession": "ABYD01000001",
+                      "year": {
+                        "value": "1997"
+                      },
+                      "serovar": {
+                        "value": "J"
+                      },
+                      "tissue_source": {
+                        "value": "Cervix"
+                      }
+                    },
+                    "branch_attrs": {}
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
