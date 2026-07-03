@@ -1,6 +1,7 @@
 // ChlamAtlas — What's New & Roadmap view
 
 const CHANGELOG = [
+  { version: 'v1.2.0',  date: 'Jul 3, 2026',  type: 'feat', description: 'Chlamydia pneumoniae (Cpn, strain TW-183) added as ChlamAtlas\'s fourth model organism: 1,112 genes/proteins imported from UniProt, AlphaFold v2 structure predictions and RCSB crystal structures, reciprocal-BLAST computed orthologs to CT-D/CT-L2/CM (2,328 pairs, including confirmed lineage-specific gene duplications), and genome coordinates from NCBI RefSeq — fully wired into the Genomes tab, Home page, search, and both alignment tools.' },
   { version: 'v1.1.0',  date: 'Jun 22, 2026', type: 'feat', description: 'Surveillance tab: interactive Chlamydia trachomatis epidemiology charts showing annual case rates by region and sex (2000–2025). Region × sex grid picker lets users compare any combination of series — e.g. US women vs UK men — on a single Chart.js line chart. Data sourced from CDC AtlasPlus (US, 2000–2024) and UKHSA (England, 2007–2025). COVID-19 disruption annotated. Rate per 100k and raw case count views.' },
   { version: 'v1.0.0',  date: 'Jun 12, 2026', type: 'feat', description: 'Protein–protein interaction (PPI) module: gene detail pages now show a collapsible interaction panel with experimentally-demonstrated AP-MS hits (Mirrashidi et al. 2015, 354 interactions across 46 CT proteins), literature-curated interactions (TarP, HtrA, FliA/RpoB, LpxD, IncA–IncE), and computationally-inferred STRING v12 interactions — all tiered by evidence quality with confidence score bars, organism tags, and click-through to UniProt or partner gene.' },
   { version: 'v0.11.0', date: 'Jun 3, 2026',  type: 'feat', description: 'Full mobile optimization: home, genomes, mutants, pipeline, and tools redesigned for phone-first use — native push/pop navigation, full-width layouts, touch-friendly controls, and collapsible panels throughout.' },
@@ -29,8 +30,7 @@ const PLANNED_FEATURES = [
   { id: 'af3-models',       label: 'AlphaFold 3 models for all proteins',        description: 'Upgrade the structure library from AF2 to AF3 predictions across the full proteome.' },
   { id: 'chemical-mutants', label: 'Chemical mutant collection',                 description: 'Add the chemical mutagenesis collection to the mutant browser with full phenotype data.' },
   { id: 'phenotype-images', label: 'Phenotype images on mutant detail pages',    description: 'Microscopy and assay images attached to in vitro and in vivo phenotype records.' },
-{ id: 'cpn-database',     label: 'C. pneumoniae genome & proteome',            description: 'Full gene, protein, and AlphaFold structure data for C. pneumoniae — the third major Chlamydia model organism.' },
-  { id: 'more-strains',     label: 'Additional species & strains',               description: 'Ocular and rectal C. trachomatis serovars and other Chlamydia species as data becomes available.' },
+  { id: 'more-strains',     label: 'Additional C. trachomatis serovars',        description: 'Ocular and rectal C. trachomatis serovars, as data becomes available.' },
   { id: 'mlst-variants',    label: 'MLST & natural variants panel',              description: 'Gene-level view of multi-locus sequence typing data and natural sequence variation across clinical isolates.' },
   { id: 'knockdown-mutants', label: 'Knockdown mutant collection',               description: 'CRISPRi, antisense, or other knockdown reagents generated across the Chlamydia field, with phenotype data.' },
 ];

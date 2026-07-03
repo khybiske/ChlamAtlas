@@ -1,20 +1,27 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=83';
+import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=93';
 
 const STRAINS = [
-  { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
-  { id: 'CT-D',  label: '<i>C. trachomatis</i> D/UW-3', icon: '/design/icons_transparent/CTDicon_transparent.png' },
-  { id: 'CM',    label: '<i>C. muridarum</i> Nigg',      icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
+  { id: 'CT-D',  label: '<i>C. trachomatis</i> D/UW-3', species: '<i>C. trachomatis</i>', strainName: 'D/UW-3', icon: '/design/icons_transparent/CTDicon_transparent.png' },
+  { id: 'CM',    label: '<i>C. muridarum</i> Nigg',      species: '<i>C. muridarum</i>',  strainName: 'Nigg',    icon: '/design/icons_transparent/CMicon_transparent.png' },
+  { id: 'Cpn',   label: '<i>C. pneumoniae</i> TW-183',   species: '<i>C. pneumoniae</i>', strainName: 'TW-183',  icon: '/design/icons_transparent/Cpnicon_transparent.png' },
 ];
 
 const ORGANISM_FULL = {
   'CT-L2': '<em>Chlamydia trachomatis</em> L2/434',
   'CT-D':  '<em>Chlamydia trachomatis</em> D/UW-3',
   'CM':    '<em>Chlamydia muridarum</em> Nigg',
+  'Cpn':   '<em>Chlamydia pneumoniae</em> TW-183',
 };
 
-const STRAIN_TAXID = { 'CT-L2': 813, 'CT-D': 813, 'CM': 243161 };
+const STRAIN_TAXID = { 'CT-L2': 813, 'CT-D': 813, 'CM': 243161, 'Cpn': 182082 };
+
+// Accent color per strain — CT-D standardized to match its pink/magenta icon
+// (previously inconsistent across files: some purple, some pink); Cpn purple
+// sampled from its icon, same methodology used when the icon was generated.
+const STRAIN_ACCENT = { 'CT-L2': '#2f9e6e', 'CT-D': '#E75999', 'CM': '#3f7fc4', 'Cpn': '#AE5CE8' };
 
 const CATEGORY_COLORS = {
   'Amino acid metabolism':      '#E66729',
@@ -522,7 +529,7 @@ function _showMobStrainSheet(container) {
                  background:${s.id === _strain ? '#f1f6f3' : 'transparent'};">
           <img src="${s.icon}" alt="${s.id}" style="width:38px;height:38px;object-fit:contain;">
           <div style="flex:1;">
-            <div style="font-weight:800;font-size:16px;color:${s.id === 'CT-L2' ? '#2f9e6e' : s.id === 'CT-D' ? '#b14a93' : '#3f7fc4'};">${s.id}</div>
+            <div style="font-weight:800;font-size:16px;color:${STRAIN_ACCENT[s.id] ?? '#64748b'};">${s.id}</div>
             <div style="font-size:13px;color:var(--mob-ink-2);">${s.label}</div>
           </div>
           ${s.id === _strain ? '<span style="color:var(--mob-green);font-weight:800;">✓</span>' : ''}
@@ -566,8 +573,8 @@ function showGeneList(container) {
         <div class="mut-strip" id="strain-strip">
           <img class="mut-strip-icon" id="strain-strip-icon" src="${STRAINS.find(s => s.id === _strain)?.icon ?? ''}" alt="">
           <div style="flex:1;min-width:0;">
-            <div class="mut-strip-name" id="strain-strip-name">${STRAINS.find(s => s.id === _strain)?.label ?? _strain}</div>
-            <div class="mut-strip-count" id="strain-strip-count">Loading…</div>
+            <div class="mut-strip-name" id="strain-strip-name">${STRAINS.find(s => s.id === _strain)?.species ?? _strain}</div>
+            <div class="mut-strip-count"><span id="strain-strip-suffix">${STRAINS.find(s => s.id === _strain)?.strainName ?? ''}</span> · <span id="strain-strip-count-text">Loading…</span></div>
           </div>
           <button class="mut-switch-btn" id="strain-switch-btn" title="Switch strain" aria-label="Switch strain"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3-3 3 3M4 9l3 3 3-3"/></svg></button>
         </div>
@@ -652,7 +659,7 @@ function showGeneList(container) {
     if (_filters.favorites && !nowFav) {
       favBtn.closest('.gene-row')?.remove();
       _total = Math.max(0, _total - 1);
-      const countEl = container.querySelector('#strain-strip-count');
+      const countEl = container.querySelector('#strain-strip-count-text');
       if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
     }
     // Also update the star in the detail panel if this gene is selected
@@ -683,8 +690,9 @@ function showStrainDropdown(anchor, container) {
       _strain = btn.dataset.strain;
       const s = STRAINS.find(x => x.id === _strain);
       container.querySelector('#strain-strip-icon').src = s?.icon ?? '';
-      container.querySelector('#strain-strip-name').innerHTML = s?.label ?? _strain;
-      container.querySelector('#strain-strip-count').textContent = 'Loading…';
+      container.querySelector('#strain-strip-name').innerHTML = s?.species ?? _strain;
+      container.querySelector('#strain-strip-suffix').textContent = s?.strainName ?? '';
+      container.querySelector('#strain-strip-count-text').textContent = 'Loading…';
       _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
       _expressionFilter = null;
       _filters = { favorites: false, characterized: false, hypothetical: false, inc: false,
@@ -1087,7 +1095,7 @@ async function fetchGenes(container, reset = false) {
   _hasMore = (_offset + PAGE_SIZE) < _total;
 
   // Update result count
-  const countEl = container.querySelector('#strain-strip-count');
+  const countEl = container.querySelector('#strain-strip-count-text');
   if (countEl) countEl.textContent = `${_total.toLocaleString()} gene${_total !== 1 ? 's' : ''}`;
 
   if (!genes?.length) {
@@ -1783,7 +1791,7 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
         ${rows}
       </div>
-      <div style="font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length}/3 strains</div>
+      <div style="font-size:9px;color:#bbb;font-style:italic;">Reciprocal BLAST · ${orthoRows.length} ortholog${orthoRows.length === 1 ? '' : 's'}</div>
     </div>`;
 
   el.querySelectorAll('.orth-row-btn').forEach(btn =>
@@ -2942,8 +2950,7 @@ function showGeneDetailDesktop(gene, container) {
         ${heroThumb}
         <div style="flex:1;min-width:0;">
           ${gene.gene_name
-            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)}</div>
-               <div style="font-size:9.5px;font-family:'DM Mono',monospace;color:#888;margin-top:2px;">${esc(gene.locus_tag)}</div>`
+            ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)} <span style="font-size:14px;font-weight:600;color:#9ca3af;">${esc(gene.locus_tag)}</span></div>`
             : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
         </div>
@@ -3353,6 +3360,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
           'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
           'CM':    '/design/icons_transparent/CMicon_transparent.png',
+          'Cpn':   '/design/icons_transparent/Cpnicon_transparent.png',
         };
         const rows = orthos.map(o => {
           const g = o.peer;

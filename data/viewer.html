@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 620px; height: 420px; background: white; overflow: hidden; }
+    #app { width: 620px; height: 420px; }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.css">
+</head>
+<body>
+  <div id="app"></div>
+  <script src="https://cdn.jsdelivr.net/npm/molstar@3.45.0/build/viewer/molstar.js"></script>
+  <script>
+    window.__ready = false;
+    window.__error = null;
+
+    (async function () {
+      try {
+        const cifUrl = new URLSearchParams(location.search).get('cif');
+        if (!cifUrl) throw new Error('No cif URL provided');
+
+        const { Viewer } = molstar;
+        const viewer = await Viewer.create('app', {
+          layoutIsExpanded:        false,
+          layoutShowControls:      false,
+          layoutShowRemoteState:   false,
+          layoutShowSequence:      false,
+          layoutShowLog:           false,
+          layoutShowLeftPanel:     false,
+          viewportShowExpand:      false,
+          viewportShowSelectionMode: false,
+          viewportShowAnimation:   false,
+        });
+
+        // Hide the axis indicator (rendered into the canvas by Mol*)
+        if (viewer.plugin.canvas3d) {
+          viewer.plugin.canvas3d.setProps({
+            camera: { helper: { axes: { name: 'off', params: {} } } }
+          });
+        }
+
+        await viewer.loadStructureFromUrl(cifUrl, 'mmcif');
+        window.__viewer = viewer;
+        window.__ready  = true;
+      } catch (e) {
+        window.__error = e.message;
+        window.__ready = true;
+      }
+    })();
+  </script>
+</body>
+</html>

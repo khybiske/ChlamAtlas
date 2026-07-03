@@ -1,33 +1,45 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../client.js?v=83';
-import { isMobileViewport } from '../app.js?v=83';
+import { isMobileViewport } from '../app.js?v=93';
 
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const ORGANISMS = [
   {
-    id:      'CT-L2',
-    species: 'C. trachomatis L2/434',
-    label:   'CT-L2',
-    desc:    'Primary experimental strain',
-    color:   '#16a34a',
-    icon:    '/design/icons_transparent/L2icon_transparent.png',
+    id:        'CT-L2',
+    species:   'C. trachomatis L2/434',
+    label:     'CT-L2',
+    fullLabel: '<i>C. trachomatis</i> L2/434',
+    desc:      'Primary experimental strain',
+    color:     '#2f9e6e',
+    icon:      '/design/icons_transparent/L2icon_transparent.png',
   },
   {
-    id:      'CT-D',
-    species: 'C. trachomatis D/UW-3',
-    label:   'CT-D',
-    desc:    'Discovered at UW',
-    color:   '#4b2e83',
-    icon:    '/design/icons_transparent/CTDicon_transparent.png',
+    id:        'CT-D',
+    species:   'C. trachomatis D/UW-3',
+    label:     'CT-D',
+    fullLabel: '<i>C. trachomatis</i> D/UW-3',
+    desc:      'Discovered at UW',
+    color:     '#E75999',
+    icon:      '/design/icons_transparent/CTDicon_transparent.png',
   },
   {
-    id:      'CM',
-    species: 'C. muridarum Nigg',
-    label:   'CM',
-    desc:    'Mouse model strain',
-    color:   '#2563eb',
-    icon:    '/design/icons_transparent/CMicon_transparent.png',
+    id:        'CM',
+    species:   'C. muridarum Nigg',
+    label:     'CM',
+    fullLabel: '<i>C. muridarum</i> Nigg',
+    desc:      'Mouse model strain',
+    color:     '#3f7fc4',
+    icon:      '/design/icons_transparent/CMicon_transparent.png',
+  },
+  {
+    id:        'Cpn',
+    species:   'C. pneumoniae TW-183',
+    label:     'Cpn',
+    fullLabel: '<i>C. pneumoniae</i> TW-183',
+    desc:      'Respiratory pathogen',
+    color:     '#AE5CE8',
+    icon:      '/design/icons_transparent/Cpnicon_transparent.png',
   },
 ];
 
@@ -165,16 +177,18 @@ async function renderHomeMobile(container) {
   if (statGenesEl)   statGenesEl.textContent   = geneCount.toLocaleString();
   if (statMutantsEl) statMutantsEl.textContent  = totalMutants.toLocaleString();
 
-  const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#b14a93', 'CM': '#3f7fc4' };
+  const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#E75999', 'CM': '#3f7fc4', 'Cpn': '#AE5CE8' };
   const strainIcons   = {
     'CT-L2': '/design/icons_transparent/L2icon_transparent.png',
     'CT-D':  '/design/icons_transparent/CTDicon_transparent.png',
     'CM':    '/design/icons_transparent/CMicon_transparent.png',
+    'Cpn':   '/design/icons_transparent/Cpnicon_transparent.png',
   };
   const strainSpecies = {
     'CT-L2': 'C. trachomatis L2/434',
     'CT-D':  'C. trachomatis D/UW-3',
     'CM':    'C. muridarum Nigg',
+    'Cpn':   'C. pneumoniae TW-183',
   };
   const chevron = `<svg style="margin-left:auto;flex-shrink:0;color:#c8cec9" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
@@ -387,8 +401,7 @@ function renderGenomesColumn(container) {
           <img src="${org.icon}" alt="${org.label}"
             style="width:36px;height:36px;object-fit:contain;flex-shrink:0;">
           <div>
-            <div style="font-size:13px;font-weight:700;color:${org.color};margin-bottom:2px;">${org.label}</div>
-            <div style="font-size:12px;font-style:italic;color:#444;">${org.species}</div>
+            <div style="font-size:13px;font-weight:700;color:#111;">${org.fullLabel}</div>
             <div id="gene-count-${org.id}" style="font-size:11px;color:#bbb;font-family:var(--font-mono,'DM Mono',monospace);margin-top:3px;">— genes</div>
           </div>
         </button>`).join('')}
@@ -442,7 +455,7 @@ function renderMutantsColumn(container) {
             style="width:38px;height:38px;object-fit:contain;flex-shrink:0;"
             onerror="this.style.display='none'">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;color:#111;">${c.label}</div>
+            <div style="font-size:13px;font-weight:600;color:#111;"><i>${c.label}</i></div>
             <div style="font-size:11px;color:#9ca3af;margin-top:2px;">
               ${c.sub} · <span id="mut-count-${c.id}">—</span>
             </div>

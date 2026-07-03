@@ -52,6 +52,15 @@ const CRYSTAL_DATA = [
   { locus_tag: 'CT772',  pdb_id: '6WE5' },
   { locus_tag: 'CT828',  pdb_id: '1SYY', note: 'REVIEW: additional PDB IDs 2ANI, 4D8F' },
   { locus_tag: 'CT858',  pdb_id: '3DJA' },
+  // Cpn
+  { locus_tag: 'CpB0760', pdb_id: '24UU' },
+  { locus_tag: 'CpB0958', pdb_id: '2JU5' },
+  { locus_tag: 'CpB0502', pdb_id: '3N26', note: 'REVIEW: additional PDB ID 3QAX' },
+  { locus_tag: 'CpB0832', pdb_id: '3Q9D' },
+  { locus_tag: 'CpB0333', pdb_id: '6WA6', note: 'REVIEW: additional PDB ID 6WA9' },
+  { locus_tag: 'CpB0359', pdb_id: '9J3N', note: 'REVIEW: additional PDB ID 9J3O' },
+  { locus_tag: 'CpB0582', pdb_id: '9Y81', note: 'REVIEW: additional PDB IDs 9Z2X, 9Z2Y, 9Z2Z' },
+  { locus_tag: 'CpB0334', pdb_id: '4NRH', note: 'REVIEW: matched via gene symbol synonym (RCSB deposit uses "lcrE", our DB uses "copN" for the same T3SS gatekeeper protein); additional PDB IDs 4P3Z, 4P40, 6GX7' },
 ];
 
 function rcsbThumbnailUrl(pdbId) {
