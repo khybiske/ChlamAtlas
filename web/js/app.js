@@ -10,6 +10,7 @@ import { renderStructureAlignment } from './views/structure-alignment.js?v=7';
 import { renderGenomeAlignment } from './views/genome-alignment.js?v=3';
 import { renderBugs } from './views/bugs.js?v=1';
 import { renderSurveillance } from './views/surveillance.js?v=1';
+import { renderPhylogeny, renderPhylogenyPreview } from './views/phylogeny.js?v=3';
 
 export { sb, state };
 
@@ -603,7 +604,7 @@ function showToolsPopover(anchor) {
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'bugs', 'alignment', 'structure-alignment', 'genome-alignment', 'surveillance'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'bugs', 'alignment', 'structure-alignment', 'genome-alignment', 'surveillance', 'phylogeny', 'phylogeny-preview'];
 const RENDERERS = {
   home:      renderHome,
   genomes:   renderGenomes,
@@ -615,6 +616,8 @@ const RENDERERS = {
   'structure-alignment': renderStructureAlignment,
   'genome-alignment':    renderGenomeAlignment,
   surveillance:          renderSurveillance,
+  phylogeny:             renderPhylogeny,
+  'phylogeny-preview':   renderPhylogenyPreview,
 };
 
 function activateTab(name) {
