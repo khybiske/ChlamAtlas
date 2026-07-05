@@ -27,17 +27,27 @@ const SplashContent = (props) => {
   }, [props.dispatch]);
 
   React.useEffect(() => {
-    fetch("/web/data/phylogeny_ct.json")
+    // Which ChlamAtlas dataset to auto-load is chosen by our own iframe's
+    // ?dataset= query string (set by web/js/views/phylogeny.js), so this one
+    // vendored build can serve both the public 10-genome tree (#/phylogeny,
+    // no param) and the unlisted expanded tree (#/phylogeny-preview).
+    // Restricted to a plain filename.json pattern -- this value flows
+    // straight into a fetch() URL, so it must never be able to smuggle in
+    // path segments or a full URL.
+    const requested = new URLSearchParams(window.location.search).get("dataset");
+    const dataset = requested && /^[\w.-]+\.json$/.test(requested) ? requested : "phylogeny_ct.json";
+
+    fetch(`/web/data/${dataset}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.blob();
       })
       .then((blob) => {
-        const file = new File([blob], "phylogeny_ct.json", { type: "application/json" });
+        const file = new File([blob], dataset, { type: "application/json" });
         handleDroppedFiles(props.dispatch, [file]);
       })
       .catch((e) => {
-        console.error("ChlamAtlas: failed to auto-load phylogeny_ct.json:", e);
+        console.error(`ChlamAtlas: failed to auto-load ${dataset}:`, e);
       });
   }, [props.dispatch]);
 
