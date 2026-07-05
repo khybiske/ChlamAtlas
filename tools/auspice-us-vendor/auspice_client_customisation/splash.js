@@ -27,14 +27,17 @@ const SplashContent = (props) => {
   }, [props.dispatch]);
 
   React.useEffect(() => {
-    // Which ChlamAtlas dataset to auto-load is chosen by our own iframe's
-    // ?dataset= query string (set by web/js/views/phylogeny.js), so this one
-    // vendored build can serve both the public 10-genome tree (#/phylogeny,
-    // no param) and the unlisted expanded tree (#/phylogeny-preview).
+    // Which ChlamAtlas dataset to auto-load is chosen via sessionStorage
+    // (set by web/js/views/phylogeny.js on the PARENT page, before this
+    // iframe is created), NOT a URL query string -- auspice-us's own
+    // client-side router rewrites/strips the iframe's URL (including any
+    // query string) during its own dataset-route-detection logic, before
+    // this effect would ever get a chance to read it. sessionStorage is
+    // shared by origin (not path), so it survives that rewrite untouched.
     // Restricted to a plain filename.json pattern -- this value flows
     // straight into a fetch() URL, so it must never be able to smuggle in
     // path segments or a full URL.
-    const requested = new URLSearchParams(window.location.search).get("dataset");
+    const requested = sessionStorage.getItem('chlamatlas_phylogeny_dataset');
     const dataset = requested && /^[\w.-]+\.json$/.test(requested) ? requested : "phylogeny_ct.json";
 
     fetch(`/web/data/${dataset}`)

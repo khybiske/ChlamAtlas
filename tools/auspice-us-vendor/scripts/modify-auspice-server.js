@@ -21,6 +21,17 @@ fs.writeFileSync(path.join(__dirname, "../node_modules/auspice/cli/view.js"), vi
  * following what we do on nextstrain.org
  */
 function redirectHttpToHttps(contents) {
+  const sslRequire = "const sslRedirect = require('heroku-ssl-redirect');";
+  if (contents.includes(sslRequire)) {
+    // Idempotent: `npm install` re-runs this postinstall script even when
+    // node_modules/auspice is already present and already patched (e.g. on
+    // a second `build-and-vendor.sh` run without a clean node_modules), and
+    // naively re-inserting the same two lines produces a duplicate
+    // `const sslRedirect = ...` declaration -- a SyntaxError that crashes
+    // the build. Skip if already applied.
+    console.log("Auspice server (view.js) already patched for http -> https redirect; skipping");
+    return contents;
+  }
   console.log("Modifying the auspice server (view.js) to redirect http -> https on heroku");
   const useCompression = "app.use(compression());";
   const fsImport = 'const fs = require("fs");';

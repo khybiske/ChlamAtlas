@@ -4,8 +4,11 @@
 // (web/vendor/auspice-us/). The dataset never leaves our own domain — see
 // docs/superpowers/specs/2026-07-03-phylogeny-real-tree-design.md for why
 // (no data sent to any Nextstrain-owned server). Two datasets share one
-// vendored build, selected via the iframe's own ?dataset= query string
-// (see tools/auspice-us-vendor/auspice_client_customisation/splash.js):
+// vendored build, selected via sessionStorage (set on this parent page,
+// read by tools/auspice-us-vendor/auspice_client_customisation/splash.js
+// inside the iframe) rather than a URL query string — the vendored app's
+// own client-side router strips the iframe's query string before splash.js
+// gets a chance to read it, so the query string approach silently failed:
 //   - #/phylogeny         -> web/data/phylogeny_ct.json (10 genomes, public nav)
 //   - #/phylogeny-preview -> web/data/phylogeny_ct_v2.json (21 genomes, unlisted)
 // See docs/superpowers/specs/2026-07-04-phylogeny-expansion-design.md for
@@ -13,9 +16,11 @@
 // collection — see docs/PHYLOGENY_PLAN.md for the production feature scope.
 
 function renderPhylogenyView(container, { title, subtitle, dataset, iframeTitle }) {
-  const src = dataset
-    ? `/web/vendor/auspice-us/index.html?dataset=${encodeURIComponent(dataset)}`
-    : '/web/vendor/auspice-us/index.html';
+  if (dataset) {
+    sessionStorage.setItem('chlamatlas_phylogeny_dataset', dataset);
+  } else {
+    sessionStorage.removeItem('chlamatlas_phylogeny_dataset');
+  }
   container.innerHTML = `
     <div class="phylo-page">
       <div class="phylo-header">
@@ -27,7 +32,7 @@ function renderPhylogenyView(container, { title, subtitle, dataset, iframeTitle 
       <div class="phylo-frame-wrap">
         <iframe
           class="phylo-frame"
-          src="${src}"
+          src="/web/vendor/auspice-us/index.html"
           title="${iframeTitle}"
           loading="lazy"
         ></iframe>
