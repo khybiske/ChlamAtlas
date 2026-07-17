@@ -87,6 +87,14 @@ async function renderHomeMobile(container) {
         <div class="mob-hero-inner">
           <h1>ChlamAtlas</h1>
           <p>The authoritative research database for <em>Chlamydia</em><br>Genomics, proteomics, structural biology, and mutants</p>
+          ${!state.user ? `
+            <button id="mob-feature-tour-cta"
+              style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12.5px;font-weight:600;
+                     color:#fff;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.32);
+                     padding:7px 14px;border-radius:100px;">
+              New here? See what you can do
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>` : ''}
         </div>
       </div>
 
@@ -176,6 +184,10 @@ async function renderHomeMobile(container) {
   const statMutantsEl = container.querySelector('#mob-stat-mutants');
   if (statGenesEl)   statGenesEl.textContent   = geneCount.toLocaleString();
   if (statMutantsEl) statMutantsEl.textContent  = totalMutants.toLocaleString();
+
+  container.querySelector('#mob-feature-tour-cta')?.addEventListener('click', () => {
+    window.__activateTab?.('features');
+  });
 
   const strainColors  = { 'CT-L2': '#2f9e6e', 'CT-D': '#E75999', 'CM': '#3f7fc4', 'Cpn': '#AE5CE8' };
   const strainIcons   = {
@@ -314,6 +326,14 @@ export async function renderHome(container) {
               The authoritative research database for <em style="color:rgba(255,255,255,0.85);font-style:italic;">Chlamydia</em><br>
               Genomics, proteomics, structural biology, and mutants
             </p>
+            ${!state.user ? `
+              <button id="home-feature-tour-cta"
+                style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;font-size:13px;font-weight:600;
+                       color:#fff;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.32);
+                       padding:8px 16px;border-radius:100px;cursor:pointer;">
+                New here? See what you can do
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>` : ''}
           </div>
           <div id="mast-stats" class="flex sm:flex-col gap-0 sm:gap-4 mt-5 sm:mt-0">
             <div class="flex sm:hidden gap-0 w-full" id="stats-row-mobile">
@@ -363,6 +383,10 @@ export async function renderHome(container) {
       </div>
     </div>
   `;
+
+  container.querySelector('#home-feature-tour-cta')?.addEventListener('click', () => {
+    window.__activateTab?.('features');
+  });
 
   // Wire citation modal
   container.querySelector('#citation-close').addEventListener('click', () => {

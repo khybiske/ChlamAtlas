@@ -11,6 +11,7 @@ import { renderGenomeAlignment } from './views/genome-alignment.js?v=3';
 import { renderBugs } from './views/bugs.js?v=1';
 import { renderSurveillance } from './views/surveillance.js?v=1';
 import { renderPhylogeny, renderPhylogenyPreview } from './views/phylogeny.js?v=3';
+import { renderFeatures } from './views/features.js?v=1';
 
 export { sb, state };
 
@@ -442,6 +443,10 @@ function _showMobAccountSheet() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>
         Manage users
       </div>` : ''}
+      <div id="mob-acct-feature-tour" style="${rowStyle}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        Feature tour
+      </div>
       <div id="mob-acct-whats-new" style="${rowStyle}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg>
         What's new
@@ -465,6 +470,7 @@ function _showMobAccountSheet() {
   wire('mob-acct-my-account', () => showAccountModal());
   wire('mob-acct-request',    () => requestLabAccess?.());
   wire('mob-acct-admin',      () => showAdminPanel?.());
+  wire('mob-acct-feature-tour', () => activateTab('features'));
   wire('mob-acct-whats-new',  () => activateTab('roadmap'));
   wire('mob-acct-bugs',       () => activateTab('bugs'));
   wire('mob-acct-signout',    () => signOut());
@@ -604,7 +610,7 @@ function showToolsPopover(anchor) {
 }
 
 // ─── Tab routing ──────────────────────────────────────────
-const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'bugs', 'alignment', 'structure-alignment', 'genome-alignment', 'surveillance', 'phylogeny', 'phylogeny-preview'];
+const TABS = ['home', 'genomes', 'mutants', 'pipeline', 'roadmap', 'bugs', 'alignment', 'structure-alignment', 'genome-alignment', 'surveillance', 'phylogeny', 'phylogeny-preview', 'features'];
 const RENDERERS = {
   home:      renderHome,
   genomes:   renderGenomes,
@@ -618,6 +624,7 @@ const RENDERERS = {
   surveillance:          renderSurveillance,
   phylogeny:             renderPhylogeny,
   'phylogeny-preview':   renderPhylogenyPreview,
+  features:              renderFeatures,
 };
 
 function activateTab(name) {
@@ -656,6 +663,11 @@ function activateTab(name) {
   history.replaceState(null, '', `#/${name}`);
   window.__activateTabHook?.(name);
 }
+
+// General-purpose bridge so view modules (which don't import activateTab
+// directly) can switch tabs — e.g. the Home hero's guest CTA and the
+// Feature tour's footer links.
+window.__activateTab = activateTab;
 
 // Used by the Pipeline tab to navigate directly to a specific mutant record,
 // bypassing the collection picker popover that the desktop nav-tab shows.
@@ -809,6 +821,7 @@ function showUserDropdown() {
   const iconUsers = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/><circle cx="18" cy="8" r="2.5"/><path d="M22 20c0-2.5-2-4.5-4-5"/></svg>`;
   const iconKey   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><circle cx="8" cy="15" r="5"/><path d="M21 3l-9.4 9.4M17 3h4v4"/></svg>`;
   const iconNew   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+  const iconTour  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>`;
   const iconBug   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><path d="M8 2l1.5 1.5M16 2l-1.5 1.5M12 8a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0v-3a4 4 0 0 0-4-4z"/><path d="M8 12H4M20 12h-4M8 16H5M19 16h-3M9 20l-2 2M15 20l2 2"/></svg>`;
   const iconOut   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="${iconStyle}"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
 
@@ -847,6 +860,10 @@ function showUserDropdown() {
     </button>
     ${requestBtn}
     ${adminBtn}
+    <button id="dd-feature-tour" style="${btnStyle}"
+      onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
+      ${iconTour}Feature tour
+    </button>
     <button id="dd-whats-new" style="${btnStyle}"
       onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='none'">
       ${iconNew}What's new
@@ -863,6 +880,7 @@ function showUserDropdown() {
   document.body.appendChild(_dropdownEl);
 
   document.getElementById('dd-my-account').addEventListener('click', () => { hideUserDropdown(); showAccountModal(); });
+  document.getElementById('dd-feature-tour').addEventListener('click', () => { hideUserDropdown(); activateTab('features'); });
   document.getElementById('dd-whats-new').addEventListener('click', () => { hideUserDropdown(); activateTab('roadmap'); });
   document.getElementById('dd-bugs').addEventListener('click', () => { hideUserDropdown(); activateTab('bugs'); });
   document.getElementById('dd-sign-out').addEventListener('click', () => { hideUserDropdown(); signOut(); });
