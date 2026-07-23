@@ -1229,25 +1229,26 @@ function updateNavVisibility() {
 function showAuthModal(panel = 'signin') {
   document.getElementById('auth-modal').classList.remove('hidden');
   switchAuthTab(panel);
-  const focusMap = { signin: 'auth-email', signup: 'signup-email', forgot: 'forgot-email', reset: 'reset-password' };
+  const focusMap = { signin: 'auth-email', signup: 'signup-email', forgot: 'forgot-email', reset: 'reset-code', verify: 'verify-code' };
   document.getElementById(focusMap[panel] || 'auth-email')?.focus();
 }
 window.__showAuthModal = showAuthModal;
 
 function hideAuthModal() {
   document.getElementById('auth-modal').classList.add('hidden');
-  ['auth-error','signup-error','signup-success','forgot-error','forgot-success','reset-error']
+  ['auth-error','signup-error','signup-success','verify-error','forgot-error','forgot-success','reset-error']
     .forEach(id => document.getElementById(id)?.classList.add('hidden'));
   document.getElementById('auth-form-forgot')?.reset();
   document.getElementById('auth-form-reset')?.reset();
+  document.getElementById('auth-form-verify')?.reset();
 }
 
 function switchAuthTab(panel) {
-  ['signin','signup','forgot','reset'].forEach(p => {
+  ['signin','signup','verify','forgot','reset'].forEach(p => {
     document.getElementById(`auth-panel-${p}`)?.classList.toggle('hidden', p !== panel);
   });
 
-  const isForgotOrReset = panel === 'forgot' || panel === 'reset';
+  const isForgotOrReset = panel === 'forgot' || panel === 'reset' || panel === 'verify';
   document.getElementById('auth-tab-bar').classList.toggle('hidden', isForgotOrReset);
 
   if (!isForgotOrReset) {
@@ -1265,6 +1266,17 @@ function switchAuthTab(panel) {
 
 document.getElementById('auth-tab-signin').addEventListener('click', () => switchAuthTab('signin'));
 document.getElementById('auth-tab-signup').addEventListener('click', () => switchAuthTab('signup'));
+
+// Email tied to the in-progress signup or password-reset code — verifyOtp needs it
+// alongside the code since the code alone isn't scoped to an address client-side.
+let pendingAuthEmail = '';
+
+document.getElementById('auth-google-btn').addEventListener('click', async () => {
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  });
+});
 
 // ─── Sign-in form ──────────────────────────────────────────
 document.getElementById('auth-form-signin').addEventListener('submit', async (e) => {
@@ -1342,12 +1354,57 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
     hideAuthModal();
     activateTab(state.currentTab);
   } else {
-    // Email confirmation is enabled — user must verify before signing in.
-    okEl.textContent = 'Account created! Check your email for a verification link.';
-    okEl.classList.remove('hidden');
+    // Email confirmation is enabled — user enters the code we emailed instead
+    // of clicking a link (institutional mail scanners pre-fetch and burn
+    // one-time confirmation links before the user can click them).
+    pendingAuthEmail = email;
+    document.getElementById('verify-email-hint').textContent = email;
     document.getElementById('auth-form-signup').reset();
+    switchAuthTab('verify');
+    document.getElementById('verify-code').focus();
   }
 });
+
+// ─── Verify signup code ────────────────────────────────────
+document.getElementById('auth-form-verify').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn  = e.submitter || e.target.querySelector('button[type=submit]');
+  if (btn.disabled) return;
+
+  const code  = document.getElementById('verify-code').value.trim();
+  const errEl = document.getElementById('verify-error');
+  errEl.classList.add('hidden');
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+
+  const { error } = await sb.auth.verifyOtp({ email: pendingAuthEmail, token: code, type: 'signup' });
+
+  btn.disabled = false;
+  btn.textContent = 'Verify & create account';
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // onAuthStateChange(SIGNED_IN) fires automatically and handles state + re-render.
+  hideAuthModal();
+  activateTab(state.currentTab);
+});
+
+document.getElementById('auth-verify-resend').addEventListener('click', async () => {
+  const errEl = document.getElementById('verify-error');
+  errEl.classList.add('hidden');
+  const { error } = await sb.auth.resend({ type: 'signup', email: pendingAuthEmail });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+  }
+});
+
+document.getElementById('auth-verify-back').addEventListener('click', () => switchAuthTab('signin'));
 
 // ─── Forgot password ───────────────────────────────────────
 document.getElementById('auth-forgot-link').addEventListener('click', () => switchAuthTab('forgot'));
@@ -1372,7 +1429,7 @@ document.getElementById('auth-form-forgot').addEventListener('submit', async (e)
   });
 
   btn.disabled = false;
-  btn.textContent = 'Send reset link';
+  btn.textContent = 'Send code';
 
   if (error) {
     errEl.textContent = error.message;
@@ -1380,17 +1437,20 @@ document.getElementById('auth-form-forgot').addEventListener('submit', async (e)
     return;
   }
 
-  okEl.textContent = 'Check your email for a reset link.';
-  okEl.classList.remove('hidden');
+  // Code-based recovery (see verify-signup comment above for why): move
+  // straight to the code+password panel rather than waiting on a link click.
+  pendingAuthEmail = email;
   document.getElementById('auth-form-forgot').reset();
+  switchAuthTab('reset');
 });
 
-// ─── Set new password (after clicking reset email link) ────
+// ─── Set new password (after entering the emailed reset code) ──
 document.getElementById('auth-form-reset').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn  = e.submitter || e.target.querySelector('button[type=submit]');
   if (btn.disabled) return;
 
+  const code  = document.getElementById('reset-code').value.trim();
   const pw1   = document.getElementById('reset-password').value;
   const pw2   = document.getElementById('reset-password2').value;
   const errEl = document.getElementById('reset-error');
@@ -1404,6 +1464,15 @@ document.getElementById('auth-form-reset').addEventListener('submit', async (e) 
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
+
+  const { error: otpError } = await sb.auth.verifyOtp({ email: pendingAuthEmail, token: code, type: 'recovery' });
+  if (otpError) {
+    btn.disabled = false;
+    btn.textContent = 'Set new password';
+    errEl.textContent = otpError.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
 
   const { error } = await sb.auth.updateUser({ password: pw1 });
 
