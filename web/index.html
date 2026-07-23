@@ -254,6 +254,16 @@
               Sign in
             </button>
           </form>
+          <div class="flex items-center gap-3 my-4">
+            <div class="flex-1 h-px bg-gray-100"></div>
+            <span class="text-xs text-gray-400">or</span>
+            <div class="flex-1 h-px bg-gray-100"></div>
+          </div>
+          <button type="button" id="auth-google-btn"
+            class="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 35.4 26.9 36 24 36c-5.3 0-9.6-3.3-11.3-7.9l-6.5 5C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.6 5.4C40.8 36.4 44 30.8 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+            Continue with Google
+          </button>
         </div>
 
         <!-- Create account panel -->
@@ -284,9 +294,28 @@
           </form>
         </div>
 
+        <!-- Verify signup code panel -->
+        <div id="auth-panel-verify" class="hidden">
+          <p class="text-sm text-gray-600 mb-4">
+            We emailed a 6-digit code to <span id="verify-email-hint" class="font-medium text-gray-800"></span>. Enter it below to finish creating your account.
+          </p>
+          <form id="auth-form-verify" class="flex flex-col gap-3">
+            <input id="verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required
+              maxlength="6" pattern="[0-9]{6}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <p id="verify-error" class="text-red-500 text-xs hidden"></p>
+            <button type="submit"
+              class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition" style="background:#0f4530;">
+              Verify &amp; create account
+            </button>
+          </form>
+          <button id="auth-verify-resend" class="mt-3 w-full text-center text-sm transition-colors" style="color:#0f4530;">Resend code</button>
+          <button id="auth-verify-back" class="mt-1 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Back to sign in</button>
+        </div>
+
         <!-- Forgot password panel -->
         <div id="auth-panel-forgot" class="hidden">
-          <p class="text-sm text-gray-600 mb-4">Enter your email and we'll send you a reset link.</p>
+          <p class="text-sm text-gray-600 mb-4">Enter your email and we'll send you a 6-digit code.</p>
           <form id="auth-form-forgot" class="flex flex-col gap-3">
             <input id="forgot-email" type="email" placeholder="Email" required
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
@@ -294,7 +323,7 @@
             <p id="forgot-success" class="text-green-700 text-xs hidden"></p>
             <button type="submit"
               class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition" style="background:#0f4530;">
-              Send reset link
+              Send code
             </button>
           </form>
           <button id="auth-back-signin" class="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">Back to sign in</button>
@@ -302,8 +331,11 @@
 
         <!-- Set new password panel (shown after user clicks email reset link) -->
         <div id="auth-panel-reset" class="hidden">
-          <p class="text-sm text-gray-600 mb-4">Choose a new password for your account.</p>
+          <p class="text-sm text-gray-600 mb-4">Enter the code we emailed you and choose a new password.</p>
           <form id="auth-form-reset" class="flex flex-col gap-3">
+            <input id="reset-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required
+              maxlength="6" pattern="[0-9]{6}"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <input id="reset-password" type="password" placeholder="New password (min 8 characters)" required minlength="8"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <input id="reset-password2" type="password" placeholder="Confirm new password" required
