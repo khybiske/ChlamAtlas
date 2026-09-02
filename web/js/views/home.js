@@ -303,8 +303,10 @@ async function renderHomeMobile(container) {
     try {
       const map = window.L.map(mapEl, { zoomControl: false, attributionControl: true })
         .setView([30, 0], 1);
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap · © CARTO', maxZoom: 10,
+      // Esri "World Light Gray Base" — keyless light basemap. CARTO's
+      // basemaps.cartocdn.com now watermarks anonymous requests ("API KEY REQUIRED").
+      window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri', maxZoom: 16,
       }).addTo(map);
     } catch (e) { /* map not critical */ }
   }
@@ -528,12 +530,11 @@ function renderCommunityColumn(container) {
       Community
     </div>
 
-    <!-- World map (Leaflet + CartoDB tiles) -->
+    <!-- World map (Leaflet + Esri Light Gray tiles) -->
     <div style="border:1px solid #dbeafe;border-radius:8px;overflow:hidden;margin-bottom:10px;">
       <div id="community-map" style="height:130px;"></div>
       <div style="font-size:9px;color:#cbd5e1;padding:3px 8px;text-align:right;background:white;">
-        © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:inherit;">OpenStreetMap</a>
-        · © <a href="https://carto.com/attributions" target="_blank" style="color:inherit;">CARTO</a>
+        Tiles © <a href="https://www.esri.com/" target="_blank" style="color:inherit;">Esri</a>
       </div>
     </div>
 
@@ -594,8 +595,10 @@ function initCommunityMap(container) {
     boxZoom: false,
   });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
+  // Esri "World Light Gray Base" — keyless light basemap (CARTO now watermarks
+  // anonymous basemaps.cartocdn.com requests with "API KEY REQUIRED").
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 16,
   }).addTo(map);
 
   // Fit full world into container
