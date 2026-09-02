@@ -69,6 +69,20 @@ CREATE POLICY "mutants: lab member write own records"
 CREATE POLICY "mutants: admin full write"
     ON mutants FOR ALL USING (current_user_role() = 'admin');
 
+-- Any signed-in user may create a mutant via the "New mutant" form.
+-- Unpublished unless the creator is lab_member/admin. contributed_by is
+-- auto-set to auth.uid() by the mutants_set_contributed_by trigger (025);
+-- pinning it here blocks anon and cross-user inserts. See migration 030.
+CREATE POLICY "mutants_authenticated_insert"
+    ON mutants FOR INSERT
+    WITH CHECK (
+        (contributed_by = auth.uid() OR current_user_role() = 'admin')
+        AND (
+            is_published = false
+            OR current_user_role() IN ('lab_member', 'admin')
+        )
+    );
+
 
 -- ─── MUTANT PIPELINE ─────────────────────────────────────────
 -- Pipeline is lab-internal; public can only see pipeline rows

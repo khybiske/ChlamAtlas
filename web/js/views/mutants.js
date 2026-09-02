@@ -144,6 +144,18 @@ let _expandedSections = { type: false, strain: false, function: false, published
 let _geneDataMap      = new Map();
 let _creatorOptions   = [];  // cached distinct creator_name values for current collection
 let _markerOptions    = [];  // cached distinct marker values for current collection
+let _strainsCache     = [];  // cached strains list for the create-mutant form
+
+// Load the strains list once, for the "Background strain" picker in create mode.
+async function loadStrains() {
+  if (_strainsCache.length) return _strainsCache;
+  const { data } = await sb
+    .from('strains')
+    .select('id,species,strain_name,common_name')
+    .order('species');
+  _strainsCache = data ?? [];
+  return _strainsCache;
+}
 
 // ─── Mobile mutant constants ──────────────────────────────
 const MOB_TYPE = {
@@ -190,6 +202,10 @@ function _renderMobileMutantList(container) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
         Switch
       </button>
+      <button class="mob-switch-btn" id="mob-mut-new-btn" style="display:none;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New
+      </button>
     </div>
 
     <div class="mob-sticky-bar" id="mob-mut-toolbar">
@@ -229,6 +245,12 @@ function _renderMobileMutantList(container) {
   container.querySelector('#mob-mut-switch-btn').addEventListener('click', () => {
     _mobMutantCollectionSheet(container);
   });
+
+  const mobNewBtn = container.querySelector('#mob-mut-new-btn');
+  if (mobNewBtn && state.user) {
+    mobNewBtn.style.display = '';
+    mobNewBtn.addEventListener('click', () => openMutantCreateModal(_collection));
+  }
 
   _mobMutantFilterBar(container, c => _mobFetchMutants(c));
   _mobFetchMutants(container);
@@ -1210,11 +1232,15 @@ export function renderMutants(container) {
           <button class="mut-switch-btn" id="mut-switch-btn" title="Switch collection" aria-label="Switch collection"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3-3 3 3M4 9l3 3 3-3"/></svg></button>
         </div>
 
-        <!-- Search -->
-        <div style="padding:6px 10px;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+        <!-- Search + New -->
+        <div style="padding:6px 10px;border-bottom:1px solid #e5e7eb;flex-shrink:0;display:flex;gap:6px;">
           <input id="mut-search" type="search" placeholder="Search mutants…"
-            style="width:100%;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;
+            style="flex:1;min-width:0;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;
                    font-size:12px;outline:none;background:#f9fafb;" />
+          <button id="mut-new-btn" title="Add a new mutant"
+            style="flex-shrink:0;display:none;align-items:center;gap:2px;padding:5px 10px;
+                   border:1px solid #d1d5db;border-radius:6px;background:#fff;font-size:11px;
+                   font-weight:600;color:#374151;cursor:pointer;white-space:nowrap;">+ New</button>
         </div>
 
         <!-- Filter bar (sort, favorites, more) -->
@@ -1251,6 +1277,14 @@ function wireControls() {
   document.getElementById('mut-switch-btn').addEventListener('click', (e) => {
     showCollectionDropdown(e.currentTarget);
   });
+
+  // "+ New" — create a mutant in the current collection (any logged-in user)
+  const newBtn = document.getElementById('mut-new-btn');
+  if (newBtn && state.user) {
+    newBtn.style.display = 'inline-flex';
+    newBtn.addEventListener('click', () => openMutantCreateModal(_collection));
+  }
+
   document.getElementById('mut-search').addEventListener('input', (e) => {
     clearTimeout(_searchTimer);
     _searchTimer = setTimeout(() => {
@@ -2846,10 +2880,35 @@ function skeletonRows(n) {
     </div>`).join('');
 }
 
-// ─── Mutant edit modal ────────────────────────────────────
+// ─── Mutant create / edit modal ──────────────────────────
 
-async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null) {
+// Open the modal in "create" mode — a blank mutant scoped to `collection`.
+// Any signed-in user may create; the record lands unpublished unless the
+// creator is lab_member/admin and opts in. See migration 030 for the RLS rule.
+async function openMutantCreateModal(collection) {
+  if (!state.user) { window.__showAuthModal?.('signin'); return; }
+  await loadStrains();
+  const template = {
+    id:                   null,
+    mutant_id:            '',
+    name:                 '',
+    creator_name:         state.userProfile?.display_name ?? '',
+    collection:           collection ?? _collection ?? 'CT_L2',
+    background_strain_id: null,
+    mutation_type:        '',
+    plasmid_used:         '',
+    marker:               [],
+    notes:                '',
+    target_gene_ids:      [],
+    is_published:         false,
+    contributed_by:       null,
+  };
+  await openMutantEditModal(template, [], null, null, 'create');
+}
+
+async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null, mode = 'edit') {
   document.getElementById('mut-edit-overlay')?.remove();
+  if (mode === 'create') await loadStrains();
 
   const overlay = document.createElement('div');
   overlay.id = 'mut-edit-overlay';
@@ -2872,15 +2931,18 @@ async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null) {
   document.addEventListener('keydown', onEsc);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
-  overlay.innerHTML = buildMutantEditHtml(m, genes);
+  overlay.innerHTML = buildMutantEditHtml(m, genes, mode);
   document.body.appendChild(overlay);
 
   const onSave = afterSaveFn ?? (() => loadDetail(m.id));
-  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl, onSave);
+  wireMutantEditEvents(overlay, m, genes, closeModal, rightEl, onSave, mode);
 }
 
-function buildMutantEditHtml(m, genes) {
-  const isAdmin = state.userRole === 'admin';
+function buildMutantEditHtml(m, genes, mode = 'edit') {
+  const isCreate    = mode === 'create';
+  const isAdmin     = state.userRole === 'admin';
+  const canPublish  = isAdmin || state.userRole === 'lab_member';
+  const showPublish = isCreate ? canPublish : isAdmin;
 
   const field = (label, name, value, extra = '') =>
     `<div>
@@ -2918,7 +2980,7 @@ function buildMutantEditHtml(m, genes) {
         style="font-size:12px;color:#ef4444;background:none;border:none;cursor:pointer;line-height:1;padding:0 2px;">×</button>
     </div>`).join('');
 
-  const adminSection = isAdmin ? `
+  const contribSection = isAdmin ? `
     <!-- Admin: contributed_by -->
     <div style="border-top:1px solid #f0f0f0;margin-top:4px;padding-top:12px;">
       <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:8px;">Admin</div>
@@ -2941,13 +3003,39 @@ function buildMutantEditHtml(m, genes) {
         <div id="mem-contrib-result" style="margin-top:6px;display:none;"></div>
         <input type="hidden" id="mem-contrib-value" value="${esc(m.contributed_by ?? '')}">
       </div>
-    </div>
-    <!-- Admin: publish toggle -->
-    <div style="margin-top:12px;">
+    </div>` : '';
+
+  const publishSection = showPublish ? `
+    <!-- Publish toggle (lab_member / admin) -->
+    <div style="margin-top:12px;${isAdmin ? '' : 'border-top:1px solid #f0f0f0;padding-top:12px;'}">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="mem-published" ${m.is_published ? 'checked' : ''}>
         <span style="font-size:11px;font-weight:600;color:#374151;">Published (visible to public)</span>
       </label>
+    </div>` : '';
+
+  const metaSection = contribSection + publishSection;
+
+  const createFields = isCreate ? `
+    <div>
+      <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Mutant ID <span style="color:#dc2626;">*</span></label>
+      <input name="mutant_id" value="" autocomplete="off" placeholder="e.g. KUCM128"
+        style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+        font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+      <div id="mem-mid-status" style="font-size:10px;margin-top:3px;min-height:13px;"></div>
+    </div>
+    <div>
+      <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Background strain <span style="color:#dc2626;">*</span></label>
+      <select name="background_strain_id"
+        style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+        font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+        <option value="">— select —</option>
+        ${_strainsCache.map(s =>
+          `<option value="${esc(s.id)}" ${m.background_strain_id === s.id ? 'selected' : ''}>${esc(s.species)} ${esc(s.strain_name)}</option>`
+        ).join('')}
+      </select>
     </div>` : '';
 
   return `
@@ -2960,9 +3048,9 @@ function buildMutantEditHtml(m, genes) {
       <div style="padding:16px 18px 12px;border-bottom:1px solid #f0f0f0;
         display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div>
-          <div style="font-size:14px;font-weight:700;color:#111;">Edit Mutant</div>
+          <div style="font-size:14px;font-weight:700;color:#111;">${isCreate ? 'New Mutant' : 'Edit Mutant'}</div>
           <div style="font-size:9px;color:#94a3b8;font-family:'DM Mono',monospace;margin-top:1px;">
-            ${esc(m.mutant_id)}
+            ${isCreate ? esc(COLLECTIONS.find(c => c.id === m.collection)?.label ?? m.collection ?? '') : esc(m.mutant_id)}
           </div>
         </div>
         <button id="mem-close"
@@ -2972,6 +3060,7 @@ function buildMutantEditHtml(m, genes) {
       <!-- Body (scrollable) -->
       <div style="padding:16px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
 
+        ${createFields}
         ${field('Name', 'name', m.name)}
         ${field('Creator Name', 'creator_name', m.creator_name)}
 
@@ -3019,7 +3108,7 @@ function buildMutantEditHtml(m, genes) {
           <div id="mem-gene-result" style="display:none;"></div>
         </div>
 
-        ${adminSection}
+        ${metaSection}
 
       </div>
 
@@ -3040,14 +3129,46 @@ function buildMutantEditHtml(m, genes) {
     </div>`;
 }
 
-function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, afterSaveFn = null) {
+function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, afterSaveFn = null, mode = 'edit') {
   overlay.querySelector('#mem-close')?.addEventListener('click', closeModal);
   overlay.querySelector('#mem-cancel')?.addEventListener('click', closeModal);
 
-  const isAdmin = state.userRole === 'admin';
+  const isCreate = mode === 'create';
+  const isAdmin  = state.userRole === 'admin';
 
   // Track staged gene changes
   const stagedGenes = [...initialGenes];  // mutable copy reflecting current desired state
+
+  // Resolve the strain to scope gene lookups to. In edit mode it's fixed on the
+  // record; in create mode it follows the "Background strain" picker.
+  const currentStrainId = () => isCreate
+    ? (overlay.querySelector('[name="background_strain_id"]')?.value || null)
+    : m.background_strain_id;
+
+  // Create mode: live-check that the entered Mutant ID isn't already taken.
+  let midAvailable = null;  // null = unknown/empty, true = free, false = taken
+  if (isCreate) {
+    const midInput  = overlay.querySelector('[name="mutant_id"]');
+    const midStatus = overlay.querySelector('#mem-mid-status');
+    let midTimer;
+    midInput?.addEventListener('input', () => {
+      const val = midInput.value.trim();
+      midAvailable = null;
+      midStatus.textContent = '';
+      midStatus.style.color = '#94a3b8';
+      clearTimeout(midTimer);
+      if (!val) return;
+      midStatus.textContent = 'Checking…';
+      midTimer = setTimeout(async () => {
+        if (midInput.value.trim() !== val) return;
+        const { data } = await sb.from('mutants').select('id').eq('mutant_id', val).maybeSingle();
+        if (midInput.value.trim() !== val) return;
+        midAvailable = !data;
+        midStatus.textContent = data ? `"${val}" is already taken` : `"${val}" is available`;
+        midStatus.style.color = data ? '#dc2626' : '#059669';
+      }, 350);
+    });
+  }
 
   // Remove existing gene
   overlay.querySelector('#mem-gene-list')?.addEventListener('click', e => {
@@ -3076,6 +3197,13 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, aft
       return;
     }
 
+    const strainId = currentStrainId();
+    if (!strainId) {
+      errorEl.textContent   = 'Pick a background strain first.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
     const lookupBtn = overlay.querySelector('#mem-gene-lookup');
     lookupBtn.textContent = 'Looking up…';
     lookupBtn.disabled    = true;
@@ -3085,7 +3213,7 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, aft
         .from('genes')
         .select('id, locus_tag, gene_name, strains(common_name)')
         .ilike('locus_tag', rawTag)
-        .eq('strain_id', m.background_strain_id)
+        .eq('strain_id', strainId)
         .limit(5);
 
       const found = geneMatches?.[0] ?? null;
@@ -3198,6 +3326,80 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, aft
     saveBtn.disabled    = true;
 
     const modal = overlay.querySelector('#mut-edit-modal');
+    const finishSave = () => { saveBtn.textContent = 'Save'; saveBtn.disabled = false; };
+
+    // ── Create branch ───────────────────────────────────────
+    if (isCreate) {
+      const cval = f => (modal.querySelector(`[name="${f}"]`)?.value ?? '').trim() || null;
+      const markerRawC = (modal.querySelector('[name="marker"]')?.value ?? '').trim();
+      const markerArr  = markerRawC ? markerRawC.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const stagedGeneIds = stagedGenes.map(g => g.id);
+
+      const mutantId = cval('mutant_id');
+      const strainId = modal.querySelector('[name="background_strain_id"]')?.value || null;
+      const collection = cval('collection');
+      const mutationType = cval('mutation_type');
+
+      const problems = [];
+      if (!mutantId)      problems.push('Mutant ID is required.');
+      if (midAvailable === false) problems.push('That Mutant ID is already taken.');
+      if (!strainId)      problems.push('Background strain is required.');
+      if (!collection)    problems.push('Collection is required.');
+      if (!mutationType)  problems.push('Mutation type is required.');
+      if (problems.length) { finishSave(); alert(problems.join('\n')); return; }
+
+      const rec = {
+        mutant_id:            mutantId,
+        name:                 cval('name'),
+        creator_name:         cval('creator_name'),
+        collection,
+        background_strain_id: strainId,
+        mutation_type:        mutationType,
+        plasmid_used:         cval('plasmid_used'),
+        notes:                cval('notes'),
+        marker:               markerArr.length ? markerArr : null,
+        target_gene_ids:      stagedGeneIds.length ? stagedGeneIds : null,
+      };
+      // Publish flag: lab_member/admin may set it directly at creation
+      // (the admin-only set_mutant_published RPC guards later toggles).
+      const showPublish = isAdmin || state.userRole === 'lab_member';
+      rec.is_published = showPublish
+        ? (overlay.querySelector('#mem-published')?.checked ?? false)
+        : false;
+      // Ownership: default to self (RLS pins contributed_by = auth.uid());
+      // admin may reassign to another user.
+      rec.contributed_by = state.user.id;
+      if (isAdmin) {
+        const c = overlay.querySelector('#mem-contrib-value')?.value || null;
+        if (c) rec.contributed_by = c;
+      }
+
+      const { data: created, error } = await sb.from('mutants')
+        .insert(rec).select('id,mutant_id,collection').single();
+      if (error) { finishSave(); alert(`Could not create mutant: ${error.message}`); return; }
+
+      // Lab/admin creations get a pipeline row so stage tracking works immediately.
+      if (state.userRole === 'lab_member' || state.userRole === 'admin') {
+        const { error: pErr } = await sb.from('mutant_pipeline')
+          .insert({ mutant_id: created.id, status: 'active' });
+        if (pErr) console.warn('[ChlamAtlas] pipeline row not created:', pErr.message);
+      }
+
+      finishSave();
+      closeModal();
+      if (isMobileViewport()) {
+        _renderMobileMutantList(_container);
+        _mobLoadMutantDetail?.(created.id);
+      } else {
+        _collection = created.collection;
+        window.__mutantCollection = created.collection;
+        window.__openMutantId = created.id;
+        renderMutants(_container);
+      }
+      return;
+    }
+
+    // ── Edit branch ─────────────────────────────────────────
     const diff  = {};
 
     // Collect changed scalar fields
