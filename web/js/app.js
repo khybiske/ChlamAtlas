@@ -729,9 +729,11 @@ sb.auth.onAuthStateChange(async (event, session) => {
       state.accessToken = session.access_token;
       await refreshRole(session.access_token);
       await syncFavoritesFromDB(session.access_token);
-      // Re-render active tab so star buttons appear with correct state.
-      // Stars are omitted from the DOM for guests; this re-render injects them.
-      if (state.currentTab === 'genomes' || state.currentTab === 'mutants') {
+      // Re-render active tab so auth-conditional DOM appears with correct state:
+      // star buttons on genomes/mutants (omitted for guests), and the guest-only
+      // "New here?" hero CTA on home (which must disappear once the stored
+      // session resolves). renderHome/genomes/mutants all clear before rebuilding.
+      if (['home', 'genomes', 'mutants'].includes(state.currentTab)) {
         const container = document.getElementById(`${state.currentTab}-content`);
         if (container) {
           container.innerHTML = '';
