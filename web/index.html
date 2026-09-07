@@ -271,7 +271,7 @@
           <form id="auth-form-signup" class="flex flex-col gap-3">
             <input id="signup-email" type="email" placeholder="Email" required
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-            <input id="signup-password" type="password" placeholder="Password (min 8 characters)" required minlength="8"
+            <input id="signup-password" type="password" placeholder="Password (min 6 characters)" required minlength="6"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <input id="signup-password2" type="password" placeholder="Confirm password" required
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
@@ -303,6 +303,7 @@
             <input id="verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Verification code" required
               maxlength="12" pattern="[0-9]{4,12}"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+            <p id="verify-code-hint" class="text-gray-400 text-xs text-center"></p>
             <p id="verify-error" class="text-red-500 text-xs hidden"></p>
             <button type="submit"
               class="w-full text-white rounded-lg py-2.5 text-sm font-semibold transition" style="background:#0f4530;">
@@ -336,7 +337,8 @@
             <input id="reset-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Verification code" required
               maxlength="12" pattern="[0-9]{4,12}"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-            <input id="reset-password" type="password" placeholder="New password (min 8 characters)" required minlength="8"
+            <p id="reset-code-hint" class="text-gray-400 text-xs text-center"></p>
+            <input id="reset-password" type="password" placeholder="New password (min 6 characters)" required minlength="6"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <input id="reset-password2" type="password" placeholder="Confirm new password" required
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
