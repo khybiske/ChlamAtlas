@@ -297,11 +297,11 @@
         <!-- Verify signup code panel -->
         <div id="auth-panel-verify" class="hidden">
           <p class="text-sm text-gray-600 mb-4">
-            We emailed a 6-digit code to <span id="verify-email-hint" class="font-medium text-gray-800"></span>. Enter it below to finish creating your account.
+            We emailed a verification code to <span id="verify-email-hint" class="font-medium text-gray-800"></span>. Enter it below to finish creating your account.
           </p>
           <form id="auth-form-verify" class="flex flex-col gap-3">
-            <input id="verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required
-              maxlength="6" pattern="[0-9]{6}"
+            <input id="verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Verification code" required
+              maxlength="12" pattern="[0-9]{4,12}"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <p id="verify-error" class="text-red-500 text-xs hidden"></p>
             <button type="submit"
@@ -315,7 +315,7 @@
 
         <!-- Forgot password panel -->
         <div id="auth-panel-forgot" class="hidden">
-          <p class="text-sm text-gray-600 mb-4">Enter your email and we'll send you a 6-digit code.</p>
+          <p class="text-sm text-gray-600 mb-4">Enter your email and we'll send you a verification code.</p>
           <form id="auth-form-forgot" class="flex flex-col gap-3">
             <input id="forgot-email" type="email" placeholder="Email" required
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
@@ -333,8 +333,8 @@
         <div id="auth-panel-reset" class="hidden">
           <p class="text-sm text-gray-600 mb-4">Enter the code we emailed you and choose a new password.</p>
           <form id="auth-form-reset" class="flex flex-col gap-3">
-            <input id="reset-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required
-              maxlength="6" pattern="[0-9]{6}"
+            <input id="reset-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Verification code" required
+              maxlength="12" pattern="[0-9]{4,12}"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             <input id="reset-password" type="password" placeholder="New password (min 8 characters)" required minlength="8"
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
