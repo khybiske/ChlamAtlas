@@ -1367,6 +1367,21 @@ document.getElementById('auth-form-signup').addEventListener('submit', async (e)
   }
 });
 
+// Strips non-digits as the user types/pastes and shows a live digit count —
+// the code length isn't fixed in the UI since it's set by Supabase's OTP
+// length config, not hardcoded here (see auth fix history).
+function attachOtpCodeInput(inputId, hintId) {
+  const input = document.getElementById(inputId);
+  const hint  = document.getElementById(hintId);
+  input.addEventListener('input', () => {
+    const digits = input.value.replace(/\D/g, '');
+    if (digits !== input.value) input.value = digits;
+    hint.textContent = digits.length ? `${digits.length} digits entered` : '';
+  });
+}
+attachOtpCodeInput('verify-code', 'verify-code-hint');
+attachOtpCodeInput('reset-code', 'reset-code-hint');
+
 // ─── Verify signup code ────────────────────────────────────
 document.getElementById('auth-form-verify').addEventListener('submit', async (e) => {
   e.preventDefault();
