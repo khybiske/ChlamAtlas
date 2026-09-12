@@ -824,10 +824,28 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
         ${s.date ? `<div style="font-size:9px;color:var(--mob-ink-3);text-align:center;">${s.date.slice(0,10)}</div>` : ''}
       </div>
       ${i < stages.length - 1 ? `<div style="flex:1;height:2px;background:#e5e7eb;margin-top:6px;"></div>` : ''}`).join('');
+    const STOCK_LABS = [
+      { key: 'stocks_uw_hybiske', name: 'UW Hybiske' },
+      { key: 'stocks_uw_bob',     name: 'UW Bob' },
+      { key: 'stocks_osu_rockey', name: 'OSU Rockey' },
+      { key: 'stocks_ku_hefty',   name: 'KU Hefty' },
+    ];
+    const stockNames = [
+      ...STOCK_LABS.filter(l => pipe[l.key]).map(l => l.name),
+      ...(pipe.stock_locations ?? '').split(',').map(s => s.trim()).filter(Boolean),
+    ];
+    const stocksRow = `
+      <div style="margin-top:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mob-ink-3);margin-bottom:4px;">Stocks</div>
+        ${stockNames.length
+          ? `<div style="font-size:13px;color:var(--mob-ink);">${stockNames.map(esc).join(', ')}</div>`
+          : `<div style="font-size:13px;color:var(--mob-ink-3);font-style:italic;">No known stock location on file</div>`}
+      </div>`;
     return `
       <div class="mob-det-sec">
         <div class="mob-det-h">Pipeline</div>
         <div style="display:flex;align-items:flex-start;gap:0;">${stageEls}</div>
+        ${stocksRow}
       </div>`;
   })();
 
@@ -957,7 +975,7 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
 
   // Edit button — opens pull-up sheet, reloads detail on save
   scroll.querySelector('.mob-edit-btn')?.addEventListener('click', () => {
-    openMutantEditModal(m, genes, null, () => _mobLoadMutantDetail(m.id));
+    openMutantEditModal({ ...m, stock_locations: pipe?.stock_locations ?? null }, genes, null, () => _mobLoadMutantDetail(m.id));
   });
 
   // Favorite button
@@ -1977,7 +1995,7 @@ async function loadDetail(mutantUUID) {
   if (editBtn) {
     editBtn.addEventListener('click', () => {
       if (!state.user) { window.__showAuthModal?.('signin'); return; }
-      openMutantEditModal(m, genes, rightEl);
+      openMutantEditModal({ ...m, stock_locations: pipe?.stock_locations ?? null }, genes, rightEl);
     });
     sb.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
@@ -2832,17 +2850,30 @@ function stocksHTML(pipe) {
     { key: 'stocks_osu_rockey', name: 'OSU Rockey' },
     { key: 'stocks_ku_hefty',   name: 'KU Hefty' },
   ];
-  const items = labs.map(l => `
+  // Only list labs actually known to hold stock — not every possible location.
+  const present = labs.filter(l => pipe[l.key]);
+  const items = present.map(l => `
     <div class="mut-stock-item">
-      <div class="mut-stock-dot ${pipe[l.key] ? 'yes' : 'no'}"></div>
+      <div class="mut-stock-dot yes"></div>
       <span class="mut-stock-name">${l.name}</span>
     </div>`).join('');
+
+  const freeText = (pipe.stock_locations ?? '').trim();
+  const freeTextItems = freeText.split(',').map(s => s.trim()).filter(Boolean).map(loc => `
+    <div class="mut-stock-item">
+      <div class="mut-stock-dot yes"></div>
+      <span class="mut-stock-name">${esc(loc)}</span>
+    </div>`).join('');
+
+  const body = (items || freeTextItems)
+    ? `<div class="mut-stocks-grid">${items}${freeTextItems}</div>`
+    : `<div style="font-size:11px;color:#9ca3af;font-style:italic;">No known stock location on file</div>`;
 
   return `
   <div style="background:white;border-bottom:1px solid #f0f0f0;">
     ${mutSectionHead('Stocks', LAB_PILL)}
     <div style="padding:10px 16px 14px;">
-      <div class="mut-stocks-grid">${items}</div>
+      ${body}
     </div>
   </div>`;
 }
@@ -3077,6 +3108,7 @@ function buildMutantEditHtml(m, genes, mode = 'edit') {
 
         ${field('Plasmid Used', 'plasmid_used', m.plasmid_used)}
         ${field('Marker(s)', 'marker', markerDisplay, 'placeholder="e.g. aadA, gfp"')}
+        ${canPublish ? field('Stock location', 'stock_locations', m.stock_locations, 'placeholder="e.g. Hybiske Lab, -80°C"') : ''}
 
         <div>
           <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
@@ -3380,8 +3412,9 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, aft
 
       // Lab/admin creations get a pipeline row so stage tracking works immediately.
       if (state.userRole === 'lab_member' || state.userRole === 'admin') {
+        const stockLocations = cval('stock_locations');
         const { error: pErr } = await sb.from('mutant_pipeline')
-          .insert({ mutant_id: created.id, status: 'active' });
+          .insert({ mutant_id: created.id, status: 'active', stock_locations: stockLocations });
         if (pErr) console.warn('[ChlamAtlas] pipeline row not created:', pErr.message);
       }
 
@@ -3448,6 +3481,24 @@ function wireMutantEditEvents(overlay, m, initialGenes, closeModal, rightEl, aft
           published: newPub,
         });
         if (error) saveError = error.message;
+      }
+    }
+
+    // stock_locations lives on mutant_pipeline, not mutants. mutant_pipeline.mutant_id
+    // has no unique constraint, so `.upsert(..., {onConflict:'mutant_id'})` isn't safe
+    // here (it can insert a duplicate row instead of updating) — read-then-write instead.
+    if (canPublish && !saveError) {
+      const stockEl = modal.querySelector('[name="stock_locations"]');
+      if (stockEl) {
+        const newStock = stockEl.value.trim() || null;
+        if (newStock !== (m.stock_locations ?? null)) {
+          const { data: existingPipe } = await sb.from('mutant_pipeline')
+            .select('id').eq('mutant_id', m.id).maybeSingle();
+          const { error } = existingPipe
+            ? await sb.from('mutant_pipeline').update({ stock_locations: newStock }).eq('id', existingPipe.id)
+            : await sb.from('mutant_pipeline').insert({ mutant_id: m.id, status: 'active', stock_locations: newStock });
+          if (error) saveError = error.message;
+        }
       }
     }
 
