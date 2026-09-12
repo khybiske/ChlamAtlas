@@ -1204,14 +1204,33 @@ async function _mobInjectChimeraSections(m, scroll) {
 
 // ─── Entry point ──────────────────────────────────────────
 
-export function renderMutants(container) {
+export async function renderMutants(container) {
   _container = container;
-  _collection = window.__mutantCollection ?? 'CT_L2';
+
+  const explicitCollection = window.__mutantCollection;
+  delete window.__mutantCollection;
+
+  // Pre-select a mutant navigated to from another tab (search, saved, gene
+  // detail's Mutants panel, etc.)
+  const pendingId = window.__openMutantId ?? null;
+  delete window.__openMutantId;
+
+  // Most callers that set a pending mutant don't know (or track) its
+  // collection — global search, favorites, gene links. Fetch it first so the
+  // list snaps to the mutant's own collection instead of silently staying on
+  // whatever collection was last viewed.
+  let resolvedCollection = explicitCollection ?? null;
+  if (pendingId && !explicitCollection) {
+    const { data } = await sb.from('mutants').select('collection').eq('id', pendingId).maybeSingle();
+    if (data?.collection) resolvedCollection = data.collection;
+  }
+
+  _collection = resolvedCollection ?? 'CT_L2';
   _sortField = 'locus_tag';
   _sortAsc = true;
   _total = 0;
   _searchTerm = '';
-  _selectedId = null;
+  _selectedId = pendingId;
   _filters = { favorites: false, type: null, strain: null, category: null, published: null, creator: null, marker: null };
   _creatorOptions = [];
   _markerOptions = [];
@@ -1221,13 +1240,8 @@ export function renderMutants(container) {
 
   if (isMobileViewport()) {
     _renderMobileMutantList(container);
+    if (pendingId) _mobLoadMutantDetail(pendingId);
     return;
-  }
-
-  // Pre-select a mutant navigated to from another tab (e.g. gene detail Mutants panel)
-  if (window.__openMutantId) {
-    _selectedId = window.__openMutantId;
-    delete window.__openMutantId;
   }
 
   const col = COLLECTIONS.find(c => c.id === _collection) ?? COLLECTIONS[0];
@@ -1789,7 +1803,16 @@ async function fetchList() {
     if (first) { first.classList.add('selected'); _selectedId = first.dataset.id; loadDetail(first.dataset.id); }
   } else if (_selectedId) {
     const sel = listEl.querySelector(`[data-id="${_selectedId}"]`);
-    if (sel) { sel.classList.add('selected'); loadDetail(_selectedId); }
+    if (sel) {
+      sel.classList.add('selected');
+      loadDetail(_selectedId);
+      sel.scrollIntoView({ block: 'center' });
+    } else {
+      // Not in the currently loaded/filtered rows (e.g. a mutant deep-link
+      // landed here but a stale filter is hiding it) — still show its detail
+      // rather than leaving the panel empty.
+      loadDetail(_selectedId);
+    }
   }
 }
 
@@ -2937,9 +2960,24 @@ async function openMutantCreateModal(collection) {
   await openMutantEditModal(template, [], null, null, 'create');
 }
 
+// Baseline lab/institute options, matching the names already shown in the
+// read-only Stocks section — plus any additional locations already typed
+// into other mutants' records, so users pick from what exists instead of
+// re-typing near-duplicate names (e.g. "Hefty Lab" vs "KU Hefty").
+async function fetchKnownStockLocations() {
+  const baseline = ['UW Hybiske', 'UW Bob', 'OSU Rockey', 'KU Hefty'];
+  const { data } = await sb.from('mutant_pipeline').select('stock_locations').not('stock_locations', 'is', null);
+  const fromData = (data ?? [])
+    .flatMap(r => (r.stock_locations ?? '').split(','))
+    .map(s => s.trim())
+    .filter(Boolean);
+  return [...new Set([...baseline, ...fromData])].sort();
+}
+
 async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null, mode = 'edit') {
   document.getElementById('mut-edit-overlay')?.remove();
   if (mode === 'create') await loadStrains();
+  const knownLocations = await fetchKnownStockLocations();
 
   const overlay = document.createElement('div');
   overlay.id = 'mut-edit-overlay';
@@ -2962,14 +3000,14 @@ async function openMutantEditModal(m, genes, rightEl, afterSaveFn = null, mode =
   document.addEventListener('keydown', onEsc);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
-  overlay.innerHTML = buildMutantEditHtml(m, genes, mode);
+  overlay.innerHTML = buildMutantEditHtml(m, genes, mode, knownLocations);
   document.body.appendChild(overlay);
 
   const onSave = afterSaveFn ?? (() => loadDetail(m.id));
   wireMutantEditEvents(overlay, m, genes, closeModal, rightEl, onSave, mode);
 }
 
-function buildMutantEditHtml(m, genes, mode = 'edit') {
+function buildMutantEditHtml(m, genes, mode = 'edit', knownLocations = []) {
   const isCreate    = mode === 'create';
   const isAdmin     = state.userRole === 'admin';
   const canPublish  = isAdmin || state.userRole === 'lab_member';
@@ -3108,7 +3146,11 @@ function buildMutantEditHtml(m, genes, mode = 'edit') {
 
         ${field('Plasmid Used', 'plasmid_used', m.plasmid_used)}
         ${field('Marker(s)', 'marker', markerDisplay, 'placeholder="e.g. aadA, gfp"')}
-        ${canPublish ? field('Stock location', 'stock_locations', m.stock_locations, 'placeholder="e.g. Hybiske Lab, -80°C"') : ''}
+        ${canPublish ? field('Stock location', 'stock_locations', m.stock_locations,
+            `list="stock-location-options" placeholder="e.g. Hybiske Lab, UW" autocomplete="off"`)
+            + `<datalist id="stock-location-options">${knownLocations.map(l => `<option value="${esc(l)}">`).join('')}</datalist>`
+            + `<div style="font-size:9px;color:#94a3b8;margin-top:-8px;">Lab and institution only (e.g. "Hefty Lab, KU") — no freezer/storage detail.</div>`
+          : ''}
 
         <div>
           <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;

@@ -101,7 +101,7 @@ async function renderHomeMobile(container) {
       <div class="mob-hero-stats">
         <div class="mob-hstat"><div class="n" id="mob-stat-genes">—</div><div class="l">Genes</div></div>
         <div class="mob-hstat"><div class="n" id="mob-stat-mutants">—</div><div class="l">Mutants</div></div>
-        <div class="mob-hstat"><div class="n" id="mob-stat-strains">3</div><div class="l">Strains</div></div>
+        <div class="mob-hstat"><div class="n" id="mob-stat-strains">—</div><div class="l">Strains</div></div>
       </div>
 
       <div class="mob-home-sec-h">
@@ -182,8 +182,10 @@ async function renderHomeMobile(container) {
 
   const statGenesEl   = container.querySelector('#mob-stat-genes');
   const statMutantsEl = container.querySelector('#mob-stat-mutants');
+  const statStrainsEl = container.querySelector('#mob-stat-strains');
   if (statGenesEl)   statGenesEl.textContent   = geneCount.toLocaleString();
   if (statMutantsEl) statMutantsEl.textContent  = totalMutants.toLocaleString();
+  if (statStrainsEl) statStrainsEl.textContent  = (strainRes.data?.length ?? 0).toLocaleString();
 
   container.querySelector('#mob-feature-tour-cta')?.addEventListener('click', () => {
     window.__activateTab?.('features');
@@ -817,15 +819,16 @@ async function loadActivityFeed(container) {
 }
 
 async function loadStats(container) {
-  const [geneRes, mutantRes] = await Promise.all([
+  const [geneRes, mutantRes, strainRes] = await Promise.all([
     sb.from('genes').select('id', { count: 'exact', head: true }),
     sb.from('mutants').select('id', { count: 'exact', head: true }),
+    sb.from('strains').select('id', { count: 'exact', head: true }).eq('is_active', true),
   ]);
 
   const stats = [
     { value: geneRes.count?.toLocaleString() ?? '—', label: 'Genes' },
     { value: mutantRes.count?.toLocaleString() ?? '—', label: 'Mutants' },
-    { value: '3', label: 'Strains' },
+    { value: strainRes.count?.toLocaleString() ?? '—', label: 'Strains' },
   ];
 
   // Mobile horizontal row

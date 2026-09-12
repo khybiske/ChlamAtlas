@@ -1473,7 +1473,7 @@ function renderDetailGeneInfo(detail, gene) {
            Last updated ${new Date(gene.updated_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })}${gene.updated_by ? ` · ${esc(gene.updated_by)}` : ''}
          </span>`
       : '';
-    heroLinks.innerHTML = updatedStamp + ncbiLink(gene.locus_tag);
+    heroLinks.innerHTML = updatedStamp + ncbiLink(gene.locus_tag, gene.strains?.common_name ?? _strain);
   }
 }
 
@@ -2117,8 +2117,8 @@ function renderDetailProtein(detail, gene, protein) {
          </span>`
       : '';
     heroLinks.innerHTML = updatedStamp +
-      extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprot/${protein.uniprot_id}` : null) +
-      ncbiLink(gene.locus_tag);
+      extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprotkb/${protein.uniprot_id}/entry` : null) +
+      ncbiLink(gene.locus_tag, gene.strains?.common_name ?? _strain);
   }
 }
 
@@ -2158,9 +2158,30 @@ function attachCopyBtns(el) {
   });
 }
 
+// NCBI's own "Organism" field text per strain, verified against real esearch
+// queries — required to disambiguate a bare locus tag search.
+const NCBI_ORGANISM_QUALIFIER = {
+  'CT-L2': 'Chlamydia trachomatis L2/434/Bu',
+  'CT-D':  'Chlamydia trachomatis D/UW-3/CX',
+  'CM':    'Chlamydia muridarum',
+  'Cpn':   'Chlamydia pneumoniae TW-183',
+};
+
+// Builds an NCBI Gene search term that resolves to the correct single record.
+// CT-D is a special case: NCBI's actual locus_tag field for this genome uses
+// an underscore after "CT" (e.g. CT_001) that our own locus tags don't carry
+// — without it, a bare "CT001" search matches ~1,700 unrelated NCBI records
+// across every database instead of the one gene.
+function ncbiSearchTerm(locusTag, strainCommonName) {
+  const tag = strainCommonName === 'CT-D' ? locusTag.replace(/^CT(?=\d)/, 'CT_') : locusTag;
+  const organism = NCBI_ORGANISM_QUALIFIER[strainCommonName];
+  return organism ? `${tag}[Locus Tag] AND ${organism}[Organism]` : tag;
+}
+
 // Helper: NCBI gene link (always available from locus tag)
-function ncbiLink(locusTag) {
-  return `<a href="https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(locusTag)}" target="_blank" rel="noopener"
+function ncbiLink(locusTag, strainCommonName) {
+  const term = ncbiSearchTerm(locusTag, strainCommonName);
+  return `<a href="https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(term)}" target="_blank" rel="noopener"
     style="font-size:9.5px;font-weight:500;color:#6b7280;text-decoration:none;padding:2px 7px;border:1px solid #e5e7eb;border-radius:5px;background:#f9fafb;"
     onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='#f9fafb'">NCBI ↗</a>`;
 }
@@ -3234,8 +3255,8 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         ${gene.is_dna_binding   ? `<span class="mob-tag" style="color:#b45309;border-color:#b45309;background:rgba(180,83,9,.08);">DNA Binding</span>` : ''}
       </div>
       <div class="mob-meta-row" style="padding:10px 16px 0;flex-wrap:wrap;gap:7px;">
-        <a class="mob-copybtn" href="https://www.uniprot.org/uniprot/?query=${esc(gene.locus_tag)}" target="_blank" rel="noopener">UniProt ↗</a>
-        <a class="mob-copybtn" href="https://www.ncbi.nlm.nih.gov/gene/?term=${esc(gene.locus_tag)}" target="_blank" rel="noopener">NCBI ↗</a>
+        <a class="mob-copybtn" id="mob-uniprot-link" href="https://www.uniprot.org/uniprotkb?query=${esc(gene.locus_tag)}" target="_blank" rel="noopener">UniProt ↗</a>
+        <a class="mob-copybtn" href="https://www.ncbi.nlm.nih.gov/gene/?term=${esc(encodeURIComponent(ncbiSearchTerm(gene.locus_tag, strain)))}" target="_blank" rel="noopener">NCBI ↗</a>
         <div id="mob-hero-extra-links" style="display:contents;"></div>
         ${(gene.dna_sequence || gene.proteins) ? `<button id="mob-copy-seq-btn" class="mob-copybtn" style="cursor:pointer;background:var(--mob-bg-warm);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
@@ -3410,6 +3431,14 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
       if (uniprotId) linksHtml += `<a class="mob-copybtn" href="https://alphafold.ebi.ac.uk/entry/${esc(uniprotId)}" target="_blank" rel="noopener">AFDB ↗</a>`;
       if (pdbId)     linksHtml += `<a class="mob-copybtn" href="https://www.rcsb.org/structure/${esc(pdbId)}" target="_blank" rel="noopener">PDB ${esc(pdbId)} ↗</a>`;
       extraLinks.innerHTML = linksHtml;
+
+      // Point the UniProt button at the actual entry once we know its accession
+      // — the initial href (set before protein data loaded) is only a locus-tag
+      // text search, which isn't reliable enough to land on the right record.
+      if (uniprotId) {
+        const uniprotBtn = scroll.querySelector('#mob-uniprot-link');
+        if (uniprotBtn) uniprotBtn.href = `https://www.uniprot.org/uniprotkb/${uniprotId}/entry`;
+      }
     }
 
     // ── Copy sequence button ──
@@ -3545,7 +3574,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         mutEl.innerHTML = rows;
         mutEl.querySelectorAll('[data-mut-id]').forEach(row => {
           row.addEventListener('click', () => {
-            import('./mutants.js?v=96').then(({ _mobLoadMutantDetail }) => {
+            import('./mutants.js?v=100').then(({ _mobLoadMutantDetail }) => {
               _mobLoadMutantDetail(row.dataset.mutId);
             });
           });
