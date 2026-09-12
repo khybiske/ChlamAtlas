@@ -130,7 +130,39 @@ let _expressionFilter  = null;  // 'Early' | 'Mid' | 'Late' | 'Constitutive'
 let _ebRbFilter        = null;  // 'eb' | 'rb'
 let _mutantFilter      = null;  // { field, value, label } — set by mobile Mutants section
 let _offset         = 0;
+let _initialOffset  = null; // set by renderGenomes when jumping straight to a gene deep in the list
 let _total       = 0;
+
+// How many genes (in this gene's own strain) sort before it under the
+// current sort field/direction — used to land the list on the page that
+// actually contains the gene we're jumping to, instead of always page 1.
+async function _rankOfGeneForSort(gene) {
+  const value = gene[_sortField];
+  if (value == null || !gene.strain_id) return null;
+  const op = _sortAsc ? 'lt' : 'gt';
+  const { count } = await sb.from('genes')
+    .select('id', { count: 'exact', head: true })
+    .eq('strain_id', gene.strain_id)
+    [op](_sortField, value);
+  return count ?? null;
+}
+
+// Alias search: `aliases` is a small text[] (e.g. plasmid genes' CDS#/pGP#-D/
+// old locus tags). PostgREST has no case-insensitive substring op for arrays,
+// so for a handful of aliased genes per strain we just fetch+filter client-side
+// and fold any hits into the main .or() search clause via id.in.(...).
+async function _aliasMatchIds(strainCommonName, term) {
+  if (!term) return [];
+  const needle = term.toLowerCase();
+  const { data } = await sb.from('genes')
+    .select('id,aliases,strains!inner(common_name)')
+    .eq('strains.common_name', strainCommonName)
+    .not('aliases', 'is', null);
+  if (!data) return [];
+  return data
+    .filter(g => Array.isArray(g.aliases) && g.aliases.some(a => String(a).toLowerCase().includes(needle)))
+    .map(g => g.id);
+}
 let _hasMore     = false;
 let _loading     = false;
 let _selectedId      = null;
@@ -155,15 +187,42 @@ let _expandedSections = { characterization: false, function: false, location: fa
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const stripEvidenceTags = s => s ? s.replace(/\s*\{[^}]+\}/g, '').replace(/\s+\./g, '.').trim() : s;
 
-export function renderGenomes(container) {
-  // Pick up strain preference set by home page organisms section
-  _strain = window.__preferredStrain ?? 'CT-L2';
+export async function renderGenomes(container) {
+  const explicitStrain = window.__preferredStrain;
   delete window.__preferredStrain;
 
-  // Pick up a specific gene to open — set by search results or mutant "View in Genomes" button
+  // Pick up a specific gene to open — set by search results, mutant "View in
+  // Genomes" links, or ortholog navigation.
   _pendingDetailId = window.__openGeneId ?? window.__geneDetailId ?? null;
   delete window.__openGeneId;
   delete window.__geneDetailId;
+
+  // Most callers that set a pending gene don't pass an explicit strain —
+  // favorites, global search, mutant target-gene links. Fetch it first (a)
+  // so the list snaps to the gene's own organism when one wasn't given, and
+  // (b) so we can work out which page of the list the gene falls on and
+  // land the list there too, instead of always showing page 1.
+  let pendingGene = null;
+  if (_pendingDetailId) {
+    pendingGene = _geneCache.get(String(_pendingDetailId)) ?? null;
+    if (!pendingGene) {
+      const { data } = await sb.from('genes')
+        .select(
+          'id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,' +
+          'start_bp,end_bp,strand,functional_category,is_characterized,' +
+          'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+          'expression_pattern,eb_enriched,rb_enriched,dna_sequence,' +
+          'strains!inner(common_name,color_hex),' +
+          'proteins(alphafold_results(thumbnail_path))'
+        )
+        .eq('id', _pendingDetailId)
+        .single();
+      pendingGene = data ?? null;
+      if (pendingGene) _geneCache.set(String(pendingGene.id), pendingGene);
+    }
+  }
+
+  _strain = explicitStrain ?? pendingGene?.strains?.common_name ?? 'CT-L2';
 
   _loading = false; // reset in case a previous in-flight fetch was abandoned
   _search = ''; _offset = 0; _selectedId = null; _categoryFilter = null; _locationFilter = null;
@@ -172,13 +231,27 @@ export function renderGenomes(container) {
                membrane: false, secreted: false, dnaBinding: false,
                hasAf3: false, hasCrystal: false };
   _expandedSections = { characterization: false, function: false, location: false, structure: false, expression: false, mutants: false };
+
+  // Work out which page the target gene falls on under the current sort, so
+  // the list loads scrolled to (and highlighting) the right row instead of
+  // always starting at page 1 — plasmid genes in particular always sort to
+  // the very end of the list.
+  if (pendingGene) {
+    const rank = await _rankOfGeneForSort(pendingGene);
+    if (rank != null) {
+      _initialOffset = Math.floor(rank / PAGE_SIZE) * PAGE_SIZE;
+      _offset = _initialOffset;
+    }
+  }
+
   showGeneList(container);
 
   // If a gene was requested, open its detail panel immediately without waiting for list
   if (_pendingDetailId) {
     const id = _pendingDetailId;
     _pendingDetailId = null;
-    openGeneById(id, container);
+    if (pendingGene) _openGeneByData(pendingGene, container);
+    else openGeneById(id, container);
   }
 }
 
@@ -190,7 +263,7 @@ async function openGeneById(geneId, container) {
   }
   const { data } = await sb.from('genes')
     .select(
-      'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+      'id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,' +
       'start_bp,end_bp,strand,functional_category,is_characterized,' +
       'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
       'expression_pattern,eb_enriched,rb_enriched,dna_sequence,' +
@@ -303,7 +376,7 @@ async function _mobFetchGenes(container) {
   let query = sb
     .from('genes')
     .select(
-      'id,locus_tag,gene_name,gene_symbol,product,functional_category,' +
+      'id,locus_tag,gene_name,gene_symbol,aliases,product,functional_category,' +
       'is_characterized,is_hypothetical,is_t3_secreted,is_membrane_protein,' +
       'is_dna_binding,eb_enriched,rb_enriched,expression_pattern,' +
       'sort_index,strand,start_bp,end_bp,strain_id,updated_at,updated_by,' +
@@ -317,9 +390,11 @@ async function _mobFetchGenes(container) {
     .range(_offset, _offset + PAGE_SIZE - 1);
 
   if (_search) {
+    const aliasIds = await _aliasMatchIds(_strain, _search);
+    const aliasClause = aliasIds.length ? `,id.in.(${aliasIds.join(',')})` : '';
     query = query.or(
       `locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,` +
-      `gene_symbol.ilike.%${_search}%,product.ilike.%${_search}%`
+      `gene_symbol.ilike.%${_search}%,product.ilike.%${_search}%${aliasClause}`
     );
   }
   if (_filters.characterized)  query = query.eq('is_characterized', true);
@@ -1014,7 +1089,19 @@ function renderFilterBar(container, expandMore = false, fetchFn = null, opts = {
 
 async function fetchGenes(container, reset = false) {
   if (_loading) return;
-  if (reset) { _offset = 0; _hasMore = false; }
+  // Jumping straight to a gene deep in the list (e.g. a plasmid gene, which
+  // always sorts last): load everything from the top through its page in one
+  // request rather than starting mid-list, so the list stays fully scrollable
+  // instead of opening on an orphaned window with nothing above it.
+  let rangeStart = _offset;
+  let rangeEnd   = _offset + PAGE_SIZE - 1;
+  if (reset) {
+    rangeStart = 0;
+    rangeEnd   = (_initialOffset != null ? _initialOffset + PAGE_SIZE : PAGE_SIZE) - 1;
+    _offset    = rangeEnd + 1;
+    _initialOffset = null;
+    _hasMore   = false;
+  }
 
   _loading = true;
   const list = container.querySelector('#gene-list');
@@ -1040,7 +1127,7 @@ async function fetchGenes(container, reset = false) {
   // Build query — strain filtered via embedded join (strain_id is UUID, _strain is common_name)
   let q = sb.from('genes')
     .select(
-      'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+      'id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,' +
       'start_bp,end_bp,strand,expression_pattern,eb_enriched,rb_enriched,' +
       'functional_category,is_characterized,is_membrane_protein,' +
       'is_hypothetical,is_dna_binding,is_t3_secreted,updated_at,updated_by,' +
@@ -1051,10 +1138,12 @@ async function fetchGenes(container, reset = false) {
     )
     .eq('strains.common_name', _strain)
     .order(_sortField, { ascending: _sortAsc, nullsFirst: false })
-    .range(_offset, _offset + PAGE_SIZE - 1);
+    .range(rangeStart, rangeEnd);
 
   if (_search) {
-    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%`);
+    const aliasIds = await _aliasMatchIds(_strain, _search);
+    const aliasClause = aliasIds.length ? `,id.in.(${aliasIds.join(',')})` : '';
+    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%${aliasClause}`);
   }
   if (_filters.characterized)  q = q.eq('is_characterized', true);
   if (_filters.hypothetical)   q = q.eq('is_hypothetical', true);
@@ -1115,7 +1204,22 @@ async function fetchGenes(container, reset = false) {
   if (reset) {
     liveList.innerHTML = rows.map(g => geneRow(g)).join('');
     const scroll = container.querySelector('#gene-scroll');
-    if (scroll) scroll.scrollTop = 0;
+    const selectedRow = _selectedId && liveList.querySelector(`.gene-row[data-id="${_selectedId}"]`);
+    if (selectedRow) {
+      // A detail panel was already opened for this gene before the list
+      // finished (re)loading — e.g. an ortholog/search jump into a different
+      // organism — so highlight + scroll to its row instead of resetting
+      // to the top of the list.
+      liveList.querySelectorAll('.gene-row').forEach(r => {
+        const sel = r.dataset.id === _selectedId;
+        r.style.background  = sel ? '#f0fdf4' : '';
+        r.style.borderLeft  = sel ? '2px solid #16a34a' : '';
+        r.style.paddingLeft = sel ? '10px' : '';
+      });
+      selectedRow.scrollIntoView({ block: 'center' });
+    } else if (scroll) {
+      scroll.scrollTop = 0;
+    }
   } else {
     liveList.insertAdjacentHTML('beforeend', rows.map(g => geneRow(g)).join(''));
   }
@@ -1773,7 +1877,7 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
       : `<span style="font-size:9.5px;color:#9ca3af;">${esc(g.locus_tag)}</span>`;
 
     return `
-      <div class="orth-row-btn" data-id="${g.id}"
+      <div class="orth-row-btn" data-id="${g.id}" data-strain="${esc(strain)}"
         style="display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid #f0f0f0;border-radius:6px;cursor:pointer;background:white;"
         onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background='white'">
         <div style="width:3px;min-height:22px;border-radius:1px;background:${colorHex};flex-shrink:0;align-self:stretch;"></div>
@@ -1796,25 +1900,22 @@ function renderDetailOrthologs(detail, orthoRows, gene) {
 
   el.querySelectorAll('.orth-row-btn').forEach(btn =>
     btn.addEventListener('click', () => {
-      const targetId = btn.dataset.id;
-      sb.from('genes')
-        .select(
-          'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
-          'start_bp,end_bp,strand,functional_category,is_characterized,' +
-          'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
-          'dna_sequence,' +
-          'strains!inner(common_name,color_hex)'
-        )
-        .eq('id', targetId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            _geneCache.set(String(data.id), data);
-            showGeneDetailDesktop(data, _container);
-          }
-        });
+      // Ortholog lives in a different organism — re-enter the Genomes view
+      // scoped to that strain so the gene list (and header) snap to it too,
+      // instead of just swapping the detail pane in place.
+      navigateToGeneCrossStrain(btn.dataset.id, btn.dataset.strain, _container);
     })
   );
+}
+
+// Jump the whole Genomes view (list + header + detail) to a gene that may
+// belong to a different organism than the one currently shown — used by
+// ortholog links so the list snaps to the right strain/row, not just the
+// detail pane. Falls back to the current strain if none is given.
+function navigateToGeneCrossStrain(geneId, strainCommonName, container) {
+  window.__preferredStrain = strainCommonName || _strain;
+  window.__openGeneId = geneId;
+  renderGenomes(container);
 }
 
 function renderDetailGeneMap(detail, gene, neighbors) {
@@ -1939,7 +2040,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
       }
       sb.from('genes')
         .select(
-          'id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,' +
+          'id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,' +
           'start_bp,end_bp,strand,functional_category,is_characterized,' +
           'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
           'dna_sequence,' +
@@ -2953,6 +3054,10 @@ function showGeneDetailDesktop(gene, container) {
             ? `<div style="font-size:24px;font-weight:700;color:#111;line-height:1.1;">${esc(gene.gene_name)} <span style="font-size:14px;font-weight:600;color:#9ca3af;">${esc(gene.locus_tag)}</span></div>`
             : `<div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:#333;line-height:1.1;">${esc(gene.locus_tag)}</div>`
           }
+          ${Array.isArray(gene.aliases) && gene.aliases.length
+            ? `<div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">Also known as: ${gene.aliases.map(esc).join(', ')}</div>`
+            : ''
+          }
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:2px;">
           <button id="detail-edit-btn"
@@ -3106,6 +3211,10 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         <div class="mob-d-title-block">
           <div class="mob-d-title">${esc(displayName)}</div>
           ${locusShow ? `<span class="mob-d-loc">${esc(locusShow)}</span>` : ''}
+          ${Array.isArray(gene.aliases) && gene.aliases.length
+            ? `<div style="font-size:11px;color:var(--mob-ink-3);margin-top:1px;">Also known as: ${gene.aliases.map(esc).join(', ')}</div>`
+            : ''
+          }
         </div>
         <div class="mob-d-actions" style="flex-shrink:0;display:flex;align-items:center;gap:2px;">
           ${canEdit ? `<button class="mob-edit-btn" aria-label="Edit gene"
@@ -3377,7 +3486,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           const iconEl = strainIcon
             ? `<img src="${strainIcon}" alt="${strainName}" style="width:32px;height:32px;object-fit:contain;flex-shrink:0;">`
             : `<div style="width:32px;height:32px;border-radius:50%;background:#f0f2f0;flex-shrink:0;"></div>`;
-          return `<div class="mob-tg-row" data-ortho-id="${g.id}" style="cursor:pointer;border-radius:10px;border:.5px solid var(--mob-line);margin-bottom:7px;padding:10px 12px;">
+          return `<div class="mob-tg-row" data-ortho-id="${g.id}" data-ortho-strain="${esc(strainName)}" style="cursor:pointer;border-radius:10px;border:.5px solid var(--mob-line);margin-bottom:7px;padding:10px 12px;">
             ${iconEl}
             <div style="flex:1;min-width:0;">
               <div style="font-size:10.5px;font-weight:700;color:var(--mob-ink-3);letter-spacing:.03em;margin-bottom:2px;">${esc(strainName)}</div>
@@ -3391,10 +3500,9 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           row.addEventListener('click', () => {
             const id = row.dataset.orthoId;
             if (!id) return;
-            sb.from('genes')
-              .select('id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,start_bp,end_bp,strand,functional_category,is_characterized,is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,expression_pattern,strains!inner(common_name,color_hex),proteins(alphafold_results(thumbnail_path))')
-              .eq('id', id).single()
-              .then(({ data }) => { if (data) showGeneDetailMobile(data, _container); });
+            // Ortholog lives in a different organism — re-enter the Genomes
+            // view scoped to that strain so the list snaps to it too.
+            navigateToGeneCrossStrain(id, row.dataset.orthoStrain, _container);
           });
         });
       }
@@ -3837,7 +3945,7 @@ async function _buildMobGenomicContext(gene, inner) {
       const cached = _geneCache.get(String(geneId));
       if (cached) { showGeneDetailMobile(cached, _container); return; }
       sb.from('genes')
-        .select('id,strain_id,locus_tag,gene_name,gene_symbol,product,sort_index,start_bp,end_bp,strand,functional_category,is_characterized,is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,expression_pattern,updated_at,updated_by,strains!inner(common_name,color_hex),proteins(alphafold_results(thumbnail_path))')
+        .select('id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,start_bp,end_bp,strand,functional_category,is_characterized,is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,expression_pattern,updated_at,updated_by,strains!inner(common_name,color_hex),proteins(alphafold_results(thumbnail_path))')
         .eq('id', geneId).single()
         .then(({ data }) => { if (data) { _geneCache.set(String(data.id), data); showGeneDetailMobile(data, _container); } });
     });

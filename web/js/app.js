@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=83';
 import { renderHome } from './views/home.js?v=85';
-import { renderGenomes } from './views/genomes.js?v=101';
-import { renderMutants } from './views/mutants.js?v=98';
+import { renderGenomes } from './views/genomes.js?v=102';
+import { renderMutants } from './views/mutants.js?v=99';
 import { renderPipeline } from './views/pipeline.js?v=83';
 import { renderRoadmap }  from './views/roadmap.js?v=92';
 import { renderAlignment } from './views/alignment.js?v=97';
@@ -993,11 +993,16 @@ async function runSearch(q) {
   const sq = q.replace(/[%_,()]/g, '');
   if (!sq) return;
 
-  const [geneFieldRes, proteinRes, directMutantRes] = await Promise.all([
+  const [geneFieldRes, aliasGeneRes, proteinRes, directMutantRes] = await Promise.all([
     sb.from('genes')
       .select('id, locus_tag, gene_name, gene_symbol, strain_id, proteins(alphafold_results(thumbnail_path))')
       .or(`locus_tag.ilike.%${sq}%,gene_name.ilike.%${sq}%,gene_symbol.ilike.%${sq}%`)
       .limit(5),
+    // `aliases` is a small text[] (e.g. plasmid genes' CDS#/pGP#-D names) — PostgREST
+    // has no case-insensitive substring op for arrays, so filter client-side.
+    sb.from('genes')
+      .select('id, locus_tag, gene_name, gene_symbol, strain_id, aliases, proteins(alphafold_results(thumbnail_path))')
+      .not('aliases', 'is', null),
     sb.from('proteins')
       .select('gene_id, function_narrative, alphafold_results(thumbnail_path), genes(id, locus_tag, gene_name, gene_symbol, strain_id)')
       .ilike('function_narrative', `%${sq}%`)
@@ -1019,6 +1024,12 @@ async function runSearch(q) {
         ...p.genes,
         thumbnail: p.alphafold_results?.[0]?.thumbnail_path ?? null,
       });
+    }
+  });
+  const sqLower = sq.toLowerCase();
+  (aliasGeneRes.data ?? []).forEach(g => {
+    if (!geneMap.has(g.id) && Array.isArray(g.aliases) && g.aliases.some(a => String(a).toLowerCase().includes(sqLower))) {
+      geneMap.set(g.id, { ...g, thumbnail: g.proteins?.alphafold_results?.[0]?.thumbnail_path ?? null });
     }
   });
   const genes = [...geneMap.values()].slice(0, 5);
