@@ -147,6 +147,16 @@ async function _rankOfGeneForSort(gene) {
   return count ?? null;
 }
 
+// Plasmid genes are named e.g. "pL2-05", "pCT-01", "pCM-08" — a lowercase
+// "p" + strain-specific prefix + dash + 2-digit index. Used to keep the
+// Genomic Context browser from implying a plasmid gene sits on the
+// contiguous chromosome next to whatever chromosomal gene happens to be
+// adjacent in sort_index.
+function plasmidLocusPrefix(locusTag) {
+  const m = /^(p[A-Za-z0-9]+-)\d+$/.exec(locusTag ?? '');
+  return m ? m[1] : null;
+}
+
 // Alias search: `aliases` is a small text[] (e.g. plasmid genes' CDS#/pGP#-D/
 // old locus tags). PostgREST has no case-insensitive substring op for arrays,
 // so for a handful of aliased genes per strain we just fetch+filter client-side
@@ -1504,7 +1514,17 @@ async function loadDetailAsync(detail, gene) {
       `)
       .eq('gene_id_b', gene.id),
 
-    gene.sort_index != null
+    // Plasmid genes get the whole (small) plasmid gene set as context rather
+    // than a sort_index window — they aren't part of the contiguous
+    // chromosome, so a sliding window can pull in unrelated chromosomal
+    // neighbors right at the boundary.
+    plasmidLocusPrefix(gene.locus_tag)
+      ? sb.from('genes')
+          .select('id,locus_tag,gene_name,functional_category,strand,start_bp,end_bp,sort_index')
+          .eq('strain_id', gene.strain_id)
+          .ilike('locus_tag', `${plasmidLocusPrefix(gene.locus_tag)}%`)
+          .order('locus_tag', { ascending: true })
+      : gene.sort_index != null
       ? sb.from('genes')
           .select('id,locus_tag,gene_name,functional_category,strand,start_bp,end_bp,sort_index')
           .eq('strain_id', gene.strain_id)
@@ -2017,7 +2037,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
   }).join('');
 
   el.innerHTML = `
-    ${sectionHead('Genomic Context', gene.strains?.common_name + ' chromosome')}
+    ${sectionHead('Genomic Context', gene.strains?.common_name + (plasmidLocusPrefix(gene.locus_tag) ? ' plasmid' : ' chromosome'))}
     <div style="padding:4px 16px 12px;">
       <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;overflow:hidden;">
         <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
@@ -3938,13 +3958,21 @@ async function _buildMobGenomicContext(gene, inner) {
     return;
   }
 
-  const { data: neighbors } = await sb
-    .from('genes')
-    .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
-    .eq('strain_id', gene.strain_id)
-    .gte('sort_index', gene.sort_index - 2)
-    .lte('sort_index', gene.sort_index + 2)
-    .order('sort_index');
+  // Plasmid genes get the whole (small) plasmid gene set as context rather
+  // than a sort_index window — see the desktop version of this comment.
+  const plasmidPrefix = plasmidLocusPrefix(gene.locus_tag);
+  const { data: neighbors } = plasmidPrefix
+    ? await sb.from('genes')
+        .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
+        .eq('strain_id', gene.strain_id)
+        .ilike('locus_tag', `${plasmidPrefix}%`)
+        .order('locus_tag')
+    : await sb.from('genes')
+        .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
+        .eq('strain_id', gene.strain_id)
+        .gte('sort_index', gene.sort_index - 2)
+        .lte('sort_index', gene.sort_index + 2)
+        .order('sort_index');
 
   if (!neighbors || neighbors.length === 0) {
     inner.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;padding:10px 0;">No neighbors found</div>';
