@@ -243,7 +243,13 @@ async function jumpByScreens(direction, container) {
   // Desktop: jump exactly one gene past whichever edge of the list is
   // currently visible — precise, no estimation. Mobile (list isn't on
   // screen behind the detail view) falls back to an estimated step size.
-  const edgeId   = !isMobileViewport() ? visibleEdgeGeneId(container, direction) : null;
+  // Only trust the visible edge if the current gene's own row is actually
+  // among the rendered rows — otherwise the list has drifted out of sync
+  // with the open detail (e.g. a stale page after a filter change) and the
+  // "edge" would belong to a completely unrelated part of the list.
+  const listInSync = !isMobileViewport()
+    && !!container?.querySelector(`#gene-scroll .gene-row[data-id="${gene.id}"]`);
+  const edgeId   = listInSync ? visibleEdgeGeneId(container, direction) : null;
   const edgeGene = edgeId ? _geneCache.get(String(edgeId)) : null;
 
   let rank, step;
@@ -1246,6 +1252,21 @@ function renderFilterBar(container, expandMore = false, fetchFn = null, opts = {
 
 async function fetchGenes(container, reset = false) {
   if (_loading) return;
+
+  // If a gene detail is open when the list resets (search/filter/sort
+  // change), keep the list positioned on it instead of snapping back to
+  // page 1 and losing all connection to what's actually being viewed —
+  // otherwise the map's prev/next buttons (which read the list's visible
+  // edge) end up measuring an unrelated part of the list entirely.
+  const preserveId = reset ? _selectedId : null;
+  if (reset && preserveId && _initialOffset == null) {
+    const preserveGene = _geneCache.get(String(preserveId));
+    if (preserveGene) {
+      const rank = await _rankOfGeneFiltered(preserveGene);
+      if (rank != null) _initialOffset = Math.floor(rank / PAGE_SIZE) * PAGE_SIZE;
+    }
+  }
+
   // Jumping straight to a gene deep in the list (e.g. a plasmid gene, which
   // always sorts last): load everything from the top through its page in one
   // request rather than starting mid-list, so the list stays fully scrollable
@@ -1337,12 +1358,13 @@ async function fetchGenes(container, reset = false) {
   if (reset) {
     liveList.innerHTML = rows.map(g => geneRow(g)).join('');
     const scroll = container.querySelector('#gene-scroll');
-    const selectedRow = _selectedId && liveList.querySelector(`.gene-row[data-id="${_selectedId}"]`);
+    const selectedRow = preserveId && liveList.querySelector(`.gene-row[data-id="${preserveId}"]`);
     if (selectedRow) {
-      // A detail panel was already opened for this gene before the list
-      // finished (re)loading — e.g. an ortholog/search jump into a different
-      // organism — so highlight + scroll to its row instead of resetting
-      // to the top of the list.
+      // A gene detail was open before the list (re)loaded — e.g. an
+      // ortholog/search jump into a different organism, or a search/filter
+      // change while a gene is open — so keep it highlighted and scrolled
+      // into view instead of resetting to the top of the list.
+      _selectedId = preserveId;
       liveList.querySelectorAll('.gene-row').forEach(r => {
         const sel = r.dataset.id === _selectedId;
         r.style.background  = sel ? '#f0fdf4' : '';
