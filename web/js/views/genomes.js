@@ -195,81 +195,39 @@ async function _rankOfGeneFiltered(gene) {
   return count ?? null;
 }
 
-// Roughly how many gene rows fit in the visible list viewport right now —
-// used as the "screen's worth" step size for the map's prev/next buttons.
-// Desktop always has the list panel on screen alongside the detail, so we
-// measure it directly; mobile's detail view replaces the list entirely, so
-// we fall back to a viewport-height estimate using the mobile row's
-// approximate rendered height (~68px: 12px+12px padding, ~44px content).
-const MOB_ROW_HEIGHT_ESTIMATE = 68;
-function visibleRowCount(container) {
-  if (!isMobileViewport()) {
-    const scroll = container?.querySelector('#gene-scroll');
-    const row    = scroll?.querySelector('.gene-row');
-    if (scroll && row?.offsetHeight) {
-      return Math.max(1, Math.floor(scroll.clientHeight / row.offsetHeight));
-    }
-  }
-  return Math.max(1, Math.floor(window.innerHeight / MOB_ROW_HEIGHT_ESTIMATE));
-}
-
-// Finds the first/last gene-row currently fully visible (not just loaded —
-// actually within the scrollable viewport) in the desktop list panel, so
-// paging can jump to exactly the gene adjacent to what's on screen rather
-// than estimating a "screen's worth" from the currently-open gene, which
-// overshoots whenever that gene isn't sitting right at the visible edge.
-function visibleEdgeGeneId(container, direction) {
-  const scroll = container?.querySelector('#gene-scroll');
-  if (!scroll) return null;
-  const rows = [...scroll.querySelectorAll('.gene-row')];
-  if (!rows.length) return null;
-  const bounds = scroll.getBoundingClientRect();
-  const visible = rows.filter(r => {
-    const rect = r.getBoundingClientRect();
-    return rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
-  });
-  if (!visible.length) return null;
-  return direction < 0 ? visible[0].dataset.id : visible[visible.length - 1].dataset.id;
-}
+// The map always shows a fixed window centered on the open gene — ±4 genes
+// on desktop (9 total), ±2 on mobile (5 total); see the neighbor queries in
+// loadDetailAsync / _buildMobGenomicContext. It has nothing to do with the
+// gene list's own sort/filter state or how many rows happen to fit in the
+// list panel — that was the wrong reference entirely (both the "list edge"
+// and "estimated row count" approaches tried to page against the list, not
+// the map). Paging the map by exactly its own width (2*radius+1) means the
+// new window starts exactly where the old one ended: no gap, no overlap.
+const MAP_RADIUS_DESKTOP = 4;
+const MAP_RADIUS_MOBILE  = 2;
 
 // Prev/next navigation for the Genomic Context map's flanking buttons —
-// pages by a screen's worth of genes (in the current sort/filter/strain
-// scope) rather than stepping one gene at a time. Stops at the strain's
-// list boundary instead of wrapping or crossing strains.
+// always by genomic position (sort_index), independent of whatever the
+// separate gene list is currently sorted/filtered by. Stops at the current
+// strain's boundary instead of wrapping or crossing strains.
 async function jumpByScreens(direction, container) {
   const gene = _currentGene;
-  if (!gene) return;
+  if (!gene || gene.sort_index == null) return; // map itself is hidden in this case too
 
-  // Desktop: jump exactly one gene past whichever edge of the list is
-  // currently visible — precise, no estimation. Mobile (list isn't on
-  // screen behind the detail view) falls back to an estimated step size.
-  // Only trust the visible edge if the current gene's own row is actually
-  // among the rendered rows — otherwise the list has drifted out of sync
-  // with the open detail (e.g. a stale page after a filter change) and the
-  // "edge" would belong to a completely unrelated part of the list.
-  const listInSync = !isMobileViewport()
-    && !!container?.querySelector(`#gene-scroll .gene-row[data-id="${gene.id}"]`);
-  const edgeId   = listInSync ? visibleEdgeGeneId(container, direction) : null;
-  const edgeGene = edgeId ? _geneCache.get(String(edgeId)) : null;
-
-  let rank, step;
-  if (edgeGene) {
-    rank = await _rankOfGeneFiltered(edgeGene);
-    step = 1;
-  } else {
-    rank = await _rankOfGeneFiltered(gene);
-    step = visibleRowCount(container);
-  }
-  if (rank == null) return;
-
-  let countQ = sb.from('genes').select('id', { count: 'exact', head: true }).eq('strain_id', gene.strain_id);
-  countQ = await applyGeneListFilters(countQ);
-  const { count: total } = await countQ;
+  const { count: total } = await sb.from('genes').select('id', { count: 'exact', head: true })
+    .eq('strain_id', gene.strain_id);
   if (!total) return;
 
-  const targetRank = Math.max(0, Math.min(rank + direction * step, total - 1));
+  const { count: rank } = await sb.from('genes').select('id', { count: 'exact', head: true })
+    .eq('strain_id', gene.strain_id)
+    .lt('sort_index', gene.sort_index);
+  if (rank == null) return;
 
-  let targetQ = sb.from('genes')
+  const step = 2 * (isMobileViewport() ? MAP_RADIUS_MOBILE : MAP_RADIUS_DESKTOP) + 1;
+  const targetRank = Math.max(0, Math.min(rank + direction * step, total - 1));
+  if (targetRank === rank) return; // already at the boundary
+
+  const { data } = await sb.from('genes')
     .select(
       'id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,' +
       'start_bp,end_bp,strand,functional_category,is_characterized,' +
@@ -279,17 +237,22 @@ async function jumpByScreens(direction, container) {
       'proteins(alphafold_results(thumbnail_path))'
     )
     .eq('strain_id', gene.strain_id)
-    .order(_sortField, { ascending: _sortAsc, nullsFirst: false })
+    .order('sort_index', { ascending: true })
     .range(targetRank, targetRank);
-  targetQ = await applyGeneListFilters(targetQ);
-  const { data } = await targetQ;
   const targetGene = data?.[0];
-  if (!targetGene || String(targetGene.id) === String(gene.id)) return; // already at the boundary
+  if (!targetGene) return;
 
   _geneCache.set(String(targetGene.id), targetGene);
-  _initialOffset = Math.floor(targetRank / PAGE_SIZE) * PAGE_SIZE;
-  _offset = _initialOffset;
   _selectedId = String(targetGene.id);
+
+  // Land the separate gene list on the right page too, using whatever sort
+  // and filters IT currently has — independent of this map navigation,
+  // which always follows genomic position regardless of list sort/filter.
+  const listRank = await _rankOfGeneFiltered(targetGene);
+  if (listRank != null) {
+    _initialOffset = Math.floor(listRank / PAGE_SIZE) * PAGE_SIZE;
+    _offset = _initialOffset;
+  }
 
   if (isMobileViewport()) {
     showGeneDetailMobile(targetGene, container);
