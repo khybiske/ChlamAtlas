@@ -4155,6 +4155,16 @@ function buildModalHtml(gene, protein, pdbRows) {
         ${field('Symbol', 'gene_symbol', gene.gene_symbol, 'style="font-family:\'DM Mono\',monospace;"')}
       </div>
 
+      <!-- Alternative names -->
+      <div style="margin-bottom:10px;">
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Alternative Names</label>
+        <input name="aliases" value="${esc((gene.aliases ?? []).join(', '))}" placeholder="e.g. chlaDub1, dub1"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+          font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+        <div style="font-size:9px;color:#94a3b8;margin-top:3px;">Comma-separated. Shown and searchable as secondary names — use when the field hasn’t settled on one name (e.g. plasmid gene CDS/pGP nomenclature).</div>
+      </div>
+
       <!-- Product -->
       <div style="margin-bottom:10px;">
         <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
@@ -4554,6 +4564,9 @@ function collectGeneDiff(overlay, original) {
   const str = name => f(name)?.value?.trim() || null;
   const chk = name => f(name)?.checked ?? false;
 
+  const aliasesRaw = f('aliases')?.value ?? '';
+  const aliasesNext = [...new Set(aliasesRaw.split(',').map(s => s.trim()).filter(Boolean))];
+
   const diff = {};
   const next = {
     gene_name:           str('gene_name'),
@@ -4570,6 +4583,11 @@ function collectGeneDiff(overlay, original) {
   for (const [k, v] of Object.entries(next)) {
     const orig = boolFields.has(k) ? (original[k] ?? false) : (original[k] ?? null);
     if (v !== orig) diff[k] = { old: orig, new: v };
+  }
+
+  const aliasesOrig = Array.isArray(original.aliases) ? original.aliases : [];
+  if (aliasesNext.slice().sort().join(',') !== aliasesOrig.slice().sort().join(',')) {
+    diff.aliases = { old: aliasesOrig, new: aliasesNext.length ? aliasesNext : null };
   }
 
   // is_characterized always mirrors is_hypothetical
