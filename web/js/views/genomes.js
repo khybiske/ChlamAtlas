@@ -213,6 +213,25 @@ function visibleRowCount(container) {
   return Math.max(1, Math.floor(window.innerHeight / MOB_ROW_HEIGHT_ESTIMATE));
 }
 
+// Finds the first/last gene-row currently fully visible (not just loaded —
+// actually within the scrollable viewport) in the desktop list panel, so
+// paging can jump to exactly the gene adjacent to what's on screen rather
+// than estimating a "screen's worth" from the currently-open gene, which
+// overshoots whenever that gene isn't sitting right at the visible edge.
+function visibleEdgeGeneId(container, direction) {
+  const scroll = container?.querySelector('#gene-scroll');
+  if (!scroll) return null;
+  const rows = [...scroll.querySelectorAll('.gene-row')];
+  if (!rows.length) return null;
+  const bounds = scroll.getBoundingClientRect();
+  const visible = rows.filter(r => {
+    const rect = r.getBoundingClientRect();
+    return rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
+  });
+  if (!visible.length) return null;
+  return direction < 0 ? visible[0].dataset.id : visible[visible.length - 1].dataset.id;
+}
+
 // Prev/next navigation for the Genomic Context map's flanking buttons —
 // pages by a screen's worth of genes (in the current sort/filter/strain
 // scope) rather than stepping one gene at a time. Stops at the strain's
@@ -221,7 +240,20 @@ async function jumpByScreens(direction, container) {
   const gene = _currentGene;
   if (!gene) return;
 
-  const rank = await _rankOfGeneFiltered(gene);
+  // Desktop: jump exactly one gene past whichever edge of the list is
+  // currently visible — precise, no estimation. Mobile (list isn't on
+  // screen behind the detail view) falls back to an estimated step size.
+  const edgeId   = !isMobileViewport() ? visibleEdgeGeneId(container, direction) : null;
+  const edgeGene = edgeId ? _geneCache.get(String(edgeId)) : null;
+
+  let rank, step;
+  if (edgeGene) {
+    rank = await _rankOfGeneFiltered(edgeGene);
+    step = 1;
+  } else {
+    rank = await _rankOfGeneFiltered(gene);
+    step = visibleRowCount(container);
+  }
   if (rank == null) return;
 
   let countQ = sb.from('genes').select('id', { count: 'exact', head: true }).eq('strain_id', gene.strain_id);
@@ -229,9 +261,7 @@ async function jumpByScreens(direction, container) {
   const { count: total } = await countQ;
   if (!total) return;
 
-  const step = visibleRowCount(container);
   const targetRank = Math.max(0, Math.min(rank + direction * step, total - 1));
-  if (targetRank === rank) return; // already at the boundary
 
   let targetQ = sb.from('genes')
     .select(
@@ -248,7 +278,7 @@ async function jumpByScreens(direction, container) {
   targetQ = await applyGeneListFilters(targetQ);
   const { data } = await targetQ;
   const targetGene = data?.[0];
-  if (!targetGene) return;
+  if (!targetGene || String(targetGene.id) === String(gene.id)) return; // already at the boundary
 
   _geneCache.set(String(targetGene.id), targetGene);
   _initialOffset = Math.floor(targetRank / PAGE_SIZE) * PAGE_SIZE;
