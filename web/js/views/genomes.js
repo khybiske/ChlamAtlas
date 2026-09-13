@@ -1489,7 +1489,7 @@ async function loadDetailAsync(detail, gene) {
         id,
         gene_b:genes!gene_id_b(
           id, locus_tag, gene_name, strand, functional_category,
-          strains(common_name, color_hex)
+          strains(common_name, color_hex), proteins(uniprot_id)
         )
       `)
       .eq('gene_id_a', gene.id),
@@ -1499,7 +1499,7 @@ async function loadDetailAsync(detail, gene) {
         id,
         gene_a:genes!gene_id_a(
           id, locus_tag, gene_name, strand, functional_category,
-          strains(common_name, color_hex)
+          strains(common_name, color_hex), proteins(uniprot_id)
         )
       `)
       .eq('gene_id_b', gene.id),
@@ -1584,7 +1584,7 @@ async function loadDetailAsync(detail, gene) {
 
   renderDetailOrthologs(detail, orthoRows, gene);
   renderDetailGeneMap(detail, gene, neighborResult.data ?? []);
-  renderDetailProtein(detail, gene, protResult.data);
+  renderDetailProtein(detail, gene, protResult.data, orthoRows);
   renderDetailTranscriptomics(detail, gene, exprRows ?? []);
   renderDetailProteomics(detail, gene, exprRows ?? [], orthoProtRow);
   renderDetailStructure(detail, gene, protResult.data, protResult.data?.alphafold_results ?? []);
@@ -2058,7 +2058,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
   );
 }
 
-function renderDetailProtein(detail, gene, protein) {
+function renderDetailProtein(detail, gene, protein, orthoRows = []) {
   const el = detail.querySelector('#d-protein');
   if (!el) return;
 
@@ -2116,8 +2116,26 @@ function renderDetailProtein(detail, gene, protein) {
            Last updated ${new Date(gene.updated_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })}${gene.updated_by ? ` · ${esc(gene.updated_by)}` : ''}
          </span>`
       : '';
+    // Some strains (notably CT-L2) had their strain-specific UniProt entries
+    // pruned by UniProt's proteome-redundancy process — the accession we
+    // stored is dead even though it once resolved. When that's happened,
+    // fall back to an ortholog's still-live entry instead of a broken link,
+    // clearly labeled so it's not mistaken for this strain's own sequence.
+    let uniprotHtml;
+    if (protein.uniprot_id) {
+      uniprotHtml = extLink('UniProt', `https://www.uniprot.org/uniprotkb/${protein.uniprot_id}/entry`);
+    } else {
+      const orthoWithUniprot = orthoRows
+        .map(o => o.gene_b)
+        .find(g => g?.proteins?.uniprot_id);
+      uniprotHtml = orthoWithUniprot
+        ? extLink(`UniProt (via ${esc(orthoWithUniprot.strains?.common_name ?? 'ortholog')})`,
+            `https://www.uniprot.org/uniprotkb/${orthoWithUniprot.proteins.uniprot_id}/entry`)
+        : '';
+    }
+
     heroLinks.innerHTML = updatedStamp +
-      extLink('UniProt', protein.uniprot_id ? `https://www.uniprot.org/uniprotkb/${protein.uniprot_id}/entry` : null) +
+      uniprotHtml +
       ncbiLink(gene.locus_tag, gene.strains?.common_name ?? _strain);
   }
 }
@@ -3383,10 +3401,10 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
       .maybeSingle(),
     sb.from('expression_data').select('*').eq('gene_id', gene.id),
     sb.from('orthologs')
-      .select('id,gene_b:genes!gene_id_b(id,locus_tag,gene_name,strains(common_name,color_hex))')
+      .select('id,gene_b:genes!gene_id_b(id,locus_tag,gene_name,strains(common_name,color_hex),proteins(uniprot_id))')
       .eq('gene_id_a', gene.id),
     sb.from('orthologs')
-      .select('id,gene_a:genes!gene_id_a(id,locus_tag,gene_name,strains(common_name,color_hex))')
+      .select('id,gene_a:genes!gene_id_a(id,locus_tag,gene_name,strains(common_name,color_hex),proteins(uniprot_id))')
       .eq('gene_id_b', gene.id),
     sb.from('mutants')
       .select('id,mutant_id,name,mutation_type,is_published,collection')
@@ -3435,9 +3453,22 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
       // Point the UniProt button at the actual entry once we know its accession
       // — the initial href (set before protein data loaded) is only a locus-tag
       // text search, which isn't reliable enough to land on the right record.
-      if (uniprotId) {
-        const uniprotBtn = scroll.querySelector('#mob-uniprot-link');
-        if (uniprotBtn) uniprotBtn.href = `https://www.uniprot.org/uniprotkb/${uniprotId}/entry`;
+      // Some strains (notably CT-L2) had their strain-specific UniProt entries
+      // pruned by UniProt's proteome-redundancy process, so fall back to an
+      // ortholog's still-live entry when this gene's own ID is gone.
+      const uniprotBtn = scroll.querySelector('#mob-uniprot-link');
+      if (uniprotBtn) {
+        if (uniprotId) {
+          uniprotBtn.href = `https://www.uniprot.org/uniprotkb/${uniprotId}/entry`;
+        } else {
+          const orthoWithUniprot = orthos.map(o => o.peer).find(g => g?.proteins?.uniprot_id);
+          if (orthoWithUniprot) {
+            uniprotBtn.href = `https://www.uniprot.org/uniprotkb/${orthoWithUniprot.proteins.uniprot_id}/entry`;
+            uniprotBtn.textContent = `UniProt (via ${orthoWithUniprot.strains?.common_name ?? 'ortholog'}) ↗`;
+          } else {
+            uniprotBtn.style.display = 'none';
+          }
+        }
       }
     }
 
