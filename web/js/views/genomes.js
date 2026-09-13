@@ -1,6 +1,6 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=94';
+import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=96';
 
 const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
