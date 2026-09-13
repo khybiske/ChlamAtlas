@@ -1,6 +1,6 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=93';
+import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=96';
 
 const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -66,7 +66,7 @@ const CATEGORY_BADGE = {
 };
 
 // Short display labels for functional categories used in filter chips
-const FUNC_LABELS = {
+export const FUNC_LABELS = {
   'Amino acid metabolism':      'Amino acid',
   'Cell envelope':              'Cell envelope',
   'Cell processes':             'Cell processes',
@@ -2871,7 +2871,7 @@ function renderDetailStructure(detail, gene, protein, afRows) {
 }
 
 // Mapping of common GO cellular component IDs → human-readable labels
-const GO_LABELS = {
+export const GO_LABELS = {
   // General compartments
   'GO:0005737': 'Cytoplasm',
   'GO:0005829': 'Cytosol',
@@ -2953,29 +2953,38 @@ const GO_LABELS = {
   'GO:0098797': 'Plasma membrane protein complex',
 };
 
-function locTermLabel(termId) {
+// SL ID → human label; fallback to raw ID
+export const SL_LABELS = {
+  'SL-0086': 'Cytoplasm',
+  'SL-0037': 'Cell inner membrane',
+  'SL-0039': 'Cell membrane',
+  'SL-0040': 'Cell outer membrane',
+  'SL-0041': 'Cell wall',
+  'SL-0093': 'Cell membrane',
+  'SL-0162': 'Nucleoid',
+  'SL-0187': 'Periplasm',
+  'SL-0191': 'Periplasm',
+  'SL-0200': 'Membrane',
+  'SL-0204': 'Secreted',
+  'SL-0243': 'Secreted',
+  'SL-0310': 'Cell surface',
+  'SL-0020': 'Cell outer membrane',
+  'SL-0122': 'Host cell membrane',
+  'SL-0023': 'Cell surface',
+  'SL-0478': 'Host cytoplasm',
+};
+
+// Top GO terms by real usage frequency across our data (2026-09-13) — shown as
+// quick chips in the nav filter popup; the long tail (~64 rarer terms) is reached
+// via type-to-search instead, to avoid dumping 74 options on the user at once.
+export const POPULAR_GO_TERMS = [
+  'GO:0005737', 'GO:0005829', 'GO:0005886', 'GO:0022625', 'GO:0016020',
+  'GO:0005840', 'GO:1990904', 'GO:0009279', 'GO:0022627', 'GO:0015935',
+];
+
+export function locTermLabel(termId) {
   if (!termId) return termId;
   if (termId.startsWith('GO:')) return GO_LABELS[termId] ?? termId;
-  // SL ID → human label; fallback to raw ID
-  const SL_LABELS = {
-    'SL-0086': 'Cytoplasm',
-    'SL-0037': 'Cell inner membrane',
-    'SL-0039': 'Cell membrane',
-    'SL-0040': 'Cell outer membrane',
-    'SL-0041': 'Cell wall',
-    'SL-0093': 'Cell membrane',
-    'SL-0162': 'Nucleoid',
-    'SL-0187': 'Periplasm',
-    'SL-0191': 'Periplasm',
-    'SL-0200': 'Membrane',
-    'SL-0204': 'Secreted',
-    'SL-0243': 'Secreted',
-    'SL-0310': 'Cell surface',
-    'SL-0020': 'Cell outer membrane',
-    'SL-0122': 'Host cell membrane',
-    'SL-0023': 'Cell surface',
-    'SL-0478': 'Host cytoplasm',
-  };
   return SL_LABELS[termId] ?? termId;
 }
 

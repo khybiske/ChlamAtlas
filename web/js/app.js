@@ -1,7 +1,7 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=83';
 import { renderHome } from './views/home.js?v=86';
-import { renderGenomes } from './views/genomes.js?v=111';
+import { renderGenomes, FUNC_LABELS, GO_LABELS, SL_LABELS, POPULAR_GO_TERMS, locTermLabel } from './views/genomes.js?v=112';
 import { renderMutants } from './views/mutants.js?v=100';
 import { renderPipeline } from './views/pipeline.js?v=83';
 import { renderRoadmap }  from './views/roadmap.js?v=94';
@@ -950,15 +950,20 @@ window.__openNavPopover = openNavPopover;
 
 // ─── Universal search ──────────────────────────────────────
 let _searchDebounce = null;
+let _filterMode      = false;
 
 function showNavSearch() {
-  const btnEl    = document.getElementById('btn-nav-search');
-  const expanded = document.getElementById('nav-search-expanded');
-  const input    = document.getElementById('nav-search-input');
-  if (!btnEl || !expanded || !input) return;
+  const btnEl       = document.getElementById('btn-nav-search');
+  const expanded    = document.getElementById('nav-search-expanded');
+  const input       = document.getElementById('nav-search-input');
+  const filterBtn   = document.getElementById('btn-nav-search-filter');
+  if (!btnEl || !expanded || !input || !filterBtn) return;
 
+  _filterMode = false;
   btnEl.style.display    = 'none';
   expanded.style.display = 'flex';
+  input.style.display    = '';
+  filterBtn.classList.remove('active');
   input.value = '';
   input.focus();
 
@@ -966,14 +971,19 @@ function showNavSearch() {
     btnEl.style.display    = 'flex';
     expanded.style.display = 'none';
     document.getElementById('nav-search-results')?.remove();
+    document.getElementById('nav-filter-panel')?.remove();
+    _filterMode = false;
+    resetNavFilters();
     document.removeEventListener('click', onOutsideClick);
     input.removeEventListener('keydown', onKeyDown);
     input.removeEventListener('input', onInput);
+    filterBtn.removeEventListener('click', onToggleFilter);
   }
 
   function onOutsideClick(e) {
     const results = document.getElementById('nav-search-results');
-    if (!expanded.contains(e.target) && !results?.contains(e.target)) closeSearch();
+    const panel   = document.getElementById('nav-filter-panel');
+    if (!expanded.contains(e.target) && !results?.contains(e.target) && !panel?.contains(e.target)) closeSearch();
   }
   setTimeout(() => document.addEventListener('click', onOutsideClick), 0);
 
@@ -987,6 +997,381 @@ function showNavSearch() {
     _searchDebounce = setTimeout(() => runSearch(q), 250);
   };
   input.addEventListener('input', onInput);
+
+  function onToggleFilter(e) {
+    e.stopPropagation();
+    _filterMode = !_filterMode;
+    filterBtn.classList.toggle('active', _filterMode);
+    if (_filterMode) {
+      input.style.display = 'none';
+      document.getElementById('nav-search-results')?.remove();
+      renderFilterPanel(true);
+    } else {
+      input.style.display = '';
+      document.getElementById('nav-filter-panel')?.remove();
+      input.focus();
+    }
+  }
+  filterBtn.addEventListener('click', onToggleFilter);
+}
+
+// ─── Gene filter popup (search-box "Filter" mode) ───────────
+// Reuses the same filter *vocabulary* as the Genomes list's filter bar
+// (functional category, localization, structure availability, expression) —
+// not the same rendered component, since that one is tightly coupled to a
+// single strain's list-page state. This version is cross-strain by design,
+// matching how the plain-text search box already searches all 4 organisms.
+const NAV_FILTER_PAGE_SIZE = 25;
+let _navFilterStrains  = null;   // [{id, common_name}], fetched once and cached
+let _navFilterOffset   = 0;
+let _navFilterTotal    = null;
+let _navFilterDebounce = null;
+const _navFilters = {
+  strainIds: new Set(),
+  categories: new Set(),
+  charState: null,            // 'characterized' | 'hypothetical' | null
+  hasAf3: false,
+  hasCrystal: false,
+  locTerms: new Set(),        // SL-xxxx or GO:xxxx ids
+  locMode: 'or',              // 'or' | 'and' — only meaningful for locTerms, which is
+                               // array-valued data (a protein can carry multiple SL/GO
+                               // tags); functional_category etc. are single-valued
+                               // columns, so AND across multiple picks there could never
+                               // match anything and isn't offered.
+  expressionPatterns: new Set(),
+  ebRb: null,                 // 'eb' | 'rb' | null
+};
+
+function resetNavFilters() {
+  _navFilters.strainIds.clear();
+  _navFilters.categories.clear();
+  _navFilters.charState = null;
+  _navFilters.hasAf3 = false;
+  _navFilters.hasCrystal = false;
+  _navFilters.locTerms.clear();
+  _navFilters.locMode = 'or';
+  _navFilters.expressionPatterns.clear();
+  _navFilters.ebRb = null;
+  _navFilterOffset = 0;
+  _navFilterTotal = null;
+}
+
+async function renderFilterPanel(reset) {
+  const expandedEl = document.getElementById('nav-search-expanded');
+  if (!expandedEl || !_filterMode) return;
+
+  if (!_navFilterStrains) {
+    const { data } = await sb.from('strains').select('id, common_name').order('common_name');
+    _navFilterStrains = data ?? [];
+  }
+
+  let panel = document.getElementById('nav-filter-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'nav-filter-panel';
+    panel.className = 'nav-filter-panel';
+    // Chip clicks rebuild this panel's innerHTML synchronously (replacing the
+    // clicked element before the click finishes bubbling), which would
+    // otherwise make document's outside-click handler see a detached
+    // e.target and think the click landed outside the panel. Stop it here,
+    // once, on the panel itself — attached only when the element is created,
+    // so it survives every innerHTML rebuild below.
+    panel.addEventListener('click', e => e.stopPropagation());
+    document.body.appendChild(panel);
+  }
+  const rect = expandedEl.getBoundingClientRect();
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.style.left = Math.max(8, rect.right - 360) + 'px';
+
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const chip = (label, active, dataAttrs) =>
+    `<button class="nav-filter-chip${active ? ' active' : ''}" ${dataAttrs}>${esc(label)}</button>`;
+
+  const strainChips = _navFilterStrains.map(s =>
+    chip(s.common_name, _navFilters.strainIds.has(s.id), `data-nf-strain="${s.id}"`)).join('');
+
+  // Function: only selected categories render as chips; the rest are reachable
+  // via the search box in the section header (17 categories is too many to
+  // show all at once as a flat wall of chips).
+  const selectedCategoryChips = [..._navFilters.categories].map(full =>
+    chip(FUNC_LABELS[full] ?? full, true, `data-nf-category="${esc(full)}"`)).join('');
+
+  const charChips = [
+    chip('Characterized', _navFilters.charState === 'characterized', `data-nf-char="characterized"`),
+    chip('Hypothetical',  _navFilters.charState === 'hypothetical',  `data-nf-char="hypothetical"`),
+  ].join('');
+
+  const structChips = [
+    chip('Has AF2/AF3 structure', _navFilters.hasAf3,     `data-nf-struct="hasAf3"`),
+    chip('Has crystal structure', _navFilters.hasCrystal, `data-nf-struct="hasCrystal"`),
+  ].join('');
+
+  // Localization: same search-first treatment as Function, for the same
+  // reason (12 SL + 74 GO terms is far too many to show as flat chips).
+  // Several ids can share one human label (e.g. SL-0039/SL-0093 are both
+  // "Cell membrane") — group selected ids by label so they render/toggle as
+  // one chip instead of two identical-looking ones.
+  const selectedLocGroups = new Map(); // label -> [ids]
+  [..._navFilters.locTerms].forEach(id => {
+    const label = locTermLabel(id);
+    if (!selectedLocGroups.has(label)) selectedLocGroups.set(label, []);
+    selectedLocGroups.get(label).push(id);
+  });
+  const selectedLocChips = [...selectedLocGroups.entries()].map(([label, ids]) =>
+    chip(label, true, `data-nf-loc-group="${esc(ids.join(','))}"`)).join('');
+
+  const EXPRESSION_PATTERNS = ['Early', 'Mid', 'Late', 'Constitutive'];
+  const exprChips = EXPRESSION_PATTERNS.map(p =>
+    chip(p, _navFilters.expressionPatterns.has(p), `data-nf-expr="${p}"`)).join('');
+  const ebRbChips = [
+    chip('EB enriched', _navFilters.ebRb === 'eb', `data-nf-ebrb="eb"`),
+    chip('RB enriched', _navFilters.ebRb === 'rb', `data-nf-ebrb="rb"`),
+  ].join('');
+
+  panel.innerHTML = `
+    <div class="nav-filter-group-label">Strain</div>
+    <div class="nav-filter-chip-row">${strainChips}</div>
+
+    <div class="nav-filter-group-label">Characterization</div>
+    <div class="nav-filter-chip-row">${charChips}</div>
+
+    <div class="nav-filter-group-header">
+      <span class="nav-filter-group-title">Function</span>
+      <input id="nf-func-search" class="nav-filter-header-search" type="text" placeholder="Search categories…" autocomplete="off" />
+    </div>
+    <div id="nf-func-suggestions"></div>
+    <div class="nav-filter-chip-row">${selectedCategoryChips}</div>
+
+    <div class="nav-filter-group-label">Structure</div>
+    <div class="nav-filter-chip-row">${structChips}</div>
+
+    <div class="nav-filter-group-header">
+      <span class="nav-filter-group-title">Localization</span>
+      <div class="nav-filter-mode-toggle" title="How multiple selected locations combine">
+        <button data-nf-locmode="or"  class="${_navFilters.locMode === 'or'  ? 'active' : ''}">Any</button>
+        <button data-nf-locmode="and" class="${_navFilters.locMode === 'and' ? 'active' : ''}">All</button>
+      </div>
+      <input id="nf-loc-search" class="nav-filter-header-search" type="text" placeholder="Search locations…" autocomplete="off" />
+    </div>
+    <div id="nf-loc-suggestions"></div>
+    <div class="nav-filter-chip-row">${selectedLocChips}</div>
+
+    <div class="nav-filter-group-label">Expression</div>
+    <div class="nav-filter-chip-row">${exprChips}${ebRbChips}</div>
+
+    <div id="nf-results-count" class="nav-filter-results-count">Loading…</div>
+    <div id="nf-results-list"></div>
+  `;
+
+  panel.querySelectorAll('[data-nf-strain]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.nfStrain;
+    _navFilters.strainIds.has(id) ? _navFilters.strainIds.delete(id) : _navFilters.strainIds.add(id);
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-category]').forEach(btn => btn.addEventListener('click', () => {
+    // Selected-chip click always means "remove" — these only render for
+    // categories already selected (added via the search suggestions below).
+    _navFilters.categories.delete(btn.dataset.nfCategory);
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-char]').forEach(btn => btn.addEventListener('click', () => {
+    const v = btn.dataset.nfChar;
+    _navFilters.charState = _navFilters.charState === v ? null : v;
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-struct]').forEach(btn => btn.addEventListener('click', () => {
+    const key = btn.dataset.nfStruct;
+    _navFilters[key] = !_navFilters[key];
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-loc-group]').forEach(btn => btn.addEventListener('click', () => {
+    // Selected-chip click always means "remove" here — these only render for
+    // ids already in locTerms (added via the search suggestions below).
+    btn.dataset.nfLocGroup.split(',').forEach(id => _navFilters.locTerms.delete(id));
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-locmode]').forEach(btn => btn.addEventListener('click', () => {
+    _navFilters.locMode = btn.dataset.nfLocmode;
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-expr]').forEach(btn => btn.addEventListener('click', () => {
+    const p = btn.dataset.nfExpr;
+    _navFilters.expressionPatterns.has(p) ? _navFilters.expressionPatterns.delete(p) : _navFilters.expressionPatterns.add(p);
+    renderFilterPanel(true);
+  }));
+  panel.querySelectorAll('[data-nf-ebrb]').forEach(btn => btn.addEventListener('click', () => {
+    const v = btn.dataset.nfEbrb;
+    _navFilters.ebRb = _navFilters.ebRb === v ? null : v;
+    renderFilterPanel(true);
+  }));
+
+  const funcSearchInput = panel.querySelector('#nf-func-search');
+  funcSearchInput?.addEventListener('input', () => {
+    const q = funcSearchInput.value.trim().toLowerCase();
+    const suggestionsEl = panel.querySelector('#nf-func-suggestions');
+    if (q.length < 2) { suggestionsEl.innerHTML = ''; suggestionsEl.className = ''; return; }
+    const matches = Object.entries(FUNC_LABELS)
+      .filter(([full]) => !_navFilters.categories.has(full) && full.toLowerCase().includes(q))
+      .slice(0, 8);
+    suggestionsEl.className = matches.length ? 'nav-filter-search-suggestions' : '';
+    suggestionsEl.innerHTML = matches.map(([full]) =>
+      `<div class="nav-filter-search-suggestion" data-nf-category-suggest="${esc(full)}">${esc(full)}</div>`).join('');
+    suggestionsEl.querySelectorAll('[data-nf-category-suggest]').forEach(row => row.addEventListener('click', () => {
+      _navFilters.categories.add(row.dataset.nfCategorySuggest);
+      funcSearchInput.value = '';
+      renderFilterPanel(true);
+    }));
+  });
+
+  const locSearchInput = panel.querySelector('#nf-loc-search');
+  locSearchInput?.addEventListener('input', () => {
+    const q = locSearchInput.value.trim().toLowerCase();
+    const suggestionsEl = panel.querySelector('#nf-loc-suggestions');
+    if (q.length < 2) { suggestionsEl.innerHTML = ''; suggestionsEl.className = ''; return; }
+    const selectedLabels = new Set([..._navFilters.locTerms].map(locTermLabel));
+    const allTerms = { ...SL_LABELS, ...GO_LABELS };
+    const seenLabels = new Set();
+    const matches = Object.entries(allTerms)
+      .filter(([id, label]) => !_navFilters.locTerms.has(id) && !selectedLabels.has(label) &&
+        (label.toLowerCase().includes(q) || id.toLowerCase().includes(q)))
+      .filter(([, label]) => (seenLabels.has(label) ? false : (seenLabels.add(label), true)))
+      .slice(0, 8);
+    suggestionsEl.className = matches.length ? 'nav-filter-search-suggestions' : '';
+    suggestionsEl.innerHTML = matches.map(([id, label]) =>
+      `<div class="nav-filter-search-suggestion" data-nf-loc-suggest="${esc(id)}">${esc(label)}</div>`).join('');
+    suggestionsEl.querySelectorAll('[data-nf-loc-suggest]').forEach(row => row.addEventListener('click', () => {
+      _navFilters.locTerms.add(row.dataset.nfLocSuggest);
+      locSearchInput.value = '';
+      renderFilterPanel(true);
+    }));
+  });
+
+  await runNavFilterQuery(reset);
+}
+
+function _navFilterActive() {
+  const f = _navFilters;
+  return f.strainIds.size || f.categories.size || f.charState || f.hasAf3 || f.hasCrystal ||
+    f.locTerms.size || f.expressionPatterns.size || f.ebRb;
+}
+
+async function runNavFilterQuery(reset) {
+  const panel = document.getElementById('nav-filter-panel');
+  if (!panel) return;
+  const countEl = panel.querySelector('#nf-results-count');
+  const listEl  = panel.querySelector('#nf-results-list');
+  if (!countEl || !listEl) return;
+
+  if (reset) { _navFilterOffset = 0; _navFilterTotal = null; listEl.innerHTML = ''; }
+
+  if (!_navFilterActive()) {
+    countEl.textContent = 'Choose filters above to see matching genes';
+    listEl.innerHTML = '';
+    return;
+  }
+
+  countEl.textContent = 'Loading…';
+
+  const f = _navFilters;
+
+  // PostgREST's .or() only works on the base table's own columns — it cannot
+  // filter on an embedded/joined resource (confirmed against the live API;
+  // trying it throws PGRST100 "failed to parse logic tree"). So OR-mode
+  // localization ("matches any of these locations") can't be expressed as
+  // part of the genes query directly. Instead, resolve it as a separate
+  // lookup against proteins (where .or() on its own columns works fine),
+  // then feed the resulting gene ids into the main query with .in().
+  // AND-mode doesn't have this problem — chaining plain .filter() calls
+  // on the embedded resource ANDs them together at the database level.
+  let locMatchedGeneIds = null; // null = no OR-mode loc filter active
+  if (f.locTerms.size && f.locMode === 'or') {
+    const col = id => id.startsWith('GO:') ? 'subcellular_location_go' : 'subcellular_location_sl';
+    const orClause = [...f.locTerms].map(id => `${col(id)}.cs.{${id}}`).join(',');
+    const { data: matches, error: locErr } = await sb.from('proteins').select('gene_id').or(orClause);
+    if (locErr) { countEl.textContent = 'Error running filter'; console.error(locErr); return; }
+    locMatchedGeneIds = [...new Set((matches ?? []).map(m => m.gene_id))];
+    if (locMatchedGeneIds.length === 0) {
+      _navFilterTotal = 0;
+      countEl.textContent = 'No genes match these filters';
+      return;
+    }
+  }
+
+  const needsProteinsInner = f.hasAf3 || f.hasCrystal || (f.locTerms.size > 0 && f.locMode === 'and');
+  const proteinsSelect = needsProteinsInner
+    ? 'proteins!inner(has_af3_structure,has_crystal_structure,alphafold_results(thumbnail_path))'
+    : 'proteins(has_af3_structure,has_crystal_structure,alphafold_results(thumbnail_path))';
+
+  let q = sb.from('genes')
+    .select(
+      'id,locus_tag,gene_name,gene_symbol,strain_id,strains!inner(common_name),' + proteinsSelect,
+      { count: 'exact' }
+    );
+
+  if (f.strainIds.size)     q = q.in('strain_id', [...f.strainIds]);
+  if (f.categories.size)    q = q.in('functional_category', [...f.categories]);
+  if (f.charState === 'characterized') q = q.eq('is_characterized', true);
+  if (f.charState === 'hypothetical')  q = q.eq('is_hypothetical', true);
+  if (f.hasAf3)              q = q.eq('proteins.has_af3_structure', true);
+  if (f.hasCrystal)          q = q.eq('proteins.has_crystal_structure', true);
+  if (f.expressionPatterns.size) q = q.in('expression_pattern', [...f.expressionPatterns]);
+  if (f.ebRb === 'eb')       q = q.eq('eb_enriched', true);
+  if (f.ebRb === 'rb')       q = q.eq('rb_enriched', true);
+  if (locMatchedGeneIds)     q = q.in('id', locMatchedGeneIds);
+  if (f.locTerms.size && f.locMode === 'and') {
+    // Array-contains-all: chain a separate .filter() per selected term —
+    // supabase-js ANDs consecutive filter calls together automatically.
+    const col = id => id.startsWith('GO:') ? 'proteins.subcellular_location_go' : 'proteins.subcellular_location_sl';
+    [...f.locTerms].forEach(id => { q = q.filter(col(id), 'cs', `{${id}}`); });
+  }
+
+  q = q.order('locus_tag', { ascending: true }).range(_navFilterOffset, _navFilterOffset + NAV_FILTER_PAGE_SIZE - 1);
+
+  const { data, count, error } = await q;
+  if (error) { countEl.textContent = 'Error running filter'; console.error(error); return; }
+
+  _navFilterTotal = count ?? 0;
+  countEl.textContent = _navFilterTotal === 0 ? 'No genes match these filters' : `${_navFilterTotal} gene${_navFilterTotal === 1 ? '' : 's'} match`;
+
+  panel.querySelector('#nf-load-more')?.remove();
+  appendNavFilterRows(data ?? [], listEl);
+  _navFilterOffset += (data ?? []).length;
+
+  if (_navFilterOffset < _navFilterTotal) {
+    const loadMore = document.createElement('button');
+    loadMore.id = 'nf-load-more';
+    loadMore.className = 'nav-filter-load-more';
+    loadMore.textContent = `Load more (${_navFilterTotal - _navFilterOffset} remaining)`;
+    loadMore.addEventListener('click', () => runNavFilterQuery(false));
+    listEl.after(loadMore);
+  }
+}
+
+function appendNavFilterRows(genes, listEl) {
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  genes.forEach(g => {
+    const thumb = g.proteins?.alphafold_results?.[0]?.thumbnail_path;
+    const thumbHtml = thumb
+      ? `<img src="${esc(thumb)}" style="width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;">`
+      : `<span class="nav-search-row-icon">🧬</span>`;
+    const row = document.createElement('div');
+    row.className = 'nav-search-row';
+    row.innerHTML = `
+      ${thumbHtml}
+      <div class="nav-search-row-main">
+        <div class="nav-search-row-title">${esc(g.locus_tag)}${g.gene_symbol ? ' · ' + esc(g.gene_symbol) : ''}</div>
+        <div class="nav-search-row-sub">${esc(g.strains?.common_name)}${g.gene_name ? ' · ' + esc(g.gene_name) : ''}</div>
+      </div>`;
+    row.addEventListener('click', () => {
+      document.getElementById('nav-filter-panel')?.remove();
+      document.getElementById('btn-nav-search').style.display = 'flex';
+      document.getElementById('nav-search-expanded').style.display = 'none';
+      window.__openGeneId = g.id;
+      activateTab('genomes');
+    });
+    listEl.appendChild(row);
+  });
 }
 
 async function runSearch(q) {
