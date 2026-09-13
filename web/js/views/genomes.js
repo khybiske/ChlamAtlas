@@ -147,6 +147,122 @@ async function _rankOfGeneForSort(gene) {
   return count ?? null;
 }
 
+// Applies the current search text + all active filters to a genes query —
+// shared by the main list fetch and by prev/next map navigation, so both
+// always agree on "what's in the list right now."
+async function applyGeneListFilters(q) {
+  if (_search) {
+    const aliasIds = await _aliasMatchIds(_strain, _search);
+    const aliasClause = aliasIds.length ? `,id.in.(${aliasIds.join(',')})` : '';
+    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%${aliasClause}`);
+  }
+  if (_filters.characterized)  q = q.eq('is_characterized', true);
+  if (_filters.hypothetical)   q = q.eq('is_hypothetical', true);
+  if (_filters.inc)            q = q.eq('functional_category', 'Inclusion membrane protein');
+  if (_filters.membrane)       q = q.eq('is_membrane_protein', true);
+  if (_filters.secreted)       q = q.eq('is_t3_secreted', true);
+  if (_filters.dnaBinding)     q = q.eq('is_dna_binding', true);
+  if (_filters.hasAf3)         q = q.eq('proteins.has_af3_structure', true);
+  if (_filters.hasCrystal)     q = q.eq('proteins.has_crystal_structure', true);
+  if (_categoryFilter)         q = q.eq('functional_category', _categoryFilter);
+  if (_expressionFilter)       q = q.eq('expression_pattern', _expressionFilter);
+  if (_ebRbFilter === 'eb')    q = q.eq('eb_enriched', true);
+  if (_ebRbFilter === 'rb')    q = q.eq('rb_enriched', true);
+  if (_locationFilter) {
+    // Try SL term first; if it starts with GO: use the go column
+    if (_locationFilter.startsWith('GO:')) {
+      q = q.filter('proteins.subcellular_location_go', 'cs', `{${_locationFilter}}`);
+    } else {
+      q = q.filter('proteins.subcellular_location_sl', 'cs', `{${_locationFilter}}`);
+    }
+  }
+  return q;
+}
+
+// Same as _rankOfGeneForSort, but also applies the current search/filters —
+// needed so "page forward/back" on the Genomic Context map lands on the
+// gene actually N rows away in the list the user is looking at, not N rows
+// away in the unfiltered strain.
+async function _rankOfGeneFiltered(gene) {
+  const value = gene[_sortField];
+  if (value == null || !gene.strain_id) return null;
+  const op = _sortAsc ? 'lt' : 'gt';
+  let q = sb.from('genes').select('id', { count: 'exact', head: true })
+    .eq('strain_id', gene.strain_id)
+    [op](_sortField, value);
+  q = await applyGeneListFilters(q);
+  const { count } = await q;
+  return count ?? null;
+}
+
+// Roughly how many gene rows fit in the visible list viewport right now —
+// used as the "screen's worth" step size for the map's prev/next buttons.
+// Desktop always has the list panel on screen alongside the detail, so we
+// measure it directly; mobile's detail view replaces the list entirely, so
+// we fall back to a viewport-height estimate using the mobile row's
+// approximate rendered height (~68px: 12px+12px padding, ~44px content).
+const MOB_ROW_HEIGHT_ESTIMATE = 68;
+function visibleRowCount(container) {
+  if (!isMobileViewport()) {
+    const scroll = container?.querySelector('#gene-scroll');
+    const row    = scroll?.querySelector('.gene-row');
+    if (scroll && row?.offsetHeight) {
+      return Math.max(1, Math.floor(scroll.clientHeight / row.offsetHeight));
+    }
+  }
+  return Math.max(1, Math.floor(window.innerHeight / MOB_ROW_HEIGHT_ESTIMATE));
+}
+
+// Prev/next navigation for the Genomic Context map's flanking buttons —
+// pages by a screen's worth of genes (in the current sort/filter/strain
+// scope) rather than stepping one gene at a time. Stops at the strain's
+// list boundary instead of wrapping or crossing strains.
+async function jumpByScreens(direction, container) {
+  const gene = _currentGene;
+  if (!gene) return;
+
+  const rank = await _rankOfGeneFiltered(gene);
+  if (rank == null) return;
+
+  let countQ = sb.from('genes').select('id', { count: 'exact', head: true }).eq('strain_id', gene.strain_id);
+  countQ = await applyGeneListFilters(countQ);
+  const { count: total } = await countQ;
+  if (!total) return;
+
+  const step = visibleRowCount(container);
+  const targetRank = Math.max(0, Math.min(rank + direction * step, total - 1));
+  if (targetRank === rank) return; // already at the boundary
+
+  let targetQ = sb.from('genes')
+    .select(
+      'id,strain_id,locus_tag,gene_name,gene_symbol,aliases,product,sort_index,' +
+      'start_bp,end_bp,strand,functional_category,is_characterized,' +
+      'is_membrane_protein,is_hypothetical,is_dna_binding,is_t3_secreted,' +
+      'expression_pattern,eb_enriched,rb_enriched,dna_sequence,' +
+      'strains!inner(common_name,color_hex),' +
+      'proteins(alphafold_results(thumbnail_path))'
+    )
+    .eq('strain_id', gene.strain_id)
+    .order(_sortField, { ascending: _sortAsc, nullsFirst: false })
+    .range(targetRank, targetRank);
+  targetQ = await applyGeneListFilters(targetQ);
+  const { data } = await targetQ;
+  const targetGene = data?.[0];
+  if (!targetGene) return;
+
+  _geneCache.set(String(targetGene.id), targetGene);
+  _initialOffset = Math.floor(targetRank / PAGE_SIZE) * PAGE_SIZE;
+  _offset = _initialOffset;
+  _selectedId = String(targetGene.id);
+
+  if (isMobileViewport()) {
+    showGeneDetailMobile(targetGene, container);
+  } else {
+    fetchGenes(container, true);
+    showGeneDetailDesktop(targetGene, container);
+  }
+}
+
 // Plasmid genes are named e.g. "pL2-05", "pCT-01", "pCM-08" — a lowercase
 // "p" + strain-specific prefix + dash + 2-digit index. Used to keep the
 // Genomic Context browser from implying a plasmid gene sits on the
@@ -179,6 +295,7 @@ let _selectedId      = null;
 let _pendingDetailId = null;  // gene ID to auto-open on next render (from search / mutant nav)
 let _scrollPos   = 0;
 let _container   = null;  // saved when detail panel is shown; used by async click handlers
+let _currentGene = null;  // full row of whatever gene detail is currently open; used by prev/next nav
 
 // Maps geneId (string) → gene object from the last list fetch
 const _geneCache = new Map();
@@ -1150,31 +1267,7 @@ async function fetchGenes(container, reset = false) {
     .order(_sortField, { ascending: _sortAsc, nullsFirst: false })
     .range(rangeStart, rangeEnd);
 
-  if (_search) {
-    const aliasIds = await _aliasMatchIds(_strain, _search);
-    const aliasClause = aliasIds.length ? `,id.in.(${aliasIds.join(',')})` : '';
-    q = q.or(`locus_tag.ilike.%${_search}%,gene_name.ilike.%${_search}%,product.ilike.%${_search}%${aliasClause}`);
-  }
-  if (_filters.characterized)  q = q.eq('is_characterized', true);
-  if (_filters.hypothetical)   q = q.eq('is_hypothetical', true);
-  if (_filters.inc)            q = q.eq('functional_category', 'Inclusion membrane protein');
-  if (_filters.membrane)       q = q.eq('is_membrane_protein', true);
-  if (_filters.secreted)       q = q.eq('is_t3_secreted', true);
-  if (_filters.dnaBinding)     q = q.eq('is_dna_binding', true);
-  if (_filters.hasAf3)         q = q.eq('proteins.has_af3_structure', true);
-  if (_filters.hasCrystal)     q = q.eq('proteins.has_crystal_structure', true);
-  if (_categoryFilter)         q = q.eq('functional_category', _categoryFilter);
-  if (_expressionFilter)       q = q.eq('expression_pattern', _expressionFilter);
-  if (_ebRbFilter === 'eb')    q = q.eq('eb_enriched', true);
-  if (_ebRbFilter === 'rb')    q = q.eq('rb_enriched', true);
-  if (_locationFilter) {
-    // Try SL term first; if it starts with GO: use the go column
-    if (_locationFilter.startsWith('GO:')) {
-      q = q.filter('proteins.subcellular_location_go', 'cs', `{${_locationFilter}}`);
-    } else {
-      q = q.filter('proteins.subcellular_location_sl', 'cs', `{${_locationFilter}}`);
-    }
-  }
+  q = await applyGeneListFilters(q);
 
   const { data: genes, count, error } = await q;
   _loading = false;
@@ -2040,18 +2133,37 @@ function renderDetailGeneMap(detail, gene, neighbors) {
       </g>`;
   }).join('');
 
+  // Flanking prev/next buttons — tall and skinny, chevrons (not arrow-shaped,
+  // to stay visually distinct from the gene arrows inside the map itself).
+  // Pages by a screen's worth of genes through the current sort/filter scope.
+  const navBtnStyle = (side) => `position:absolute;${side}:0;top:0;bottom:0;width:22px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    background:transparent;border:none;color:#b3b3b3;transition:background .12s,color .12s;
+    border-radius:${side === 'left' ? '6px 0 0 6px' : '0 6px 6px 0'};`;
+  const chevronSvg = (dir) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'}"/></svg>`;
+
   el.innerHTML = `
     ${sectionHead('Genomic Context', gene.strains?.common_name + (plasmidLocusPrefix(gene.locus_tag) ? ' plasmid' : ' chromosome'))}
     <div style="padding:4px 16px 12px;">
-      <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;overflow:hidden;">
+      <div style="position:relative;background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 30px 8px;overflow:hidden;">
+        <button class="gene-map-nav" data-dir="left" title="Page back a screen's worth of genes" style="${navBtnStyle('left')}">${chevronSvg('left')}</button>
         <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
              style="width:100%;height:auto;display:block;overflow:hidden;">
           ${backbone}
           ${strandLbl}
           ${arrows}
         </svg>
+        <button class="gene-map-nav" data-dir="right" title="Page forward a screen's worth of genes" style="${navBtnStyle('right')}">${chevronSvg('right')}</button>
       </div>
     </div>`;
+
+  el.querySelectorAll('.gene-map-nav').forEach(btn => {
+    btn.addEventListener('mouseenter', () => { btn.style.background = '#eee'; btn.style.color = '#555'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; btn.style.color = '#b3b3b3'; });
+    btn.addEventListener('click', () => {
+      jumpByScreens(btn.dataset.dir === 'left' ? -1 : 1, _container);
+    });
+  });
 
   // Wire neighbor gene clicks — use cache or fetch from DB
   el.querySelectorAll('.ga[data-id]').forEach(gEl =>
@@ -3073,6 +3185,7 @@ function showGeneDetailDesktop(gene, container) {
   const detail = container.querySelector('#detail-panel');
   if (!detail) return;
   _container = container;
+  _currentGene = gene;
 
   _sectionOpen = { gene: true, protein: true, structure: true,
                    transcriptomics: true, proteomics: true,
@@ -3233,6 +3346,7 @@ function showGeneDetailDesktop(gene, container) {
   loadDetailAsync(detail, gene);
 }
 function showGeneDetailMobile(gene, _container) {
+  _currentGene = gene;
   const title = gene.gene_name || gene.gene_symbol || gene.locus_tag;
   pushMobileDetail({
     title,
@@ -4006,6 +4120,14 @@ async function _buildMobGenomicContext(gene, inner) {
       </div>`;
   }).join('');
 
+  // Flanking prev/next buttons — same "screen's worth of genes" paging as
+  // desktop, chevron icons (not arrow-shaped, to stay distinct from the gene
+  // arrows in the map). Sit above the existing edge fades.
+  const navBtnStyle = (side) => `position:absolute;${side}:0;top:0;bottom:0;width:30px;z-index:5;
+    display:flex;align-items:center;justify-content:center;background:transparent;
+    border:none;color:#b3b3b3;padding:0;`;
+  const chevronSvg = (dir) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'}"/></svg>`;
+
   inner.innerHTML = `
     <div class="mob-ctx-wrap">
       <div class="mob-ctx-scroll" id="mob-ctx-scr">
@@ -4017,7 +4139,16 @@ async function _buildMobGenomicContext(gene, inner) {
       </div>
       <div class="mob-ctx-fade l"></div>
       <div class="mob-ctx-fade r"></div>
+      <button class="mob-ctx-nav" data-dir="left" aria-label="Page back a screen's worth of genes" style="${navBtnStyle('left')}">${chevronSvg('left')}</button>
+      <button class="mob-ctx-nav" data-dir="right" aria-label="Page forward a screen's worth of genes" style="${navBtnStyle('right')}">${chevronSvg('right')}</button>
     </div>`;
+
+  inner.querySelectorAll('.mob-ctx-nav').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      jumpByScreens(btn.dataset.dir === 'left' ? -1 : 1, _container);
+    });
+  });
 
   const scr   = inner.querySelector('#mob-ctx-scr');
   const focal = inner.querySelector('[data-focal]');
