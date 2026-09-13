@@ -147,6 +147,16 @@ async function _rankOfGeneForSort(gene) {
   return count ?? null;
 }
 
+// Plasmid genes are named e.g. "pL2-05", "pCT-01", "pCM-08" — a lowercase
+// "p" + strain-specific prefix + dash + 2-digit index. Used to keep the
+// Genomic Context browser from implying a plasmid gene sits on the
+// contiguous chromosome next to whatever chromosomal gene happens to be
+// adjacent in sort_index.
+function plasmidLocusPrefix(locusTag) {
+  const m = /^(p[A-Za-z0-9]+-)\d+$/.exec(locusTag ?? '');
+  return m ? m[1] : null;
+}
+
 // Alias search: `aliases` is a small text[] (e.g. plasmid genes' CDS#/pGP#-D/
 // old locus tags). PostgREST has no case-insensitive substring op for arrays,
 // so for a handful of aliased genes per strain we just fetch+filter client-side
@@ -1504,12 +1514,26 @@ async function loadDetailAsync(detail, gene) {
       `)
       .eq('gene_id_b', gene.id),
 
-    gene.sort_index != null
+    // Plasmid genes get the whole (small) plasmid gene set as context rather
+    // than a sort_index window — they aren't part of the contiguous
+    // chromosome, so a sliding window can pull in unrelated chromosomal
+    // neighbors right at the boundary.
+    plasmidLocusPrefix(gene.locus_tag)
+      ? sb.from('genes')
+          .select('id,locus_tag,gene_name,functional_category,strand,start_bp,end_bp,sort_index')
+          .eq('strain_id', gene.strain_id)
+          .ilike('locus_tag', `${plasmidLocusPrefix(gene.locus_tag)}%`)
+          .order('locus_tag', { ascending: true })
+      : gene.sort_index != null
       ? sb.from('genes')
           .select('id,locus_tag,gene_name,functional_category,strand,start_bp,end_bp,sort_index')
           .eq('strain_id', gene.strain_id)
           .gte('sort_index', gene.sort_index - 4)
           .lte('sort_index', gene.sort_index + 4)
+          // Plasmid genes' sort_index immediately follows the last chromosomal
+          // gene — exclude them here so the last few chromosomal genes don't
+          // show plasmid neighbors as if they were spatially adjacent.
+          .not('locus_tag', 'ilike', 'p%-%')
           .order('sort_index', { ascending: true })
       : Promise.resolve({ data: null, error: null }),
 
@@ -2017,7 +2041,7 @@ function renderDetailGeneMap(detail, gene, neighbors) {
   }).join('');
 
   el.innerHTML = `
-    ${sectionHead('Genomic Context', gene.strains?.common_name + ' chromosome')}
+    ${sectionHead('Genomic Context', gene.strains?.common_name + (plasmidLocusPrefix(gene.locus_tag) ? ' plasmid' : ' chromosome'))}
     <div style="padding:4px 16px 12px;">
       <div style="background:#fafafa;border:1px solid #efefef;border-radius:6px;padding:10px 10px 8px;overflow:hidden;">
         <svg viewBox="0 0 ${actualVbW} ${VB_H}" xmlns="http://www.w3.org/2000/svg"
@@ -3938,13 +3962,22 @@ async function _buildMobGenomicContext(gene, inner) {
     return;
   }
 
-  const { data: neighbors } = await sb
-    .from('genes')
-    .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
-    .eq('strain_id', gene.strain_id)
-    .gte('sort_index', gene.sort_index - 2)
-    .lte('sort_index', gene.sort_index + 2)
-    .order('sort_index');
+  // Plasmid genes get the whole (small) plasmid gene set as context rather
+  // than a sort_index window — see the desktop version of this comment.
+  const plasmidPrefix = plasmidLocusPrefix(gene.locus_tag);
+  const { data: neighbors } = plasmidPrefix
+    ? await sb.from('genes')
+        .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
+        .eq('strain_id', gene.strain_id)
+        .ilike('locus_tag', `${plasmidPrefix}%`)
+        .order('locus_tag')
+    : await sb.from('genes')
+        .select('id,locus_tag,gene_name,gene_symbol,functional_category,strand,start_bp,end_bp,sort_index')
+        .eq('strain_id', gene.strain_id)
+        .gte('sort_index', gene.sort_index - 2)
+        .lte('sort_index', gene.sort_index + 2)
+        .not('locus_tag', 'ilike', 'p%-%')
+        .order('sort_index');
 
   if (!neighbors || neighbors.length === 0) {
     inner.innerHTML = '<div style="color:var(--mob-ink-3);font-size:13px;padding:10px 0;">No neighbors found</div>';
@@ -4153,6 +4186,16 @@ function buildModalHtml(gene, protein, pdbRows) {
       <div style="display:grid;grid-template-columns:3fr 2fr;gap:10px;margin-bottom:10px;">
         ${field('Gene Name', 'gene_name', gene.gene_name)}
         ${field('Symbol', 'gene_symbol', gene.gene_symbol, 'style="font-family:\'DM Mono\',monospace;"')}
+      </div>
+
+      <!-- Alternative names -->
+      <div style="margin-bottom:10px;">
+        <label style="display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+          letter-spacing:.05em;color:#64748b;margin-bottom:4px;">Alternative Names</label>
+        <input name="aliases" value="${esc((gene.aliases ?? []).join(', '))}" placeholder="e.g. chlaDub1, dub1"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 9px;
+          font-size:12px;color:#111;box-sizing:border-box;background:#fff;">
+        <div style="font-size:9px;color:#94a3b8;margin-top:3px;">Comma-separated. Shown and searchable as secondary names — use when the field hasn’t settled on one name (e.g. plasmid gene CDS/pGP nomenclature).</div>
       </div>
 
       <!-- Product -->
@@ -4554,6 +4597,9 @@ function collectGeneDiff(overlay, original) {
   const str = name => f(name)?.value?.trim() || null;
   const chk = name => f(name)?.checked ?? false;
 
+  const aliasesRaw = f('aliases')?.value ?? '';
+  const aliasesNext = [...new Set(aliasesRaw.split(',').map(s => s.trim()).filter(Boolean))];
+
   const diff = {};
   const next = {
     gene_name:           str('gene_name'),
@@ -4570,6 +4616,11 @@ function collectGeneDiff(overlay, original) {
   for (const [k, v] of Object.entries(next)) {
     const orig = boolFields.has(k) ? (original[k] ?? false) : (original[k] ?? null);
     if (v !== orig) diff[k] = { old: orig, new: v };
+  }
+
+  const aliasesOrig = Array.isArray(original.aliases) ? original.aliases : [];
+  if (aliasesNext.slice().sort().join(',') !== aliasesOrig.slice().sort().join(',')) {
+    diff.aliases = { old: aliasesOrig, new: aliasesNext.length ? aliasesNext : null };
   }
 
   // is_characterized always mirrors is_hypothetical
