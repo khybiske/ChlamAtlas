@@ -1530,6 +1530,10 @@ async function loadDetailAsync(detail, gene) {
           .eq('strain_id', gene.strain_id)
           .gte('sort_index', gene.sort_index - 4)
           .lte('sort_index', gene.sort_index + 4)
+          // Plasmid genes' sort_index immediately follows the last chromosomal
+          // gene — exclude them here so the last few chromosomal genes don't
+          // show plasmid neighbors as if they were spatially adjacent.
+          .not('locus_tag', 'ilike', 'p%-%')
           .order('sort_index', { ascending: true })
       : Promise.resolve({ data: null, error: null }),
 
@@ -3972,6 +3976,7 @@ async function _buildMobGenomicContext(gene, inner) {
         .eq('strain_id', gene.strain_id)
         .gte('sort_index', gene.sort_index - 2)
         .lte('sort_index', gene.sort_index + 2)
+        .not('locus_tag', 'ilike', 'p%-%')
         .order('sort_index');
 
   if (!neighbors || neighbors.length === 0) {
