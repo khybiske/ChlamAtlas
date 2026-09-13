@@ -33,7 +33,6 @@ const PLANNED_FEATURES = [
   { id: 'more-strains',     label: 'Additional C. trachomatis serovars',        description: 'Ocular and rectal C. trachomatis serovars, as data becomes available.' },
   { id: 'mlst-variants',    label: 'MLST & natural variants panel',              description: 'Gene-level view of multi-locus sequence typing data and natural sequence variation across clinical isolates.' },
   { id: 'knockdown-mutants', label: 'Knockdown mutant collection',               description: 'CRISPRi, antisense, or other knockdown reagents generated across the Chlamydia field, with phenotype data.' },
-  { id: 'alt-gene-names',   label: 'Alternative gene names',                     description: 'Show alternate/alias gene names alongside the primary name (visually secondary but legible) and make them searchable, for genes where the field hasn’t settled on one name. Edit modal gains a way to designate which name is primary.' },
   { id: 'shareable-gene-card', label: 'Shareable gene/mutant summary card',      description: 'Exportable "baseball card" image or PDF summarizing a gene or mutant entry — a stand-in for direct URL sharing, which the app doesn’t support yet.' },
 ];
 
