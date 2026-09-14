@@ -1,8 +1,8 @@
 // ChlamAtlas — main application entry point
 import { sb, state, SUPABASE_URL, SUPABASE_ANON_KEY, syncFavoritesFromDB } from './client.js?v=83';
 import { renderHome } from './views/home.js?v=86';
-import { renderGenomes, FUNC_LABELS, GO_LABELS, SL_LABELS, POPULAR_GO_TERMS, locTermLabel } from './views/genomes.js?v=112';
-import { renderMutants } from './views/mutants.js?v=100';
+import { renderGenomes, FUNC_LABELS, GO_LABELS, SL_LABELS, POPULAR_GO_TERMS, locTermLabel } from './views/genomes.js?v=113';
+import { renderMutants } from './views/mutants.js?v=101';
 import { renderPipeline } from './views/pipeline.js?v=83';
 import { renderRoadmap }  from './views/roadmap.js?v=94';
 import { renderAlignment } from './views/alignment.js?v=97';
@@ -18,6 +18,19 @@ export { sb, state };
 // ─── Mobile viewport detection ─────────────────────────────
 export function isMobileViewport() {
   return window.innerWidth < 640;
+}
+
+// ─── Share-link copy ────────────────────────────────────────
+// Copies the current URL (already rewritten to a deep link by the gene/
+// mutant detail renderer) to the clipboard and briefly swaps the button's
+// icon to a checkmark for feedback — mirrors the copy-button pattern used
+// elsewhere (sequence copy, citation copy).
+export function copyShareLink(btn) {
+  navigator.clipboard.writeText(location.href).then(() => {
+    const original = btn.innerHTML;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => { btn.innerHTML = original; }, 1400);
+  }).catch(() => {});
 }
 
 // ─── Mobile push/pop detail overlay ────────────────────────
@@ -2274,6 +2287,36 @@ window.addEventListener('chlamatlas:navigate', (e) => {
 renderAuthArea();
 updateNavVisibility();
 wireNavStubs();
-const _hash = location.hash.replace(/^#\/?/, '');
-activateTab(TABS.includes(_hash) ? _hash : 'home');
+bootFromHash();
 initMobileShell();
+
+// ─── Shareable deep links ──────────────────────────────────
+// Recognizes #/gene/<locus_tag> and #/mutant/<mutant_id> (both globally
+// unique, human-readable identifiers) in addition to plain tab hashes.
+// Resolves to an internal id and reuses the same window.__openGeneId /
+// window.__openMutantId handoff that search results and favorites already
+// use to land on a specific record's detail panel.
+async function bootFromHash() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  const [seg1, seg2] = raw.split('/');
+
+  if (seg1 === 'gene' && seg2) {
+    const { data } = await sb.from('genes').select('id').eq('locus_tag', seg2).maybeSingle();
+    if (data) {
+      window.__openGeneId = data.id;
+      activateTab('genomes');
+      return;
+    }
+  }
+  if (seg1 === 'mutant' && seg2) {
+    const { data } = await sb.from('mutants').select('id,collection').eq('mutant_id', seg2).maybeSingle();
+    if (data) {
+      window.__openMutantId = data.id;
+      window.__mutantCollection = data.collection;
+      activateTab('mutants');
+      return;
+    }
+  }
+
+  activateTab(TABS.includes(seg1) ? seg1 : 'home');
+}

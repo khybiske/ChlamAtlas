@@ -1,6 +1,6 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail } from '../app.js?v=96';
+import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=113';
 
 const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -405,6 +405,7 @@ async function openGeneById(geneId, container) {
 }
 
 function _openGeneByData(gene, container) {
+  if (gene.locus_tag) history.replaceState(null, '', `#/gene/${gene.locus_tag}`);
   if (isMobileViewport()) showGeneDetailMobile(gene, container);
   else showGeneDetailDesktop(gene, container);
 }
@@ -3270,6 +3271,11 @@ function showGeneDetailDesktop(gene, container) {
             title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
             ${isFav ? '★' : '☆'}
           </button>
+          <button id="detail-share-btn"
+            style="background:none;border:none;cursor:pointer;color:#9ca3af;padding:0;flex-shrink:0;"
+            title="Copy link to this gene">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
@@ -3346,6 +3352,10 @@ function showGeneDetailDesktop(gene, container) {
       listBtn.style.color  = nowFav ? '#f59e0b' : '#e5e7eb';
     }
   });
+
+  // Wire share button — copies the current (already deep-linked) URL
+  const shareBtn = detail.querySelector('#detail-share-btn');
+  if (shareBtn) shareBtn.addEventListener('click', () => copyShareLink(shareBtn));
 
   // Wire edit button — hidden by default, shown after session confirmed
   const editBtn = detail.querySelector('#detail-edit-btn');
@@ -3425,6 +3435,10 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
           <button class="mob-fav-btn${isFav ? ' saved-on' : ''}" data-id="${gene.id}" aria-label="Save gene"
             style="background:none;border:none;padding:8px 4px;cursor:pointer;color:${isFav ? '#e8b400' : 'var(--mob-ink-3)'};">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+          </button>
+          <button class="mob-share-btn" aria-label="Copy link to this gene"
+            style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           </button>
         </div>
       </div>
@@ -3539,6 +3553,12 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
     if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
     if (nowFav) btn.classList.add('mob-star-pop');
     btn.addEventListener('animationend', () => btn.classList.remove('mob-star-pop'), { once: true });
+  });
+
+  // ── Share ──
+  scroll.querySelector('.mob-share-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyShareLink(e.currentTarget);
   });
 
   // ── Last updated footer ──
@@ -3767,7 +3787,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         mutEl.innerHTML = rows;
         mutEl.querySelectorAll('[data-mut-id]').forEach(row => {
           row.addEventListener('click', () => {
-            import('./mutants.js?v=100').then(({ _mobLoadMutantDetail }) => {
+            import('./mutants.js?v=101').then(({ _mobLoadMutantDetail }) => {
               _mobLoadMutantDetail(row.dataset.mutId);
             });
           });

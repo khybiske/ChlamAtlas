@@ -1,6 +1,6 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, pushMobileDetail, onMobScroll } from '../app.js?v=96';
+import { isMobileViewport, pushMobileDetail, onMobScroll, copyShareLink } from '../app.js?v=113';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -762,6 +762,7 @@ export async function _mobLoadMutantDetail(mutantUUID) {
 
   const m = mutantRes.data;
   if (!m) return;
+  if (m.mutant_id) history.replaceState(null, '', `#/mutant/${m.mutant_id}`);
 
   let genes = [];
   if (m.target_gene_ids?.length) {
@@ -905,6 +906,10 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
               style="background:none;border:none;padding:8px 4px;cursor:pointer;color:${isFav ? '#e8b400' : 'var(--mob-ink-3)'};">
               <svg width="21" height="21" viewBox="0 0 24 24" fill="${isFav ? '#e8b400' : 'none'}" stroke="${isFav ? '#e8b400' : 'currentColor'}" stroke-width="2"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
             </button>` : ''}
+          <button class="mob-share-btn" aria-label="Copy link to this mutant"
+            style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>
         </div>
       </div>
       <div class="mob-tags-row" style="padding:8px 16px 0;flex-wrap:wrap;">
@@ -986,6 +991,12 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
     btn.classList.toggle('saved-on', nowFav);
     const svg = btn.querySelector('svg');
     if (svg) { svg.setAttribute('fill', nowFav ? '#e8b400' : 'none'); svg.setAttribute('stroke', nowFav ? '#e8b400' : 'currentColor'); }
+  });
+
+  // Share button
+  scroll.querySelector('.mob-share-btn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    copyShareLink(e.currentTarget);
   });
 
   // Targeted gene row navigation
@@ -1912,6 +1923,8 @@ async function loadDetail(mutantUUID) {
     return;
   }
 
+  if (m.mutant_id) history.replaceState(null, '', `#/mutant/${m.mutant_id}`);
+
   const pipe = pipeRes.data ?? null;
   const phenos = phenoRes.data ?? [];
   const isLabMember = state.userRole === 'lab_member' || state.userRole === 'admin';
@@ -2048,6 +2061,9 @@ async function loadDetail(mutantUUID) {
     }
   });
 
+  // Wire share button
+  rightEl.querySelector('#mut-share-btn')?.addEventListener('click', e => copyShareLink(e.currentTarget));
+
 }
 
 // ─── Detail section builders ──────────────────────────────
@@ -2101,6 +2117,9 @@ function heroHTML(m, genes = []) {
           <button id="mut-fav-btn" data-id="${m.id}"
             style="font-size:16px;${btnBase}color:${isFav ? '#f59e0b' : '#d1d5db'};"
             title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">${isFav ? '★' : '☆'}</button>
+          <button id="mut-share-btn" style="${btnBase}color:#9ca3af;" title="Copy link to this mutant">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
