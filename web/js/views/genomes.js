@@ -1,6 +1,6 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=113';
+import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=114';
 
 const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -405,7 +405,6 @@ async function openGeneById(geneId, container) {
 }
 
 function _openGeneByData(gene, container) {
-  if (gene.locus_tag) history.replaceState(null, '', `#/gene/${gene.locus_tag}`);
   if (isMobileViewport()) showGeneDetailMobile(gene, container);
   else showGeneDetailDesktop(gene, container);
 }
@@ -1438,12 +1437,29 @@ function geneRow(g) {
 async function loadMolstar(wrapEl, url) {
   if (!url) return;
 
+  // Cold-loading the Mol* bundle + parsing a structure can take several
+  // seconds (worse for AF3 files with no cached CDN bundle yet) — without
+  // this the viewer just looks stalled/broken during that gap.
+  const spinner = document.createElement('div');
+  spinner.style.cssText =
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;';
+  spinner.innerHTML =
+    '<div style="width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(255,255,255,0.25);' +
+    'border-top-color:rgba(255,255,255,0.85);animation:chlamatlas-spin 0.8s linear infinite;"></div>';
+  if (!document.querySelector('#chlamatlas-spinner-style')) {
+    const s = document.createElement('style');
+    s.id = 'chlamatlas-spinner-style';
+    s.textContent = '@keyframes chlamatlas-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+  }
+  wrapEl.style.position = 'relative';
+  wrapEl.appendChild(spinner);
+
   const vpId  = 'molstar-vp-' + Date.now();
   const vpDiv = document.createElement('div');
   vpDiv.id    = vpId;
   vpDiv.style.cssText =
     'position:absolute;inset:0;border-radius:8px;overflow:hidden;opacity:0;transition:opacity 0.4s;';
-  wrapEl.style.position = 'relative';
   wrapEl.appendChild(vpDiv);
 
   if (!window.molstar) {
@@ -1451,6 +1467,7 @@ async function loadMolstar(wrapEl, url) {
       await _loadMolstarBundle();
     } catch (err) {
       console.warn('[Molstar] bundle load failed:', err);
+      spinner.remove();
       vpDiv.remove();
       _showStructureFallback(wrapEl, url);
       return;
@@ -1470,6 +1487,7 @@ async function loadMolstar(wrapEl, url) {
       viewportShowAnimation:     false,
     });
     await v.loadStructureFromUrl(url, 'mmcif');
+    spinner.remove();
     vpDiv.style.opacity = '1';
     const thumb = wrapEl.querySelector('#struct-thumb');
     if (thumb) { thumb.style.transition = 'opacity 0.4s'; thumb.style.opacity = '0'; }
@@ -1483,6 +1501,7 @@ async function loadMolstar(wrapEl, url) {
     document.head.appendChild(suppress);
   } catch (err) {
     console.warn('[Molstar] viewer init failed:', err);
+    spinner.remove();
     vpDiv.remove();
     _showStructureFallback(wrapEl, url);
   }
@@ -3211,6 +3230,7 @@ function showGeneDetailDesktop(gene, container) {
   if (!detail) return;
   _container = container;
   _currentGene = gene;
+  if (gene.locus_tag) history.replaceState(null, '', `#/gene/${gene.locus_tag}`);
 
   _sectionOpen = { gene: true, protein: true, structure: true,
                    transcriptomics: true, proteomics: true,
@@ -3381,6 +3401,7 @@ function showGeneDetailDesktop(gene, container) {
 }
 function showGeneDetailMobile(gene, _container) {
   _currentGene = gene;
+  if (gene.locus_tag) history.replaceState(null, '', `#/gene/${gene.locus_tag}`);
   const title = gene.gene_name || gene.gene_symbol || gene.locus_tag;
   pushMobileDetail({
     title,
