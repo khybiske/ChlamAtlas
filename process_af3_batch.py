@@ -103,11 +103,23 @@ def copy_and_commit_cif(src_cif: Path, locus_tag: str, dry_run: bool) -> str:
         dest_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src_cif, dest_file)
         subprocess.run(["git", "add", str(dest_file)], cwd=REPO_DIR, check=True)
-        subprocess.run(
-            ["git", "commit", "-m", f"data(af3): add CIF structure for {locus_tag}"],
-            cwd=REPO_DIR, check=True,
-        )
-        subprocess.run(["git", "push"], cwd=REPO_DIR, check=True)
+
+        # If this exact file is already committed (e.g. someone already ran
+        # this protein through the pipeline before), there's nothing staged
+        # and `git commit` would exit with an error even though nothing is
+        # actually wrong. Skip straight to done in that case.
+        nothing_staged = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"], cwd=REPO_DIR
+        ).returncode == 0
+
+        if nothing_staged:
+            print(f"    (already committed — no changes for {locus_tag})")
+        else:
+            subprocess.run(
+                ["git", "commit", "-m", f"data(af3): add CIF structure for {locus_tag}"],
+                cwd=REPO_DIR, check=True,
+            )
+            subprocess.run(["git", "push"], cwd=REPO_DIR, check=True)
     else:
         print(f"    [dry-run] would copy {src_cif.name} -> {dest_file}")
         print(f"    [dry-run] would git add / commit / push to branch '{branch}'")
