@@ -8,6 +8,11 @@ node_modules/
 .env
 .env.local
 .env.*.local
+*.env
+
+# Python bytecode
+__pycache__/
+*.pyc
 
 # Vercel
 .vercel
