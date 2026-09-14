@@ -40,6 +40,10 @@ STRAIN_FOLDER = {
 # Must match af_version values used in generate_thumbnails.py SOURCE_CONFIGS
 AF_VERSIONS = ["AF2", "AF3", "AFDB"]
 
+# Must match filename_suffix in generate_thumbnails.py SOURCE_CONFIGS — a gene
+# can have both an AF2 and AF3 row, so their images live at different paths.
+FILENAME_SUFFIX = {"AF2": "", "AF3": "_af3", "AFDB": ""}
+
 
 def sb_get(path, params=""):
     url = f"{SUPABASE_URL}/rest/v1/{path}{'?' + params if params else ''}"
@@ -86,11 +90,12 @@ def fetch_rows_needing_update(af_version):
     return rows
 
 
-def build_update_list(rows):
+def build_update_list(rows, af_version):
     """
     Cross-reference DB rows against local image files.
     Returns list of (af_id, github_url, locus_tag) for rows that have a local image.
     """
+    suffix  = FILENAME_SUFFIX[af_version]
     updates = []
     for r in rows:
         p      = r.get("proteins") or {}
@@ -100,10 +105,11 @@ def build_update_list(rows):
         tag    = g.get("locus_tag", "")
         if not folder or not tag:
             continue
-        local_path = AFMODELS_DIR / folder / f"{tag}.png"
+        filename   = f"{tag}{suffix}.png"
+        local_path = AFMODELS_DIR / folder / filename
         if not local_path.exists():
             continue
-        github_url = f"{GITHUB_RAW}/AFmodels/{folder}/{tag}.png"
+        github_url = f"{GITHUB_RAW}/AFmodels/{folder}/{filename}"
         updates.append((r["id"], github_url, tag))
     return updates
 
@@ -125,7 +131,7 @@ def main():
     print("Fetching alphafold_results rows with null thumbnail_path from Supabase...")
 
     rows    = fetch_rows_needing_update(args.source)
-    updates = build_update_list(rows)
+    updates = build_update_list(rows, args.source)
 
     if args.limit:
         updates = updates[:args.limit]
