@@ -294,9 +294,9 @@ async function renderHomeMobile(container) {
     const el = container.querySelector('#mob-stat-users');
     if (el) el.textContent = (count ?? 0).toLocaleString();
   });
-  sb.from('change_log').select('id', { count: 'exact', head: true }).then(({ count }) => {
+  sb.rpc('change_log_public_feed').then(({ data }) => {
     const el = container.querySelector('#mob-stat-annotations');
-    if (el) el.textContent = (count ?? 0).toLocaleString();
+    if (el) el.textContent = (data?.length ?? 0).toLocaleString();
   });
 
   // Community map
@@ -670,10 +670,7 @@ async function loadCommunityStats(container) {
       }
     }
 
-    const { data: changeRows } = await sb
-      .from('change_log')
-      .select('changed_at')
-      .order('changed_at', { ascending: true });
+    const { data: changeRows } = await sb.rpc('change_log_public_feed');
 
     const sparklineEl = container.querySelector('#community-sparkline');
     if (!sparklineEl) return;
@@ -725,10 +722,8 @@ async function loadTopContributors(container) {
   if (!el) return;
 
   try {
-    const { data } = await sb
-      .from('change_log')
-      .select('changed_by')
-      .not('changed_by', 'is', null);
+    const { data: allRows } = await sb.rpc('change_log_public_feed');
+    const data = (allRows ?? []).filter(row => row.changed_by);
 
     if (!data?.length) {
       el.innerHTML = `<div style="font-size:11px;color:#d1d5db;">No contributions yet</div>`;
@@ -777,11 +772,8 @@ async function loadActivityFeed(container) {
   if (!el) return;
 
   try {
-    const { data } = await sb
-      .from('change_log')
-      .select('entity_type, action, changed_at, changed_by')
-      .order('changed_at', { ascending: false })
-      .limit(10);
+    const { data: allRows } = await sb.rpc('change_log_public_feed');
+    const data = (allRows ?? []).slice(0, 10);
 
     if (!data?.length) {
       el.textContent = 'No recent activity';
