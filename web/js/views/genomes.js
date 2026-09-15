@@ -3828,7 +3828,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         mutEl.innerHTML = rows;
         mutEl.querySelectorAll('[data-mut-id]').forEach(row => {
           row.addEventListener('click', () => {
-            import('./mutants.js?v=101').then(({ _mobLoadMutantDetail }) => {
+            import('./mutants.js?v=102').then(({ _mobLoadMutantDetail }) => {
               _mobLoadMutantDetail(row.dataset.mutId);
             });
           });

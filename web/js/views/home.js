@@ -134,7 +134,7 @@ async function renderHomeMobile(container) {
         </div>
         <div class="mob-hstat" style="flex:1;">
           <div class="n" style="font-size:22px;" id="mob-stat-annotations">—</div>
-          <div class="l">Annotations</div>
+          <div class="l">Edits</div>
         </div>
       </div>
 
@@ -294,7 +294,7 @@ async function renderHomeMobile(container) {
     const el = container.querySelector('#mob-stat-users');
     if (el) el.textContent = (count ?? 0).toLocaleString();
   });
-  sb.from('annotations').select('id', { count: 'exact', head: true }).then(({ count }) => {
+  sb.from('change_log').select('id', { count: 'exact', head: true }).then(({ count }) => {
     const el = container.querySelector('#mob-stat-annotations');
     if (el) el.textContent = (count ?? 0).toLocaleString();
   });
@@ -548,7 +548,7 @@ function renderCommunityColumn(container) {
         <div id="community-user-count" style="font-size:26px;font-weight:700;font-family:'DM Mono',monospace;color:#111;line-height:1;">—</div>
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Annotations over time</div>
+        <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Activity over time</div>
         <div id="community-sparkline">
           <div style="height:32px;background:#f9fafb;border-radius:3px;"></div>
         </div>
@@ -670,22 +670,22 @@ async function loadCommunityStats(container) {
       }
     }
 
-    const { data: annRows } = await sb
-      .from('annotations')
-      .select('created_at')
-      .order('created_at', { ascending: true });
+    const { data: changeRows } = await sb
+      .from('change_log')
+      .select('changed_at')
+      .order('changed_at', { ascending: true });
 
     const sparklineEl = container.querySelector('#community-sparkline');
     if (!sparklineEl) return;
 
-    if (!annRows?.length) {
-      sparklineEl.innerHTML = `<div style="font-size:11px;color:#e5e7eb;padding:8px 0;text-align:center;">No annotations yet</div>`;
+    if (!changeRows?.length) {
+      sparklineEl.innerHTML = `<div style="font-size:11px;color:#e5e7eb;padding:8px 0;text-align:center;">No activity yet</div>`;
       return;
     }
 
     const monthMap = {};
-    annRows.forEach(row => {
-      const d = new Date(row.created_at);
+    changeRows.forEach(row => {
+      const d = new Date(row.changed_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthMap[key] = (monthMap[key] || 0) + 1;
     });
@@ -726,8 +726,9 @@ async function loadTopContributors(container) {
 
   try {
     const { data } = await sb
-      .from('annotations')
-      .select('user_id');
+      .from('change_log')
+      .select('changed_by')
+      .not('changed_by', 'is', null);
 
     if (!data?.length) {
       el.innerHTML = `<div style="font-size:11px;color:#d1d5db;">No contributions yet</div>`;
@@ -736,7 +737,7 @@ async function loadTopContributors(container) {
 
     const counts = {};
     data.forEach(row => {
-      counts[row.user_id] = (counts[row.user_id] || 0) + 1;
+      counts[row.changed_by] = (counts[row.changed_by] || 0) + 1;
     });
     const top3 = Object.entries(counts)
       .sort(([, a], [, b]) => b - a)
@@ -777,9 +778,9 @@ async function loadActivityFeed(container) {
 
   try {
     const { data } = await sb
-      .from('site_updates')
-      .select('id, title, created_at')
-      .order('created_at', { ascending: false })
+      .from('change_log')
+      .select('entity_type, action, changed_at, changed_by')
+      .order('changed_at', { ascending: false })
       .limit(10);
 
     if (!data?.length) {
@@ -797,9 +798,22 @@ async function loadActivityFeed(container) {
       return `${d} days ago`;
     }
 
-    const lines = data.map(u =>
-      `${esc(u.title)} <span style="color:#bbb">· ${relativeTime(u.created_at)}</span>`
-    );
+    const userIds = [...new Set(data.map(u => u.changed_by).filter(Boolean))];
+    const { data: users } = userIds.length
+      ? await sb.from('users').select('id, display_name').in('id', userIds)
+      : { data: [] };
+    const nameById = {};
+    (users ?? []).forEach(u => { nameById[u.id] = u.display_name; });
+
+    const ACTION_VERBS = { insert: 'added a', update: 'updated a', delete: 'removed a' };
+    const ENTITY_LABELS = { gene: 'gene', mutant: 'mutant', mutant_phenotype: 'phenotype', structure: 'structure' };
+
+    const lines = data.map(u => {
+      const who = u.changed_by ? (nameById[u.changed_by] || 'Someone') : 'A script';
+      const verb = ACTION_VERBS[u.action] ?? 'changed a';
+      const noun = ENTITY_LABELS[u.entity_type] ?? u.entity_type;
+      return `${esc(who)} ${verb} ${esc(noun)} <span style="color:#bbb">· ${relativeTime(u.changed_at)}</span>`;
+    });
 
     let i = 0;
     el.innerHTML = lines[0];
