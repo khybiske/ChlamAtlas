@@ -1,6 +1,6 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../client.js?v=83';
-import { isMobileViewport } from '../app.js?v=114';
+import { isMobileViewport } from '../app.js?v=115';
 
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -731,22 +731,17 @@ async function loadTopContributors(container) {
     }
 
     const counts = {};
+    const userMap = {};
     data.forEach(row => {
       counts[row.changed_by] = (counts[row.changed_by] || 0) + 1;
+      if (!userMap[row.changed_by]) {
+        userMap[row.changed_by] = { display_name: row.changed_by_name, lab_affiliation: row.changed_by_lab };
+      }
     });
     const top3 = Object.entries(counts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
       .map(([userId, count]) => ({ userId, count }));
-
-    const ids = top3.map(t => t.userId);
-    const { data: users } = await sb
-      .from('users')
-      .select('id, display_name, lab_affiliation')
-      .in('id', ids);
-
-    const userMap = {};
-    (users || []).forEach(u => { userMap[u.id] = u; });
 
     const medals = ['🥇', '🥈', '🥉'];
     el.innerHTML = top3.map((t, i) => {
@@ -790,18 +785,11 @@ async function loadActivityFeed(container) {
       return `${d} days ago`;
     }
 
-    const userIds = [...new Set(data.map(u => u.changed_by).filter(Boolean))];
-    const { data: users } = userIds.length
-      ? await sb.from('users').select('id, display_name').in('id', userIds)
-      : { data: [] };
-    const nameById = {};
-    (users ?? []).forEach(u => { nameById[u.id] = u.display_name; });
-
     const ACTION_VERBS = { insert: 'added a', update: 'updated a', delete: 'removed a' };
     const ENTITY_LABELS = { gene: 'gene', mutant: 'mutant', mutant_phenotype: 'phenotype', structure: 'structure' };
 
     const lines = data.map(u => {
-      const who = u.changed_by ? (nameById[u.changed_by] || 'Someone') : 'A script';
+      const who = u.changed_by ? (u.changed_by_name || 'Someone') : 'A script';
       const verb = ACTION_VERBS[u.action] ?? 'changed a';
       const noun = ENTITY_LABELS[u.entity_type] ?? u.entity_type;
       return `${esc(who)} ${verb} ${esc(noun)} <span style="color:#bbb">· ${relativeTime(u.changed_at)}</span>`;

@@ -1,7 +1,7 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, pushMobileDetail, onMobScroll, copyShareLink } from '../app.js?v=114';
-import { openHistoryPanel } from './history-panel.js?v=1';
+import { isMobileViewport, pushMobileDetail, onMobScroll, copyShareLink } from '../app.js?v=115';
+import { openHistoryPanel } from './history-panel.js?v=2';
 
 const COLLECTIONS = [
   { id: 'CT_L2',    label: 'C. trachomatis', icon: '/design/icons_transparent/L2icon_transparent.png' },

@@ -50,7 +50,7 @@ const _userCache = new Map();
 async function resolveUsers(ids) {
   const unresolved = [...new Set(ids)].filter(id => id && !_userCache.has(id));
   if (!unresolved.length) return;
-  const { data } = await sb.from('users').select('id, display_name, lab_affiliation').in('id', unresolved);
+  const { data } = await sb.rpc('public_user_names', { ids: unresolved });
   (data ?? []).forEach(u => _userCache.set(u.id, u));
 }
 
@@ -136,7 +136,7 @@ export async function openHistoryPanel(entityType, entityId) {
           <div style="font-size:10px;color:#bbb;flex-shrink:0;">${relativeTime(row.changed_at)}</div>
         </div>
         ${diffHtml}
-        ${isAdmin && row.old_data ? `
+        ${isAdmin && row.old_data && row.action !== 'delete' ? `
           <button class="history-revert-btn" data-log-id="${row.id}"
             style="margin-top:6px;font-size:10px;font-weight:600;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:3px 8px;cursor:pointer;">
             Revert this change
