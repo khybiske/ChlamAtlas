@@ -911,6 +911,10 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
             style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           </button>
+          ${state.user ? `<button class="mob-history-btn" aria-label="View history"
+            style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          </button>` : ''}
         </div>
       </div>
       <div class="mob-tags-row" style="padding:8px 16px 0;flex-wrap:wrap;">
@@ -998,6 +1002,12 @@ function _renderMutantDetailMobileHTML(m, genes, phenos, pipe, scroll) {
   scroll.querySelector('.mob-share-btn')?.addEventListener('click', e => {
     e.stopPropagation();
     copyShareLink(e.currentTarget);
+  });
+
+  // History button
+  scroll.querySelector('.mob-history-btn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    openHistoryPanel('mutant', m.id);
   });
 
   // Targeted gene row navigation
