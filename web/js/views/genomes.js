@@ -1,6 +1,7 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
 import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=114';
+import { openHistoryPanel } from './history-panel.js?v=1';
 
 const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -3296,6 +3297,11 @@ function showGeneDetailDesktop(gene, container) {
             title="Copy link to this gene">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           </button>
+          ${state.user ? `<button id="detail-history-btn"
+            style="background:none;border:none;cursor:pointer;color:#9ca3af;padding:0;flex-shrink:0;"
+            title="View history">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          </button>` : ''}
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
@@ -3376,6 +3382,10 @@ function showGeneDetailDesktop(gene, container) {
   // Wire share button — copies the current (already deep-linked) URL
   const shareBtn = detail.querySelector('#detail-share-btn');
   if (shareBtn) shareBtn.addEventListener('click', () => copyShareLink(shareBtn));
+
+  // Wire history button
+  const historyBtn = detail.querySelector('#detail-history-btn');
+  if (historyBtn) historyBtn.addEventListener('click', () => openHistoryPanel('gene', gene.id));
 
   // Wire edit button — hidden by default, shown after session confirmed
   const editBtn = detail.querySelector('#detail-edit-btn');
