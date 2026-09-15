@@ -62,7 +62,11 @@ begin
 
   -- Privacy gating: mutants/phenotypes only tracked once published.
   if v_entity_type = 'mutant' then
-    if TG_OP = 'DELETE' then
+    if TG_OP = 'INSERT' then
+      if not coalesce(NEW.is_published, false) then
+        return coalesce(NEW, OLD);
+      end if;
+    elsif TG_OP = 'DELETE' then
       if not coalesce(OLD.is_published, false) then
         return coalesce(NEW, OLD);
       end if;
