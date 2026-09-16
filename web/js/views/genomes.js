@@ -1,6 +1,7 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=114';
+import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=115';
+import { openHistoryPanel } from './history-panel.js?v=2';
 
 const STRAINS = [
   { id: 'CT-L2', label: '<i>C. trachomatis</i> L2/434', species: '<i>C. trachomatis</i>', strainName: 'L2/434', icon: '/design/icons_transparent/L2icon_transparent.png' },
@@ -3296,6 +3297,11 @@ function showGeneDetailDesktop(gene, container) {
             title="Copy link to this gene">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           </button>
+          ${state.user ? `<button id="detail-history-btn"
+            style="background:none;border:none;cursor:pointer;color:#9ca3af;padding:0;flex-shrink:0;"
+            title="View history">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          </button>` : ''}
         </div>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
@@ -3376,6 +3382,10 @@ function showGeneDetailDesktop(gene, container) {
   // Wire share button — copies the current (already deep-linked) URL
   const shareBtn = detail.querySelector('#detail-share-btn');
   if (shareBtn) shareBtn.addEventListener('click', () => copyShareLink(shareBtn));
+
+  // Wire history button
+  const historyBtn = detail.querySelector('#detail-history-btn');
+  if (historyBtn) historyBtn.addEventListener('click', () => openHistoryPanel('gene', gene.id));
 
   // Wire edit button — hidden by default, shown after session confirmed
   const editBtn = detail.querySelector('#detail-edit-btn');
@@ -3461,6 +3471,10 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
             style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           </button>
+          ${state.user ? `<button class="mob-history-btn" aria-label="View history"
+            style="background:none;border:none;padding:8px 4px;cursor:pointer;color:var(--mob-ink-3);">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          </button>` : ''}
         </div>
       </div>
       <div class="mob-tags-row" style="padding:8px 16px 0;flex-wrap:wrap;">
@@ -3580,6 +3594,12 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
   scroll.querySelector('.mob-share-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     copyShareLink(e.currentTarget);
+  });
+
+  // ── History ──
+  scroll.querySelector('.mob-history-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openHistoryPanel('gene', gene.id);
   });
 
   // ── Last updated footer ──
@@ -3808,7 +3828,7 @@ function _renderGeneDetailMobileHTML(gene, scroll) {
         mutEl.innerHTML = rows;
         mutEl.querySelectorAll('[data-mut-id]').forEach(row => {
           row.addEventListener('click', () => {
-            import('./mutants.js?v=101').then(({ _mobLoadMutantDetail }) => {
+            import('./mutants.js?v=102').then(({ _mobLoadMutantDetail }) => {
               _mobLoadMutantDetail(row.dataset.mutId);
             });
           });
@@ -4707,11 +4727,6 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
         }
       }
 
-      const allDiff = {
-        ...Object.fromEntries(Object.entries(geneDiff).map(([k, v])    => [`genes.${k}`, v])),
-        ...Object.fromEntries(Object.entries(proteinDiff).map(([k, v]) => [`proteins.${k}`, v])),
-      };
-
       // 2. PATCH genes
       let genesSaved = false;
       if (Object.keys(geneDiff).length > 0) {
@@ -4760,16 +4775,7 @@ function wireModalEvents(overlay, gene, protein, pdbRows, closeModal, detail, co
         if (pdbDelErr) throw pdbDelErr;
       }
 
-      // 6. INSERT audit log
-      if (Object.keys(allDiff).length > 0) {
-        await sb.from('gene_edit_log').insert({
-          gene_id:   gene.id,
-          editor_id: state.user.id,
-          changes:   allDiff,
-        });
-      }
-
-      // 7. Success — close modal and refresh detail
+      // 6. Success — close modal and refresh detail
       overlay.remove();
       document.removeEventListener('keydown', overlay._onEsc);
 
