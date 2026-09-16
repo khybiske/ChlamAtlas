@@ -14,7 +14,11 @@
 -- or any other users column.
 
 -- Extend the existing public feed (033) with resolved names, so the home
--- page's three widgets need no separate users lookup at all.
+-- page's three widgets need no separate users lookup at all. Postgres
+-- won't let CREATE OR REPLACE change a function's return columns, so the
+-- old two-column-narrower version (033) must be dropped first.
+drop function if exists public.change_log_public_feed();
+
 create or replace function public.change_log_public_feed()
 returns table (
   entity_type      text,
