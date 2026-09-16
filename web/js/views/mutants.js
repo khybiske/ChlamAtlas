@@ -1,6 +1,6 @@
 // ChlamAtlas — Mutants tab (full two-panel view)
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, pushMobileDetail, onMobScroll, copyShareLink } from '../app.js?v=115';
+import { isMobileViewport, pushMobileDetail, onMobScroll, copyShareLink } from '../app.js?v=116';
 import { openHistoryPanel } from './history-panel.js?v=2';
 
 const COLLECTIONS = [

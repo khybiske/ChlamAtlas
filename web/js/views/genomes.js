@@ -1,6 +1,6 @@
 // ChlamAtlas — Genomes tab
 import { sb, state, toggleFavoriteDB } from '../client.js?v=83';
-import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=115';
+import { isMobileViewport, onMobScroll, pushMobileDetail, copyShareLink } from '../app.js?v=116';
 import { openHistoryPanel } from './history-panel.js?v=2';
 
 const STRAINS = [
