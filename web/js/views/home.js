@@ -1,6 +1,6 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../client.js?v=83';
-import { isMobileViewport } from '../app.js?v=115';
+import { isMobileViewport } from '../app.js?v=116';
 
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -686,9 +686,20 @@ async function loadCommunityStats(container) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthMap[key] = (monthMap[key] || 0) + 1;
     });
-    const monthly = Object.entries(monthMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, count]) => ({ month: new Date(key + '-01'), count }));
+
+    // Always render a fixed trailing 6-month window, zero-filled for months
+    // with no activity — otherwise a single active month leaves only one
+    // bar, and renderSparkline's viewBox (sized to fit however many bars
+    // exist) gets stretched full-width by preserveAspectRatio="none",
+    // blowing up that one skinny bar into a giant rectangle.
+    const monthly = [];
+    const cursor = new Date();
+    cursor.setDate(1);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthly.push({ month: d, count: monthMap[key] || 0 });
+    }
 
     sparklineEl.innerHTML = renderSparkline(monthly);
   } catch (err) {
