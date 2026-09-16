@@ -1,6 +1,6 @@
 // ChlamAtlas — Home tab
 import { sb, state } from '../client.js?v=83';
-import { isMobileViewport } from '../app.js?v=115';
+import { isMobileViewport } from '../app.js?v=117';
 
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -543,7 +543,7 @@ function renderCommunityColumn(container) {
     <!-- Stats panel: Users + Annotation sparkline -->
     <div style="background:white;border:1px solid #e5e7eb;border-radius:7px;padding:12px 14px;
                 display:flex;align-items:center;gap:0;margin-bottom:10px;">
-      <div style="flex:0 0 auto;padding-right:16px;border-right:1px solid #f3f4f6;margin-right:16px;">
+      <div style="flex:0 0 auto;padding-right:16px;border-right:1px solid #f3f4f6;margin-right:16px;text-align:center;">
         <div style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Users</div>
         <div id="community-user-count" style="font-size:26px;font-weight:700;font-family:'DM Mono',monospace;color:#111;line-height:1;">—</div>
       </div>
@@ -686,9 +686,20 @@ async function loadCommunityStats(container) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthMap[key] = (monthMap[key] || 0) + 1;
     });
-    const monthly = Object.entries(monthMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, count]) => ({ month: new Date(key + '-01'), count }));
+
+    // Always render a fixed trailing 6-month window, zero-filled for months
+    // with no activity — otherwise a single active month leaves only one
+    // bar, and renderSparkline's viewBox (sized to fit however many bars
+    // exist) gets stretched full-width by preserveAspectRatio="none",
+    // blowing up that one skinny bar into a giant rectangle.
+    const monthly = [];
+    const cursor = new Date();
+    cursor.setDate(1);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthly.push({ month: d, count: monthMap[key] || 0 });
+    }
 
     sparklineEl.innerHTML = renderSparkline(monthly);
   } catch (err) {
@@ -697,7 +708,10 @@ async function loadCommunityStats(container) {
 }
 
 function renderSparkline(monthly) {
-  const BAR_W = 8, GAP = 6, MAX_H = 28, LABEL_H = 8;
+  // monthly is always a fixed 6-month trailing window (see loadCommunityStats) —
+  // never grows over time, so it's safe to size labels for legibility rather
+  // than for an unbounded number of columns.
+  const BAR_W = 8, GAP = 6, MAX_H = 28, LABEL_H = 11;
   const H = MAX_H + LABEL_H;
   const maxVal = Math.max(...monthly.map(d => d.count), 1);
   const W = monthly.length * (BAR_W + GAP) - GAP;
@@ -711,7 +725,7 @@ function renderSparkline(monthly) {
     const ci = Math.round((i / Math.max(monthly.length - 1, 1)) * (COLORS.length - 1));
     const label = INITIALS[d.month.getMonth()];
     return `<rect x="${x}" y="${y}" width="${BAR_W}" height="${h}" fill="${COLORS[ci]}" rx="1"/>
-            <text x="${x + BAR_W / 2}" y="${H}" font-size="4.5" fill="#d1d5db" text-anchor="middle" font-family="monospace">${label}</text>`;
+            <text x="${x + BAR_W / 2}" y="${H - 1}" font-size="7" fill="#9ca3af" text-anchor="middle" font-family="monospace">${label}</text>`;
   }).join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;" preserveAspectRatio="none">${bars}</svg>`;
