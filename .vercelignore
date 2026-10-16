@@ -1,5 +1,5 @@
 # Keep Vercel deployments small (free tier caps total deployment storage at 10 GB).
-# The live site only serves web/ and design/icons_transparent/ from Vercel;
+# The live site only serves web/ and design/ from Vercel;
 # structure thumbnails and mmCIF files load from raw.githubusercontent.com / EBI,
 # so the large asset folders below never need to be uploaded with a deployment.
 /AFmodels/
@@ -16,6 +16,5 @@
 /images/
 /process_af3_batch.py
 
-# design/ is only needed for the transparent strain icons
-/design/*
-!/design/icons_transparent/
+# Note: patterns must stay root-anchored (leading /) — an unanchored 'data/'
+# also matches web/data. Avoid '!' negation rules; Vercel didn't honor them.
