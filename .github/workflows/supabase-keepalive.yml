@@ -2,8 +2,9 @@ name: Supabase Keep-Alive
 
 on:
   schedule:
-    # Every Monday at 09:00 UTC
-    - cron: '0 9 * * 1'
+    # Mon/Wed/Fri at 09:17 UTC. Supabase pauses free projects after 7 idle days
+    # and GitHub can start scheduled runs hours late, so a weekly run isn't enough.
+    - cron: '17 9 * * 1,3,5'
   workflow_dispatch: # allow manual trigger
 
 jobs:
