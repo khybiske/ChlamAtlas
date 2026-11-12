@@ -1,63 +1,39 @@
-# macOS
+# OS / editor
 .DS_Store
 .AppleDouble
 .LSOverride
 
-# Node (for when we add frontend tooling)
+# Dependencies and secrets
 node_modules/
 .env
 .env.local
 .env.*.local
-*.env
 
-# Python bytecode
-__pycache__/
-*.pyc
-
-# Vercel
+# Deployment
 .vercel
 
-# Git worktrees
-.worktrees/
-
-# Claude Code tool directories (not part of the app)
+# Local developer tooling and internal notes
 .claude/
-.superpowers/
-claude_design/
+CLAUDE.md
+/docs/
 supabase/.temp/
-docs/superpowers/
 
-# Internal working files
-TODO.md
-appsheet screenshots/
-appsheet desktop screenshots/
-rainbowfig.png
+# Large or regenerable data (rebuilt by the scripts in data/)
 data/csv/
+data/thumbnail_failures.txt
 data/blast/fasta/
 data/blast/db/
 data/blast/hits/
-data/phylogeny/genomes.fasta
-data/phylogeny/aligned.fasta
-data/phylogeny/aligned.fasta.log
-data/phylogeny/aligned.fasta.insertions.csv
-data/phylogeny/aligned-delim*
-data/phylogeny/tree_raw.nwk
-data/phylogeny/tree.nwk
-data/phylogeny/branch_lengths.json
-data/phylogeny/genomes_v2.fasta
-data/phylogeny/metadata_v2.tsv
-data/phylogeny/aligned_v2.fasta
-data/phylogeny/aligned_v2.fasta.log
-data/phylogeny/aligned_v2.fasta.insertions.csv
-data/phylogeny/aligned_v2-delim*
-data/phylogeny/tree_v2_raw.nwk
-data/phylogeny/tree_v2.nwk
-data/phylogeny/branch_lengths_v2.json
 /genomes/
-docs/superpowers/
-docs/mockups/
-docs/af3_curriculum_handoff.md
+data/phylogeny/*.fasta
+data/phylogeny/*.fasta.log
+data/phylogeny/*.insertions.csv
+data/phylogeny/aligned-delim*
+data/phylogeny/aligned_v2-delim*
+data/phylogeny/tree*.nwk
+data/phylogeny/branch_lengths*.json
+data/phylogeny/metadata_v2.tsv
 
-# auspice.us vendor build (tools/auspice-us-vendor/package-lock.json IS committed)
-tools/auspice-us-vendor/node_modules/
-tools/auspice-us-vendor/dist/
+# Phylogeny viewer build output (package-lock.json is committed)
+data/phylogeny/auspice-us-vendor/node_modules/
+data/phylogeny/auspice-us-vendor/dist/
