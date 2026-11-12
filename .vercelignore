@@ -7,14 +7,12 @@
 /structures/
 /backgrounds/
 /data/
-/docs/
-/schema/
+/images/
 /scripts/
 /supabase/
-/tools/
-/jaxson_project/
-/images/
-/process_af3_batch.py
+/.claude/
+/CLAUDE.md
+/docs/
 
 # Note: patterns must stay root-anchored (leading /) — an unanchored 'data/'
 # also matches web/data. Avoid '!' negation rules; Vercel didn't honor them.

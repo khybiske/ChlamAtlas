@@ -113,7 +113,7 @@ async function main() {
   const { data: strainRow, error: strainErr } = await supabase
     .from('strains').select('id, common_name').eq('common_name', strain).single();
   if (strainErr || !strainRow) {
-    console.error(`Strain "${strain}" not found. Create it first (see schema/migrations/030_add_cpn_strain.sql for the pattern).`);
+    console.error(`Strain "${strain}" not found. Create it first (see supabase/schema/migrations/030_add_cpn_strain.sql for the pattern).`);
     process.exit(1);
   }
   console.log(`  Found strain_id: ${strainRow.id}`);

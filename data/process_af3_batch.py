@@ -11,13 +11,13 @@ AlphaFold Server exports them), this script:
 
 Usage:
     # Dry run — parses files and prints what WOULD happen. No git, no database.
-    python3 process_af3_batch.py --dry-run "/path/to/AF3 models/DUW3"
+    python3 data/process_af3_batch.py --dry-run "/path/to/AF3 models/DUW3"
 
     # Real run — needs SUPABASE_SERVICE_KEY in a .env file in this repo.
-    python3 process_af3_batch.py "/path/to/AF3 models/DUW3"
+    python3 data/process_af3_batch.py "/path/to/AF3 models/DUW3"
 
     # Only process the first N proteins (good for a quick sanity check):
-    python3 process_af3_batch.py --limit 5 "/path/to/AF3 models/DUW3"
+    python3 data/process_af3_batch.py --limit 5 "/path/to/AF3 models/DUW3"
 
 Safety: this script refuses to run while your repo is checked out on `main`.
 `main` is protected — GitHub will reject pushes to it directly. Do your work
@@ -34,7 +34,7 @@ from dotenv import load_dotenv
 # This script lives at the root of the ChlamAtlas repo, so its own folder
 # location IS the repo — no need to hardcode a path that only works on one
 # computer.
-REPO_DIR = Path(__file__).resolve().parent
+REPO_DIR = Path(__file__).resolve().parents[1]
 ENV_FILE = REPO_DIR / ".env"
 
 SUPABASE_URL = "https://ihobumwetoidqioifknt.supabase.co"  # not secret

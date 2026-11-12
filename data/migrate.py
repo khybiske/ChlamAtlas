@@ -6,7 +6,7 @@ Usage:
     pip install supabase pandas
     export SUPABASE_URL="https://your-project.supabase.co"
     export SUPABASE_SERVICE_KEY="your-service-role-key"   # NOT the anon key
-    python scripts/migrate.py
+    python data/migrate.py
 
 The service role key bypasses RLS so we can insert everything regardless of
 is_published status. Never expose the service key client-side.
@@ -22,7 +22,7 @@ from supabase import create_client, Client
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")  # service role key
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "csv")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "csv")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/khybiske/ChlamAtlas/refs/heads/main"
 

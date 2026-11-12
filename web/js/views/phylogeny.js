@@ -5,7 +5,7 @@
 // docs/superpowers/specs/2026-07-03-phylogeny-real-tree-design.md for why
 // (no data sent to any Nextstrain-owned server). Two datasets share one
 // vendored build, selected via sessionStorage (set on this parent page,
-// read by tools/auspice-us-vendor/auspice_client_customisation/splash.js
+// read by data/phylogeny/auspice-us-vendor/auspice_client_customisation/splash.js
 // inside the iframe) rather than a URL query string — the vendored app's
 // own client-side router strips the iframe's query string before splash.js
 // gets a chance to read it, so the query string approach silently failed:
