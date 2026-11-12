@@ -1,26 +1,19 @@
 {
   "name": "chlamatlas",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "private": true,
+  "description": "ChlamAtlas: an integrated genomic, structural, and mutant resource for Chlamydia research",
+  "homepage": "https://chlamatlas.org",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/khybiske/ChlamAtlas.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/khybiske/ChlamAtlas/issues"
   },
-  "homepage": "https://github.com/khybiske/ChlamAtlas#readme",
+  "author": "Hybiske Lab, University of Washington",
+  "license": "MIT",
+  "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
     "csv-parse": "^6.2.1"
