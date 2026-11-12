@@ -7,7 +7,7 @@ from supabase import create_client
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "csv")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "csv")
 
 STRAIN_CONFIG = {
     "CT-D":  "ChlamDB - Genes_D.csv",

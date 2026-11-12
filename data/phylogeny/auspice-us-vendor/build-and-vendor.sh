@@ -18,11 +18,11 @@ cd "$(dirname "$0")"
 npm install
 npm run build
 
-rm -rf ../../web/vendor/auspice-us
-mkdir -p ../../web/vendor/auspice-us
-cp -r dist ../../web/vendor/auspice-us/dist
-sed 's#/dist/#/web/vendor/auspice-us/dist/#g' index.html > ../../web/vendor/auspice-us/index.html
-find ../../web/vendor/auspice-us/dist -name '*.js' -exec sed -i '' 's#"/dist/"#"/web/vendor/auspice-us/dist/"#g' {} +
+rm -rf ../../../web/vendor/auspice-us
+mkdir -p ../../../web/vendor/auspice-us
+cp -r dist ../../../web/vendor/auspice-us/dist
+sed 's#/dist/#/web/vendor/auspice-us/dist/#g' index.html > ../../../web/vendor/auspice-us/index.html
+find ../../../web/vendor/auspice-us/dist -name '*.js' -exec sed -i '' 's#"/dist/"#"/web/vendor/auspice-us/dist/"#g' {} +
 
 # Auspice's client bundle ships with Nextstrain's own default Mapbox public
 # token baked in, used for the map panel's background tiles. We don't use
@@ -36,7 +36,7 @@ find ../../web/vendor/auspice-us/dist -name '*.js' -exec sed -i '' 's#"/dist/"#"
 # access_token=) rather than the literal token value, so this script's own
 # source never contains a plaintext, token-shaped substring that could
 # itself trip GitHub's secret scanning.
-find ../../web/vendor/auspice-us/dist -name '*.js' -exec sed -i '' \
+find ../../../web/vendor/auspice-us/dist -name '*.js' -exec sed -i '' \
   's#access_token=pk\.[A-Za-z0-9_.-]*#access_token=pk.disabled#g' {} +
 
 # Drop precompressed .br/.gz siblings: they're a stale binary snapshot of
@@ -46,6 +46,6 @@ find ../../web/vendor/auspice-us/dist -name '*.js' -exec sed -i '' \
 # performance-only, and most static hosts (including Vercel) compress on
 # the fly anyway. Deleting them here means any future patch added to this
 # script can never leave a stale/corrupted compressed artifact behind.
-find ../../web/vendor/auspice-us/dist -name '*.br' -o -name '*.gz' | xargs rm -f
+find ../../../web/vendor/auspice-us/dist -name '*.br' -o -name '*.gz' | xargs rm -f
 
 echo "Built and vendored to web/vendor/auspice-us/"
